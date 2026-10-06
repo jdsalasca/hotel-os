@@ -1,46 +1,62 @@
 package co.hotel.reservas;
 
-import java.util.*;
-import org.springframework.http.*;
-import org.springframework.jdbc.core.JdbcTemplate;
+import java.time.LocalDate;
+import java.util.Map;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/** Controller HTTP. Solo traduce HTTP <-> dominio; las reglas viven en {@link ReservaService}. */
 @RestController
 public class ReservaController {
-  private final String jdbcUrl;
-  private final ReservaRepository repo;
-  private final JdbcTemplate jdbc;
-  public ReservaController(String jdbcUrl, ReservaRepository repo, JdbcTemplate jdbc) {
-    this.jdbcUrl = jdbcUrl; this.repo = repo; this.jdbc = jdbc;
+  private final ReservaService svc;
+  private final RoomSelector rooms;
+
+  public ReservaController(ReservaService svc, RoomSelector rooms) {
+    this.svc = svc;
+    this.rooms = rooms;
   }
 
-  public record CrearReq(String email, String nombre, String llegada, String salida, Integer huespedes, String origen, String idempotencia, Long roomId) {}
+  /** Contrato de entrada del flujo público. El cliente envía ISO-8601 (YYYY-MM-DD). */
+  public record CrearReq(String email, String nombre, String llegada, String salida,
+                         Integer huespedes, Long roomId, String origen, String idempotencia) {}
 
-  @GetMapping("/api/health") public Map<String, String> health() { return Map.of("status", "ok"); }
+  /** Respuesta pública. No expone datos internos ni datos de pago. */
+  public record ReservaResp(String codigo, String email, String nombre, String llegada, String salida,
+                            int huespedes, String estado, String origen, String mensaje) {
+    static ReservaResp de(Reserva r, String mensaje) {
+      return new ReservaResp(r.codigo(), r.email(), r.nombre(), r.llegada().toString(), r.salida().toString(),
+        r.huespedes(), r.estado().name(), r.origen().name(), mensaje);
+    }
+  }
 
   @PostMapping("/api/reservas")
-  public ResponseEntity<?> crear(@RequestBody CrearReq req, @RequestHeader(value = "Idempotency-Key", required = false) String key) {
+  public ResponseEntity<?> crear(@RequestBody CrearReq req,
+                                 @RequestHeader(value = "Idempotency-Key", required = false) String claveCabecera) {
+    String clave = (claveCabecera != null && !claveCabecera.isBlank()) ? claveCabecera : req.idempotencia();
+    Long habitacion = req.roomId() != null ? req.roomId() : rooms.primeraDisponible(
+      LocalDate.parse(req.llegada()), LocalDate.parse(req.salida()));
     try {
-      String idem = (key != null && !key.isBlank()) ? key : req.idempotencia();
-      Long roomId = req.roomId() != null ? req.roomId() : jdbc.queryForObject("SELECT id FROM rooms ORDER BY id LIMIT 1", Long.class);
-      String codigo = new ReservaService(jdbcUrl).crear(req.email(), req.nombre(), req.llegada(), req.salida(), req.huespedes() == null ? 0 : req.huespedes(), req.origen(), idem, roomId);
-      var r = repo.porCodigo(codigo);
-      return ResponseEntity.status(201).body(Map.of("codigo", codigo, "estado", r.get("estado"), "mensaje", "pendiente de confirmación (sin pago/confirmación automática configurada)"));
-    } catch (IllegalArgumentException e) {
+      var datos = new CrearReserva(req.email(), req.nombre(), LocalDate.parse(req.llegada()),
+        LocalDate.parse(req.salida()), req.huespedes() == null ? 0 : req.huespedes(),
+        Origen.WEB, clave, habitacion);
+      String codigo = svc.crear(datos);
+      return ResponseEntity.status(201).body(ReservaResp.de(svc.buscar(codigo).orElseThrow(),
+        "Reserva registrada. Queda pendiente de confirmación: el hotel aún no ha configurado pago ni "
+          + "confirmación automática."));
+    } catch (DatosInvalidosException e) {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-    } catch (IllegalStateException e) {
+    } catch (SinDisponibilidadException e) {
       return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     }
   }
 
+  /** Consulta segura: exige el correo con el que se reservó. */
   @GetMapping("/api/reservas/{codigo}")
-  public ResponseEntity<?> una(@PathVariable String codigo, @RequestParam String email) {
-    var r = repo.porCodigo(codigo);
-    if (r == null || !email.equalsIgnoreCase((String) r.get("email")))
+  public ResponseEntity<?> consultar(@PathVariable String codigo, @RequestParam String email) {
+    var reserva = svc.consultar(codigo, email);
+    if (reserva.isEmpty()) {
       return ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada"));
-    return ResponseEntity.ok(r);
+    }
+    return ResponseEntity.ok(ReservaResp.de(reserva.get(), null));
   }
-
-  @GetMapping("/api/admin/reservas")
-  public List<Map<String, Object>> admin(@RequestParam(defaultValue = "50") int limit) { return repo.listar(limit); }
 }

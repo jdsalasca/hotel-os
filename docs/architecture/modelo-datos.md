@@ -1,23 +1,58 @@
-# Modelo de datos V1 (SQLite, intervalos inequívocos)
-Fechas como TEXT ISO `YYYY-MM-DD` (noche: [llegada, salida) ). Horas check-in/out configurables, no inventadas.
+# Modelo de datos (SQLite, intervalos inequívocos)
+
+Esquema real: `apps/api/src/main/resources/db/migration/V1__esquema_base.sql`.
+Este documento **describe lo que existe**; lo previsto va marcado como pendiente.
+
+Fechas como TEXT ISO `YYYY-MM-DD`. Intervalos **semiabiertos** `[desde, hasta)`: la fecha de salida
+no ocupa noche, y una reserva que termina el día 5 no bloquea otra que empieza el día 5.
+
+## Implementado (V1)
 
 ```sql
-hotel_config(clave TEXT PK, valor TEXT) -- nombre, moneda, impuestos, políticas: todo configurable, sin defaults inventados
-users(id INTEGER PK, email TEXT UNIQUE, hash TEXT, rol TEXT, activo INTEGER, creado_en TEXT)
-room_types(id INTEGER PK, codigo TEXT UNIQUE, nombre TEXT, capacidad_max INTEGER, descripcion TEXT)
-rooms(id INTEGER PK, codigo TEXT UNIQUE, room_type_id FK, piso TEXT, estado TEXT) -- estado: ACTIVA/MANTENIMIENTO
-rate_plans(id INTEGER PK, codigo TEXT UNIQUE, nombre TEXT, moneda TEXT)
-rates(id INTEGER PK, rate_plan_id FK, room_type_id FK, fecha TEXT, precio_cents INTEGER, min_estancia INTEGER, max_estancia INTEGER, cerrado INTEGER, UNIQUE(rate_plan_id,room_type_id,fecha))
-blocks(id INTEGER PK, room_id FK NULL, room_type_id FK NULL, desde TEXT, hasta TEXT, motivo TEXT) -- mantenimiento/indisponibilidad [desde,hasta)
-channels(codigo TEXT PK, nombre TEXT, tipo TEXT) -- WEB, BOOKING, DESPEGAR, AIRBNB, OTRO
-channel_mappings(id INTEGER PK, channel_codigo FK, room_type_id FK NULL, room_id FK NULL, rate_plan_id FK NULL, external_id TEXT, UNIQUE(channel_codigo,external_id))
-reservations(id INTEGER PK, codigo TEXT UNIQUE, email TEXT, nombre TEXT, llegada TEXT, salida TEXT, huespedes INTEGER, estado TEXT, origen TEXT, idempotencia TEXT UNIQUE, total_cents INTEGER NULL, creado_en TEXT)
-reservation_items(id INTEGER PK, reservation_id FK, room_id FK, room_type_id FK, desde TEXT, hasta TEXT)
-reservation_history(id INTEGER PK, reservation_id FK, estado_ant TEXT, estado_nuevo TEXT, actor TEXT, en TEXT)
-ota_syncs(id INTEGER PK, channel_codigo FK, operacion TEXT, resultado TEXT, detalle TEXT, en TEXT) -- sin secretos ni PII innecesaria
-indicators(def TEXT PK, formula TEXT, fuente TEXT, periodo TEXT, unidad TEXT, base TEXT NULL, meta TEXT NULL, responsable TEXT NULL)
-indicator_results(id INTEGER PK, def FK, periodo TEXT, valor TEXT NULL, faltante INTEGER) -- faltante=1 distingue dato faltante de cero
-audit(id INTEGER PK, actor TEXT, accion TEXT, entidad TEXT, en TEXT)
+hotel_config(clave PK, valor, actualizado_en)              -- nombre, moneda, impuestos, políticas: nada inventado
+room_types(id PK, codigo UNIQUE, nombre, capacidad_max)     -- CHECK capacidad_max > 0
+rooms(id PK, codigo UNIQUE, room_type_id FK, estado, nombre) -- estado: ACTIVA | MANTENIMIENTO | FUERA_DE_SERVICIO
+users(id PK, email UNIQUE, hash, rol, activo, creado_en)    -- rol: ADMIN | STAFF
+reservations(id PK, codigo UNIQUE, email, nombre, llegada, salida, huespedes, estado, origen,
+             idempotencia UNIQUE, creado_en)                -- CHECK llegada < salida
+reservation_items(id PK, reservation_id FK, room_id FK, desde, hasta)
+reservation_history(id PK, reservation_id FK, estado_ant, estado_nuevo, actor, en)
+blocks(id PK, room_id FK NULL, desde, hasta, motivo)        -- mantenimiento / indisponibilidad
 ```
 
-Regla anti-doble-reserva (transaccional): para cada `room_id` en [llegada,salida), no debe existir `reservation_items` vigente ni `blocks` que solape (`nuevo.llegada < existente.hasta AND existente.desde < nuevo.salida`). Se valida en transacción de escritura única. Cancelaciones liberan según reglas configuradas. Ver `apps/api/src/main/resources/db/migration/V1__init.sql`.
+Índices para las consultas que decides: `reservation_items(room_id, desde, hasta)`,
+`reservations(llegada, estado)`, `blocks(room_id, desde, hasta)`.
+
+Enums validados con `CHECK` en el esquema: `reservations.estado ∈ {PENDIENTE, CONFIRMADA, CANCELADA,
+RECHAZADA}` y `reservations.origen ∈ {WEB, BOOKING, DESPEGAR, AIRBNB, OTRO}`. Un origen desconocido se
+rechaza en vez de convertirse en silencio en "OTRO".
+
+`reservation_history` se escribe **dentro de la misma transacción** del cambio de estado: si la
+auditoría falla, la operación falla.
+
+## Regla anti-doble-reserva
+
+Para un `room_id` y el intervalo pedido, no debe existir una línea de reserva vigente ni un bloqueo
+que solape:
+
+```sql
+ri.desde < :hasta AND :llegada < ri.hasta     -- reserva vigente (PENDIENTE o CONFIRMADA)
+b.desde  < :hasta AND :llegada < b.hasta     -- bloqueo (por habitación o global, room_id NULL)
+```
+
+Se evalúa dentro de una transacción `IMMEDIATE`. Cancelar o rechazar deja de contar como vigente y
+libera el inventario para esas fechas.
+
+## Idempotencia
+
+`reservations.idempotencia` es `UNIQUE`. La clave viene de la cabecera `Idempotency-Key` o del
+cuerpo; si no llega, el servicio genera una. Repetir la misma clave devuelve el código existente sin
+crear una segunda reserva. La clave **no** evita el choque de inventario: dos huéspedes distintos con
+la misma habitación y fechas reciben 409.
+
+## Pendiente (no existe todavía)
+
+`rate_plans`, `rates` (tarifas y restricciones por fecha), `channels`, `channel_mappings` (mapeos
+habitación/tipo/plan ↔ unidad de cada OTA), `ota_syncs` (bitácora de sincronización),
+`indicators`, `indicator_results`, `audit`, `receipts`. Nada de esto está en el esquema actual: la
+pantalla de tarifas e indicadores no puede mostrar datos que no existan.

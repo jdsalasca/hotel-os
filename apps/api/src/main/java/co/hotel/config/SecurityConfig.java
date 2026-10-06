@@ -1,35 +1,46 @@
 package co.hotel.config;
 
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import javax.sql.DataSource;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
+/**
+ * Cadena de seguridad del panel.
+ *
+ * CSRF con cookie doble: React lee XSRF-TOKEN y lo reenvía en X-XSRF-TOKEN, así que la protección
+ * queda activa y el navegador puede operar. Desactivar CSRF "para que React funcione" abriría la
+ * escritura pública a cualquier sitio.
+ *
+ * El atributo de solicitud se pone a null a propósito: sin eso, Spring difiere la creación del
+ * token y, como ninguna vista del servidor lo lee, la cookie nunca se emite y todo POST del SPA
+ * responde 403. Es la configuración recomendada para clientes sin JSP.
+ */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-  // API stateless con Basic para admin; CSRF deshabilitado solo porque no hay cookies/sesión.
-  // Cuando el panel React use sesión con cookies (R5), se activará CookieCsrfTokenRepository. No se desactiva para facilitar, sino por stateless.
-  @Bean
-  SecurityFilterChain chain(HttpSecurity http) throws Exception {
-    http.csrf(c -> c.disable());
-    http.authorizeHttpRequests(a -> a
-      .requestMatchers("/api/health", "/api/reservas", "/api/reservas/**", "/api/admin/init").permitAll()
-      .requestMatchers("/api/admin/**").hasRole("ADMIN")
-      .anyRequest().denyAll());
-    http.httpBasic(b -> {});
-    return http.build();
-  }
 
   @Bean
-  UserDetailsService users(DataSource ds, PasswordEncoder enc) {
-    JdbcUserDetailsManager m = new JdbcUserDetailsManager(ds);
-    m.setUsersByUsernameQuery("SELECT email, hash, activo FROM users WHERE email=?");
-    m.setAuthoritiesByUsernameQuery("SELECT email, 'ROLE_' || rol FROM users WHERE email=?");
-    return m;
+  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    var csrfCookie = CookieCsrfTokenRepository.withHttpOnlyFalse();
+    csrfCookie.setCookiePath("/");
+
+    var atributoCsrf = new CsrfTokenRequestAttributeHandler();
+    atributoCsrf.setCsrfRequestAttributeName(null);
+
+    http.csrf(c -> c.csrfTokenRepository(csrfCookie).csrfTokenRequestHandler(atributoCsrf))
+      .sessionManagement(s -> s.sessionFixation().changeSessionId())
+      .authorizeHttpRequests(a -> a
+        .requestMatchers("/api/health", "/api/reservas", "/api/reservas/**").permitAll()
+        .requestMatchers("/api/admin/init", "/api/admin/login").permitAll()
+        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+        .anyRequest().denyAll())
+      .logout(l -> l.logoutUrl("/api/admin/logout").deleteCookies("JSESSIONID"))
+      .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) ->
+        res.sendError(401, "se requiere sesión administrativa")));
+    return http.build();
   }
 }

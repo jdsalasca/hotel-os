@@ -1,26 +1,68 @@
-# Integraciones OTA — estado real y requisitos (verificado 2026-10-06)
+# Integraciones OTA — estado real y requisitos
 
-> Nada simulado aparece como conectado. Sin credenciales, todo estado es `no configurado`. Para afirmar `conectado` se exige llamada autorizada + sandbox.
+Verificado contra la documentación oficial el **2026-10-06**. Actualizado en la ronda 3.
+
+> Principio: **nada simulado aparece como conectado**. Para afirmar `CONECTADO` hacen falta dos cosas
+> a la vez: credenciales del entorno **y** una llamada autorizada exitosa contra el proveedor.
+> Llenar campos no cambia el estado.
+
+## Estado en esta ronda
+
+| Canal | Estado | Bloqueo exacto |
+|---|---|---|
+| Booking.com | `NO_CONFIGURADO` | Falta ser Connectivity Partner + credenciales de máquina |
+| Despegar | `NO_CONFIGURADO` | Falta acuerdo channel manager + API key + mTLS |
+| Airbnb | `NO_CONFIGURADO` | Falta programa de socios aprobado + NDA + revisión de seguridad |
+
+**Código implementado:** configuración por canal con sus propias variables, estados
+(`NO_CONFIGURADO`, `ACCESO_PENDIENTE`, `SANDBOX`, `CONECTADO`, `ERROR`, `DESCONECTADO`), redactor de
+bitácora y registro de estado (`co.hotel.ota`). Cobertura: 30 tests.
+**Conexión validada: ninguna.** No hay llamadas a proveedores, así que no hay sandbox ni producción.
 
 ## Booking.com Connectivity APIs
-- Docs: `https://developers.booking.com/connectivity/docs` (About, Rates & Availability `.../connectivity/docs/ari`, Reservations `.../connectivity/docs/reservations-api/reservations-overview`, Rooms API units). Consultada 2026-10-06.
-- Funciones: inventario/disponibilidad, tarifas/restricciones (Standard, RLO/Derived, OBP, LOS — OBP/LOS con requisitos técnicos + certificación), reservas (OTA_HotelResNotif), contenidos/fotos, promociones, mensajería, pagos.
-- Base URLs: `https://supply-xml.booking.com` (no PCI) y `https://secure-supply-xml.booking.com` (reservas PCI). HTTPS obligatorio. Formatos OTA/BXML/JSON (Rates & Reservations hoy en XML).
-- Acceso: ser Connectivity Partner (acuerdo + Account Manager), IDs de hotel/alojamiento, permisos/scopes por connection type, onboarding, sandbox, certificación (p.ej. pricing types, carga ≥1 año rates+availability), límites/allowlist.
-- Estado actual: NO CONFIGURADO. Bloqueo exacto: falta solicitud Partner + credenciales + HotelCode + entorno + certificación. No usar scraping/navegador/APIs privadas.
-- Campos a configurar (solo nombres, valores en env): `BOOKING_CLIENT_ID/SECRET`, `BOOKING_HOTEL_ID`, `BOOKING_ENV=sandbox|prod`, mapeos unit/rate-plan.
 
-## Despegar (Channel / Hotel APIs)
-- Docs: `https://channel.despegar.com/portal/documentation/` (Get Hotel Info, List RoomRates, Get/Update Availability-Restrictions, Get Inventory, Update Rates `/v1/hotels/rate-plans/update` OTA_HotelRatePlanNotifRQ con HotelCode/RatePlanCode/ChargeTypeCode 19/21, TaxPolicy AmountAfter/BeforeTax) y `https://api-docs.despegar.com/docs/*` (ecosistema B2B `/v3`, `x-apikey` + mTLS). Consultada 2026-10-06.
-- Certificación: evidencia PDF con capturas numeradas (no vale link), reservas en Sandbox, PCI válido si tarjeta/token, mapeos contenido (hotel, meal plans, fee types, amenities), logs con `include=hints,exchange_policies` en prebook.
-- Estado: NO CONFIGURADO. Bloqueo: falta acuerdo channel-manager + `DESPEGAR_API_KEY` test/prod + `DESPEGAR_HOTEL_CODE` + mTLS + HotelDO/contenido + certificación.
-- Campos: `DESPEGAR_API_KEY`, `DESPEGAR_HOTEL_CODE`, `DESPEGAR_ENV`, mapeos Room/RatePlan.
+Docs: `developers.booking.com/connectivity/docs` (Authentication, Token-based authentication,
+Reservations API, Acknowledging new reservations). Consultadas 2026-10-06.
 
-## Airbnb (Homes API vía programa oficial)
-- Docs: `https://developer.withairbnb.com/` + `https://developer.airbnb.com/` (Homes API: listings, pricing/availability, reservations, mensajes/reviews) y `https://airbnb.com/partner`. Consultada 2026-10-06.
-- Acceso restringido: sin API pública para hosts individuales; solo partners empresa aprobados (Preferred/Software Partner Program): NDA mutuo, API Terms + Partner Specific Terms, data security review, scopes por programa, Partner Manager, sandbox/onboarding/inventario. Límites y certificaciones según programa.
-- Estado: NO CONFIGURADO. Bloqueo: falta aplicación partner + NDA + security review + `AIRBNB_CLIENT_ID/SECRET`, `AIRBNB_LISTING_IDS`, `AIRBNB_ENV`.
-- Nota: existen agregadores no oficiales (ej. StayingAPI/Scouting) — PROHIBIDOS aquí (regla: solo APIs oficiales, sin scraping/browser).
+- **Autenticación vigente: token-based.** `POST https://connectivity-authentication.booking.com/
+  token-based-authentication/exchange` con `client_id` y `client_secret` devuelve un token JWT de
+  ~1 hora; después `Authorization: Bearer {JWT}`. El esquema **credential-based (Basic) se apagó el
+  31 de diciembre de 2025**: implementarlo hoy es implementar un camino muerto.
+- Endpoints: `https://supply-xml.booking.com` (sin PCI) y `https://secure-supply-xml.booking.com`
+  (reservas). Reservas nuevas: `GET/POST .../hotels/ota/OTA_HotelResNotif`; sin acuse de recibo,
+  Booking reenvía la reserva por correo tras un tiempo.
+- Acceso: acuerdo Connectivity Partner, machine accounts por propiedad, IDs de alojamiento,
+  onboarding, sandbox, certificaciones (p. ej. tipos de precio) y límites.
+- Variables: `BOOKING_CLIENT_ID`, `BOOKING_CLIENT_SECRET`, `BOOKING_HOTEL_ID`, `BOOKING_ENV`
+  (`sandbox`/`prod`) + mapeos de unidad y rate plan.
 
-## Pantalla admin (contrato)
-Por canal: estado {no configurado|acceso pendiente|sandbox|conectado|error|desconectado}, última sync + resultado, identificadores/mapeos, permisos/requisitos pendientes, errores recientes (sin secretos/PII). Reintento controlado + conciliación. Ante caída OTA: operar local, registrar, reintentar, nunca sobreventa silenciosa.
+## Despegar
+
+Docs: `channel.despegar.com/portal/documentation` (Rates, Availability-Restrictions, Inventory) y
+`api-docs.despegar.com` (API B2B `/v3`, `x-apikey` + mTLS). Consultadas 2026-10-06.
+
+- Actualizaciones de precio vía `OTA_HotelRatePlanNotifRQ` con `HotelCode`, `RatePlanCode` y
+  `ChargeTypeCode` (19/21); `TaxPolicy` distingue `AmountAfter`/`BeforeTax`.
+- Certificación: evidencia en PDF con capturas numeradas (no un enlace), reservas en sandbox, PCI
+  válido si se manejan tarjetas o tokens, mapeos de contenido (hotel, planes de comida, tipos de
+  cargos, amenidades).
+- Variables: `DESPEGAR_API_KEY`, `DESPEGAR_HOTEL_CODE`, `DESPEGAR_ENV` + mapeos Room/RatePlan.
+
+## Airbnb
+
+Docs: `developer.airbnb.com` / `developer.withairbnb.com` y API Terms (art. 1.3). Consultadas 2026-10-06.
+
+- **No hay API pública para anfitriones individuales.** Solo socios de empresa aprobados
+  (Preferred/Software Partner Program).
+- Requisitos: NDA mutuo, API Terms + Partner Specific Terms, **revisión de seguridad de datos**,
+  implementación de funciones obligatorias en 6 meses de su lanzamiento.
+- Scopes observados en la especificación de Homes: `listings:read/write`, `reservations:read/write`,
+  `calendar:read/write`, `messages:read/write`, `reviews:read`.
+- Variables: `AIRBNB_CLIENT_ID`, `AIRBNB_CLIENT_SECRET`, `AIRBNB_LISTING_IDS`, `AIRBNB_ENV`.
+
+## Lo que no se hizo, y por qué
+
+- Sin scraping, endpoints privados ni automatización de navegador: solo APIs documentadas.
+- Sin agregadores no oficiales.
+- Ninguna integración marca `CONECTADO` por tener los campos llenos: `CanalEstadoRegistry` exige un
+  registro de sincronización **exitosa** y entorno `prod`. Con `sandbox` el techo es `SANDBOX`.

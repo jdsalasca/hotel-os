@@ -11,6 +11,9 @@
   <properties>
     <java.version>25</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Boot 4.1.1 gestiona flyway-core 12.4.0, incompatible con flyway-nc-core 13.9.0
+         (NativeConnectorsSupportImpl queda abstract y el arranque falla). Se fija la serie completa. -->
+    <flyway.version>13.9.0</flyway.version>
   </properties>
   <dependencies>
     <dependency>
@@ -34,9 +37,33 @@
       <artifactId>sqlite-jdbc</artifactId>
       <version>3.53.4.0</version>
     </dependency>
+    <!-- Migraciones versionadas. En Boot 4 el soporte de Flyway vive en su propio starter.
+     SQLite requiere el módulo flyway-database-nc-sqlite: no existe un artefacto
+     flyway-database-sqlite en Maven Central (verificado 2026-10-06). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-nc-sqlite</artifactId>
+      <!-- Boot 4.1.1 no gestiona este módulo; 13.9.0 es la última versión en Maven Central (verificado 2026-10-06). -->
+      <version>13.9.0</version>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- En Boot 4 el autoconfigure de MockMvc salió de spring-boot-starter-test. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-webmvc-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
