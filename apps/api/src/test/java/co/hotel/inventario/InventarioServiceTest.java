@@ -213,4 +213,53 @@ class InventarioServiceTest {
 
     assertTrue(svc.disponiblesConPrecio(LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-03"), 2).isEmpty());
   }
+
+  @Test
+  @DisplayName("el hotel ve sus planes y las noches con precio del periodo que elija")
+  void listaPlanesYNochesDelPeriodo() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    tarifas.fijarPrecio(plan, tipo.id(), LocalDate.parse("2026-11-01"), 150_000);
+    tarifas.fijarPrecio(plan, tipo.id(), LocalDate.parse("2026-11-02"), 180_000);
+    tarifas.fijarPrecio(plan, tipo.id(), LocalDate.parse("2026-12-20"), 220_000);
+
+    assertEquals(1, tarifas.listarPlanes().size());
+    assertEquals("COP", tarifas.listarPlanes().get(0).moneda());
+
+    List<TarifaRepository.TarifaNoche> noches = tarifas.nochesDe(plan.id(), tipo.id(),
+      LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-05"));
+    assertEquals(2, noches.size(), "solo las noches del periodo pedido");
+    assertEquals(180_000, noches.get(1).precioCents());
+  }
+
+  @Test
+  @DisplayName("una noche cerrada se devuelve marcada como cerrada, no como si no existiera")
+  void nocheCerradaSeDevuelveMarcada() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    tarifas.fijarPrecio(plan, tipo.id(), LocalDate.parse("2026-11-01"), 150_000);
+    tarifas.cerrarNoche(plan, tipo.id(), LocalDate.parse("2026-11-01"));
+
+    assertTrue(tarifas.nochesDe(plan.id(), tipo.id(),
+      LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-02")).get(0).cerrado());
+  }
+
+  @Test
+  @DisplayName("un periodo con las fechas invertidas se rechaza: el hotel vería una lista vacía sin explicación")
+  void periodoInvertidoSeRechaza() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    assertThrows(DatosInvalidosException.class, () -> tarifas.nochesDe(plan.id(), tipo.id(),
+      LocalDate.parse("2026-11-05"), LocalDate.parse("2026-11-01")));
+  }
+
+  @Test
+  @DisplayName("un periodo desmedido se rechaza en vez de recorrer toda la tabla")
+  void periodoDesmedidoSeRechaza() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    assertThrows(DatosInvalidosException.class, () -> tarifas.nochesDe(plan.id(), tipo.id(),
+      LocalDate.parse("2026-01-01"), LocalDate.parse("2036-01-01")));
+  }
 }

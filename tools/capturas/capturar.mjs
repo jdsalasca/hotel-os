@@ -110,8 +110,19 @@ for (const [nombre, opciones] of [
 
   // 4. Inventario
   await pagina.goto(`${BASE}/admin/inventario`);
-  await esperar(pagina, '#tipo-codigo', "${nombre}-07-inventario");
+  await esperar(pagina, '#tipo-codigo', `${nombre}-07-inventario`);
   await guardar(pagina, `${nombre}-07-inventario`);
+
+  // La rejilla de precios solo aparece cuando hay plan y tipo elegidos: se eligen los primeros
+  // disponibles, que son los que el propio guion acaba de registrar.
+  const plan = pagina.locator('#tar-plan option').nth(1);
+  const tipo = pagina.locator('#tar-tipo option').nth(1);
+  if ((await plan.count()) > 0 && (await tipo.count()) > 0) {
+    await pagina.selectOption('#tar-plan', await plan.getAttribute('value'));
+    await pagina.selectOption('#tar-tipo', await tipo.getAttribute('value'));
+    await esperar(pagina, '[id^="precio-"]', `${nombre}-07b-precios`);
+    await guardar(pagina, `${nombre}-07b-precios`);
+  }
 
   // 5. Integraciones: estado real de los canales
   await pagina.goto(`${BASE}/admin/integraciones`);

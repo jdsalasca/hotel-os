@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, Etiqueta, MensajeError } from '../componentes/Estado';
+import { fechaCorta } from '../api/formato';
 
 type Habitacion = { id: number; codigo: string; roomTypeId: number; nombre: string; estado: string };
 type Oferta = {
@@ -13,6 +14,8 @@ type Oferta = {
   noches: number;
 };
 type Tipo = { id: number; codigo: string; nombre: string; capacidadMax: number };
+type Plan = { id: number; codigo: string; nombre: string; moneda: string };
+type Noche = { fecha: string; precioCents: number; minEstancia: number | null; maxEstancia: number | null; cerrado: boolean };
 
 /** Calendario de ocupación y gestión de inventario y bloqueos. */
 export function PaginaAdminInventario() {
@@ -21,23 +24,34 @@ export function PaginaAdminInventario() {
   const [habitaciones, setHabitaciones] = useState<Habitacion[] | null>(null);
   const [tipos, setTipos] = useState<Tipo[] | null>(null);
   const [ocupadas, setOcupadas] = useState<Set<number>>(new Set());
+  const [planes, setPlanes] = useState<Plan[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
 
   const [nuevoTipo, setNuevoTipo] = useState({ codigo: '', nombre: '', capacidadMax: 2 });
   const [nuevaHabitacion, setNuevaHabitacion] = useState({ codigo: '', roomTypeId: '', nombre: '' });
   const [bloqueo, setBloqueo] = useState({ roomId: '', desde: '', hasta: '', motivo: '' });
+  const [nuevoPlan, setNuevoPlan] = useState({ codigo: '', nombre: '', moneda: 'COP' });
+
+  // Precios por noche: qué hay guardado y qué está escribiendo el hotel ahora mismo.
+  const [tarifas, setTarifas] = useState<{ planId: string; tipoId: string }>({ planId: '', tipoId: '' });
+  const [mesTarifas, setMesTarifas] = useState(mesActual());
+  const [noches, setNoches] = useState<Map<string, Noche>>(new Map());
+  const [borrador, setBorrador] = useState<Record<string, string>>({});
+  const [cerradas, setCerradas] = useState<Record<string, boolean>>({});
 
   async function cargar() {
     setCargando(true);
     setError(null);
     try {
-      const [habs, tiposCargados] = await Promise.all([
+      const [habs, tiposCargados, planesCargados] = await Promise.all([
         api.get<Habitacion[]>('/api/admin/habitaciones'),
         api.get<Tipo[]>('/api/admin/tipos'),
+        api.get<Plan[]>('/api/admin/planes'),
       ]);
       setHabitaciones(habs);
       setTipos(tiposCargados);
+      setPlanes(planesCargados);
 
       // Disponibilidad real del mes: si una habitación no aparece en la oferta del mes completo,
       // tiene alguna noche ocupada o bloqueada. Es la misma consulta que ve el huésped.
@@ -61,6 +75,27 @@ export function PaginaAdminInventario() {
   useEffect(() => {
     void cargar();
   }, [mes]);
+
+  // Al cambiar de plan, tipo o mes se releen las noches ya tarifadas para no inventar un precio
+  // que el hotel no ha fijado: lo guardado se muestra tal cual está en la base.
+  useEffect(() => {
+    const [desde, hasta] = rangoMes(mesTarifas);
+    if (!tarifas.planId || !tarifas.tipoId) {
+      setNoches(new Map());
+      setBorrador({});
+      setCerradas({});
+      return;
+    }
+    void api
+      .get<Noche[]>(`/api/admin/tarifas?planId=${tarifas.planId}&tipoId=${tarifas.tipoId}&desde=${desde}&hasta=${hasta}`)
+      .then((lista) => {
+        const mapa = new Map(lista.map((n) => [n.fecha, n]));
+        setNoches(mapa);
+        setBorrador(Object.fromEntries(lista.map((n) => [n.fecha, String(n.precioCents / 100)])));
+        setCerradas(Object.fromEntries(lista.map((n) => [n.fecha, n.cerrado])));
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'No se pudieron leer las tarifas'));
+  }, [tarifas.planId, tarifas.tipoId, mesTarifas]);
 
   async function accion<T>(tarea: () => Promise<T>) {
     setError(null);
@@ -263,7 +298,173 @@ export function PaginaAdminInventario() {
             </div>
             <button className="boton boton--primario" type="submit">Aplicar bloqueo</button>
           </form>
+          <form
+            className="tarjeta pila"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void accion(() =>
+                api.post('/api/admin/planes', {
+                  codigo: nuevoPlan.codigo,
+                  nombre: nuevoPlan.nombre,
+                  moneda: nuevoPlan.moneda,
+                }),
+              );
+            }}
+          >
+            <h2 className="t-lg mb-0">Nuevo plan tarifario</h2>
+            <p className="campo__ayuda sin-margen">
+              Un plan agrupa precios. Sin plan y sin precios, la web no muestra habitaciones.
+            </p>
+            <div className="campo">
+              <label className="campo__etiqueta" htmlFor="plan-codigo">Código</label>
+              <input id="plan-codigo" required value={nuevoPlan.codigo} onChange={(e) => setNuevoPlan({ ...nuevoPlan, codigo: e.target.value.toUpperCase() })} />
+            </div>
+            <div className="campo">
+              <label className="campo__etiqueta" htmlFor="plan-nombre">Nombre</label>
+              <input id="plan-nombre" required value={nuevoPlan.nombre} onChange={(e) => setNuevoPlan({ ...nuevoPlan, nombre: e.target.value })} />
+            </div>
+            <div className="campo">
+              <label className="campo__etiqueta" htmlFor="plan-moneda">Moneda</label>
+              <input
+                id="plan-moneda"
+                required
+                maxLength={3}
+                pattern="[A-Za-z]{3}"
+                title="Código ISO 4217 de tres letras, por ejemplo COP"
+                value={nuevoPlan.moneda}
+                onChange={(e) => setNuevoPlan({ ...nuevoPlan, moneda: e.target.value.toUpperCase() })}
+              />
+            </div>
+            <button className="boton boton--primario" type="submit">Crear plan</button>
+          </form>
         </div>
+
+        <h2 className="t-xl mt-e6">Precios por noche</h2>
+        <p className="seccion__intro mb-0">
+          Elige plan, tipo de habitación y mes. Solo se envían las noches que hayas cambiado.
+        </p>
+        <div className="campos">
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="tar-plan">Plan</label>
+            <select id="tar-plan" value={tarifas.planId} onChange={(e) => setTarifas({ ...tarifas, planId: e.target.value })}>
+              <option value="">Selecciona un plan</option>
+              {planes?.map((p) => (
+                <option key={p.id} value={p.id}>{p.nombre} ({p.moneda})</option>
+              ))}
+            </select>
+          </div>
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="tar-tipo">Tipo</label>
+            <select id="tar-tipo" value={tarifas.tipoId} onChange={(e) => setTarifas({ ...tarifas, tipoId: e.target.value })}>
+              <option value="">Selecciona un tipo</option>
+              {tipos?.map((t) => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="tar-mes">Mes</label>
+            <input id="tar-mes" type="month" className="cifra" value={mesTarifas} onChange={(e) => setMesTarifas(e.target.value)} />
+          </div>
+        </div>
+
+        {tarifas.planId && tarifas.tipoId ? (
+          <form
+            className="tarjeta pila"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const dias = diasDelMes(mesTarifas);
+              const planId = Number(tarifas.planId);
+              const tipoId = Number(tarifas.tipoId);
+              const cambios = dias.filter((dia) => {
+                const guardado = noches.get(dia);
+                const texto = (borrador[dia] ?? '').trim();
+                const centimos = texto === '' ? null : Math.round(Number(texto) * 100);
+                const cerrado = cerradas[dia] ?? false;
+                if (centimos === null) return guardado !== undefined;
+                if (Number.isNaN(centimos)) return false;
+                return guardado?.precioCents !== centimos || guardado?.cerrado !== cerrado;
+              });
+              if (cambios.length === 0) {
+                setError('No hay cambios que guardar.');
+                return;
+              }
+              void accion(async () => {
+                for (const dia of cambios) {
+                  const centimos = Math.round(Number((borrador[dia] ?? '').trim()) * 100);
+                  await api.post('/api/admin/tarifas', {
+                    ratePlanId: planId,
+                    roomTypeId: tipoId,
+                    fecha: dia,
+                    precioCents: centimos,
+                    cerrado: cerradas[dia] ?? false,
+                  });
+                }
+              });
+            }}
+          >
+            <div className="tabla-envoltura">
+              <table className="tabla">
+                <caption>Precios guardados y pendientes del mes</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Noche</th>
+                    <th scope="col">Precio</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Cerrada</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {diasDelMes(mesTarifas).map((dia) => {
+                    const guardada = noches.get(dia);
+                    return (
+                      <tr key={dia}>
+                        <th scope="row" className="cifra">{fechaCorta(dia)}</th>
+                        <td>
+                          <label className="visually-hidden" htmlFor={`precio-${dia}`}>Precio de la noche {dia}</label>
+                          <input
+                            id={`precio-${dia}`}
+                            className="cifra"
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            inputMode="decimal"
+                            value={borrador[dia] ?? ''}
+                            placeholder="Sin fijar"
+                            onChange={(e) => setBorrador({ ...borrador, [dia]: e.target.value })}
+                          />
+                        </td>
+                        <td>
+                          {guardada ? (
+                            <Etiqueta tono={guardada.cerrado ? 'neutra' : 'exito'}>
+                              {guardada.cerrado ? 'No vendible' : 'Fijada'}
+                            </Etiqueta>
+                          ) : (
+                            <Etiqueta tono="aviso">Sin precio</Etiqueta>
+                          )}
+                        </td>
+                        <td>
+                          <label className="visually-hidden" htmlFor={`cerrada-${dia}`}>Cerrar la noche {dia}</label>
+                          <input
+                            id={`cerrada-${dia}`}
+                            type="checkbox"
+                            checked={cerradas[dia] ?? false}
+                            onChange={(e) => setCerradas({ ...cerradas, [dia]: e.target.checked })}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <button className="boton boton--primario no-estirar" type="submit">
+              Guardar precios del mes
+            </button>
+          </form>
+        ) : (
+          <p className="campo__ayuda">Selecciona un plan y un tipo de habitación para ver el mes.</p>
+        )}
 
         <p className="mt-e6">
           <Link to="/admin/reservas">Volver a las reservas</Link>
@@ -277,9 +478,27 @@ function mesActual(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
+/** Fecha en ISO desde la hora local. `toISOString` converts a UTC y en husos al este desplaza el
+ *  día un día hacia atrás, que es justo el error que hace que falte una noche en un precio. */
+function isoLocal(fecha: Date): string {
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${fecha.getFullYear()}-${mes}-${dia}`;
+}
+
 function rangoMes(mes: string): [string, string] {
   const inicio = new Date(`${mes}-01T12:00:00`);
   const fin = new Date(inicio);
   fin.setMonth(fin.getMonth() + 1);
-  return [`${mes}-01`, fin.toISOString().slice(0, 10)];
+  return [isoLocal(inicio), isoLocal(fin)];
+}
+
+/** Las noches del mes: la última es la que precede al día 1 del mes siguiente. */
+function diasDelMes(mes: string): string[] {
+  const [desde, hasta] = rangoMes(mes);
+  const dias: string[] = [];
+  for (let dia = new Date(`${desde}T12:00:00`), fin = new Date(`${hasta}T12:00:00`); dia < fin; dia.setDate(dia.getDate() + 1)) {
+    dias.push(isoLocal(dia));
+  }
+  return dias;
 }

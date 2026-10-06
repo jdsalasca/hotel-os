@@ -49,4 +49,24 @@ public class TarifaService {
   public void abrirNoche(PlanTarifario plan, long tipoId, LocalDate fecha) {
     repo.abrirNoche(plan.id(), tipoId, fecha);
   }
+
+  /** Los planes con los que el hotel ofrece inventario. Sin planes, no hay nada que tarifar. */
+  public java.util.List<PlanTarifario> listarPlanes() {
+    return repo.planesActivos();
+  }
+
+  /**
+   * Noches con precio del tipo en el intervalo, para que el hotel vea y corrija lo que ha fijado.
+   * El intervalo se acota a un año: más que eso nadie lo revisa en pantalla y solo carga la tabla.
+   */
+  public java.util.List<TarifaRepository.TarifaNoche> nochesDe(long planId, long tipoId,
+      LocalDate desde, LocalDate hasta) {
+    if (desde == null || hasta == null)
+      throw new DatosInvalidosException("desde y hasta son obligatorios");
+    if (!hasta.isAfter(desde))
+      throw new DatosInvalidosException("'hasta' debe ser posterior a 'desde'");
+    if (java.time.temporal.ChronoUnit.DAYS.between(desde, hasta) > 366)
+      throw new DatosInvalidosException("el periodo no puede superar un año");
+    return repo.nochesDelPeriodo(planId, tipoId, desde, hasta);
+  }
 }

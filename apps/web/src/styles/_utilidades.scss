@@ -50,6 +50,13 @@ $separaciones: (
   align-items: center;
 }
 
+// Un botón dentro de una pila vertical se estira al ancho del contenedor. En un formulario con
+// una sola acción eso parece un error de maquetación: se usa `no-estirar` para que abarque lo
+// que su texto necesita.
+.no-estirar {
+  align-self: flex-start;
+}
+
 // Listas con viñeta o numeración, sin el margen por defecto del navegador.
 .lista-marcada {
   margin: 0;

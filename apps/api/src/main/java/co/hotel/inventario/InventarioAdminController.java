@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -58,6 +59,19 @@ public class InventarioAdminController {
   @PostMapping("/api/admin/planes")
   public ResponseEntity<?> crearPlan(@RequestBody PlanReq req) {
     return ok(() -> tarifas.crearPlan(req.codigo(), req.nombre(), req.moneda()));
+  }
+
+  @GetMapping("/api/admin/planes")
+  public List<PlanTarifario> listarPlanes() { return tarifas.listarPlanes(); }
+
+  /**
+   * Noches con precio del tipo en el periodo, para que el hotel vea lo que ha fijado. `planId` y
+   * `tipoId` son obligatorios: sin plan no hay tarifa que leer.
+   */
+  @GetMapping("/api/admin/tarifas")
+  public ResponseEntity<?> listarTarifas(@RequestParam Long planId, @RequestParam Long tipoId,
+                                          @RequestParam String desde, @RequestParam String hasta) {
+    return ok(() -> tarifas.nochesDe(planId, tipoId, LocalDate.parse(desde), LocalDate.parse(hasta)));
   }
 
   /** Alta o actualización del precio de una noche. Repetir la misma fecha la sobrescribe. */
