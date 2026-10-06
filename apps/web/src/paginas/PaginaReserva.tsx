@@ -1,0 +1,220 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { api } from '../api/cliente';
+import { fechaCorta } from '../api/formato';
+import { Aviso, HuecoImagen, MensajeError } from '../componentes/Estado';
+
+type EnCurso = {
+  habitacion: { id: number; codigo: string; nombre: string };
+  tipo: { nombre: string };
+  totalCents: number;
+  moneda: string;
+  noches: number;
+  llegada: string;
+  salida: string;
+  huespedes: number;
+  clave: string;
+};
+
+type RespuestaReserva = {
+  codigo: string;
+  email: string;
+  nombre: string;
+  llegada: string;
+  salida: string;
+  huespedes: number;
+  estado: string;
+  origen: string;
+  mensaje: string;
+};
+
+/** Pasos 2 a 5 del flujo público: datos mínimos, envío y resultado con su estado real. */
+export function PaginaReserva() {
+  const enCurso = leerEnCurso();
+  const [email, setEmail] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reserva, setReserva] = useState<RespuestaReserva | null>(null);
+
+  if (!enCurso) {
+    return (
+      <main id="contenido" className="centrado">
+        <section className="seccion">
+          <div className="vacio">
+            <p className="vacio__titulo">No hay una reserva en curso</p>
+            <p>Busca disponibilidad primero para elegir habitación y fechas.</p>
+            <Link className="boton boton--primario" to="/">
+              Buscar disponibilidad
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  async function enviar(evento: React.FormEvent) {
+    evento.preventDefault();
+    setError(null);
+    setEnviando(true);
+    try {
+      const r = await api.post<RespuestaReserva>('/api/reservas', {
+        email,
+        nombre,
+        llegada: enCurso.llegada,
+        salida: enCurso.salida,
+        huespedes: enCurso.huespedes,
+        roomId: enCurso.habitacion.id,
+        idempotencia: enCurso.clave,
+      });
+      setReserva(r);
+      sessionStorage.removeItem('reserva-en-curso');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo registrar la reserva');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (reserva) {
+    return (
+      <main id="contenido" className="centrado">
+        <section className="seccion">
+          <h1 className="seccion__titulo">Reserva registrada</h1>
+          <Aviso tono="exito" titulo={`Código ${reserva.codigo}`}>
+            <p>{reserva.mensaje}</p>
+          </Aviso>
+
+          <div className="tarjeta pila" style={{ marginTop: '1.5rem' }}>
+            <dl className="pila">
+              <div>
+                <dt className="campo__etiqueta">Habitación</dt>
+                <dd>{enCurso.tipo.nombre}</dd>
+              </div>
+              <div>
+                <dt className="campo__etiqueta">Fechas</dt>
+                <dd className="cifra">
+                  {fechaCorta(reserva.llegada)} → {fechaCorta(reserva.salida)} ({enCurso.noches}{' '}
+                  {enCurso.noches === 1 ? 'noche' : 'noches'})
+                </dd>
+              </div>
+              <div>
+                <dt className="campo__etiqueta">Huéspedes</dt>
+                <dd className="cifra">{reserva.huespedes}</dd>
+              </div>
+              <div>
+                <dt className="campo__etiqueta">Estado</dt>
+                <dd>{reserva.estado === 'PENDIENTE' ? 'Pendiente de confirmación' : reserva.estado}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <p style={{ marginTop: '1.5rem' }}>
+            Guarda el código: con él y tu correo puedes consultar la reserva cuando quieras.
+          </p>
+          <p className="pila" style={{ gap: '0.5rem' }}>
+            <Link className="boton boton--primario" to="/">
+              Volver al inicio
+            </Link>
+            <Link className="boton boton--secundario" to="/consulta">
+              Consultar una reserva
+            </Link>
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main id="contenido" className="centrado">
+      <div className="rejilla rejilla--dos" style={{ paddingTop: '2rem' }}>
+        <section className="seccion">
+          <h1 className="seccion__titulo">Confirma tu reserva</h1>
+          <p className="seccion__intro">
+            Solo pedimos lo necesario para atenderte. NoPedimos datos de tarjeta: el hotel aún no
+            ha configurado un medio de pago.
+          </p>
+
+          <form onSubmit={enviar} noValidate>
+            <div className="pila">
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="email">Correo electrónico *</label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-describedby="ayuda-email"
+                />
+                <p className="campo__ayuda" id="ayuda-email">
+                  Lo usaremos para confirmarte y para que puedas consultar tu reserva.
+                </p>
+              </div>
+
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="nombre">Nombre *</label>
+                <input
+                  id="nombre"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                />
+              </div>
+
+              {error ? <MensajeError texto={error} /> : null}
+
+              <button className="boton boton--primario" type="submit" disabled={enviando}>
+                {enviando ? 'Enviando…' : 'Confirmar solicitud de reserva'}
+              </button>
+              <p className="campo__ayuda">
+                Tu solicitud quedará pendiente de confirmación. El hotel la revisará y te escribirá.
+              </p>
+            </div>
+          </form>
+        </section>
+
+        <aside aria-labelledby="titulo-resumen">
+          <h2 id="titulo-resumen" className="seccion__titulo" style={{ fontSize: '1.25rem' }}>
+            Tu selección
+          </h2>
+          <div className="tarjeta pila">
+            <HuecoImagen alto="bajo" texto="Fotografía de la habitación" />
+            <h3 style={{ margin: 0 }}>{enCurso.tipo.nombre}</h3>
+            <p className="campo__ayuda" style={{ margin: 0 }}>
+              {fechaCorta(enCurso.llegada)} → {fechaCorta(enCurso.salida)}
+            </p>
+            <p className="campo__ayuda" style={{ margin: 0 }}>
+              {enCurso.huespedes} {enCurso.huespedes === 1 ? 'huésped' : 'huéspedes'} ·{' '}
+              {enCurso.noches} {enCurso.noches === 1 ? 'noche' : 'noches'}
+            </p>
+            <p className="precio">
+              {new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: enCurso.moneda,
+                minimumFractionDigits: enCurso.moneda === 'COP' ? 0 : 2,
+              }).format(enCurso.totalCents / 100)}
+              <span className="precio__detalle">total del periodo</span>
+            </p>
+            <Link className="boton boton--fantasma boton--chico" to="/">
+              Cambiar fechas
+            </Link>
+          </div>
+        </aside>
+      </div>
+    </main>
+  );
+}
+
+function leerEnCurso(): EnCurso | null {
+  const bruto = sessionStorage.getItem('reserva-en-curso');
+  if (!bruto) return null;
+  try {
+    return JSON.parse(bruto) as EnCurso;
+  } catch {
+    return null;
+  }
+}

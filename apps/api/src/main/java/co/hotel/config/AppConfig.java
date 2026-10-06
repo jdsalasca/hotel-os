@@ -1,6 +1,8 @@
 package co.hotel.config;
 
+import co.hotel.ota.HttpClienteOta;
 import co.hotel.reservas.SqliteDataSources;
+import java.time.Duration;
 import javax.sql.DataSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -29,6 +31,15 @@ public class AppConfig {
 
   @Bean
   public JdbcTemplate jdbcTemplate(DataSource dataSource) { return new JdbcTemplate(dataSource); }
+
+  /** El cliente HTTP lo comparten los conectores OTA y el envío de correo. */
+  @Bean
+  public HttpClienteOta httpClienteOta() {
+    return new HttpClienteOta(Duration.ofSeconds(20), 3, Duration.ofMillis(500));
+  }
+
+  @Bean
+  public CorreoProperties correoProperties(HotelProperties props) { return props.correo(); }
 
   /**
    * DelegatingPasswordEncoder: el hash se guarda con prefijo de algoritmo ({bcrypt}), que es lo que

@@ -1,0 +1,117 @@
+@use "tokens" as *;
+@use "mixins" as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%; // el usuario controla el tamaño con el navegador
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: $fuente-texto;
+  font-size: $texto-base;
+  line-height: 1.6;
+  color: $tinta;
+  background: $blanco-fachada;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: $fuente-titulo;
+  font-weight: $peso-fuerte;
+  line-height: 1.2;
+  margin: 0 0 $e-3;
+  color: $tinta;
+  text-wrap: balance;
+}
+
+h1 { font-size: $texto-3xl; }
+h2 { font-size: $texto-2xl; }
+h3 { font-size: $texto-xl; }
+h4 { font-size: $texto-lg; }
+
+@media (min-width: 48rem) {
+  h1 { font-size: $texto-4xl; }
+}
+
+p {
+  margin: 0 0 $e-4;
+  max-width: $ancho-lectura;
+}
+
+a {
+  color: $teja-oscuro;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  @include focusable($teja);
+
+  &:hover {
+    color: $teja;
+  }
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+// El foco nunca se elimina: solo se sustituye por uno visible.
+:focus-visible {
+  outline: 3px solid $teja;
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(156, 69, 38, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// Visible solo para lectores de pantalla.
+.visually-hidden {
+  @include visually-hidden;
+}
+
+.solo-lectores {
+  @include visually-hidden;
+
+  &:focus,
+  &:focus-visible {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    padding: $e-2 $e-4;
+    background: $teja;
+    color: #fff;
+    border-radius: $radio;
+  }
+}
+
+@media print {
+  .no-imprimir {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+}

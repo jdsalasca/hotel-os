@@ -1,0 +1,481 @@
+@use "sass:color";
+@use "tokens" as *;
+@use "mixins" as *;
+
+// Componentes reutilizables. Nada de estilos sueltos en los componentes React.
+
+.pila { @include pila; }
+.centrado { @include contenedor; }
+
+.tarjeta {
+  @include tarjeta;
+  padding: $e-5;
+}
+
+// --- Botones ---
+.boton {
+  @include boton-base;
+
+  &--primario {
+    background: $teja;
+    color: #fff;
+
+    &:hover:not(:disabled) { background: $teja-oscuro; }
+  }
+
+  &--secundario {
+    background: transparent;
+    color: $tinta;
+    border-color: $borde-fuerte;
+
+    &:hover:not(:disabled) {
+      background: $piedra-clara;
+      border-color: $tinta-suave;
+    }
+  }
+
+  &--fantasma {
+    background: transparent;
+    color: $teja-oscuro;
+
+    &:hover:not(:disabled) { background: rgba(156, 69, 38, 0.08); }
+  }
+
+  &--peligro {
+    background: $error;
+    color: #fff;
+
+    &:hover:not(:disabled) { background: color.adjust($error, $lightness: -8%); }
+  }
+
+  &--bloque { width: 100%; }
+  &--chico { padding: $e-2 $e-3; font-size: $texto-sm; }
+}
+
+// --- Formularios ---
+.campo {
+  @include pila($e-1);
+
+  &__etiqueta {
+    font-size: $texto-sm;
+    font-weight: $peso-medio;
+    color: $tinta;
+  }
+
+  &__ayuda {
+    font-size: $texto-xs;
+    color: $tinta-suave;
+  }
+
+  &__error {
+    font-size: $texto-xs;
+    color: $error;
+    font-weight: $peso-medio;
+  }
+
+  input,
+  select,
+  textarea {
+    @include focusable;
+
+    width: 100%;
+    padding: $e-3;
+    font-family: $fuente-texto;
+    font-size: $texto-base;
+    color: $tinta;
+    background: #fff;
+    border: 1px solid $borde-fuerte;
+    border-radius: $radio-sm;
+
+    &:hover { border-color: $tinta-suave; }
+
+    &[aria-invalid="true"] {
+      border-color: $error;
+      background: $error-tenue;
+    }
+
+    &::placeholder { color: $tinta-tenue; }
+  }
+
+  input[type="date"] {
+    font-family: $fuente-cifra;
+  }
+}
+
+.campos {
+  display: grid;
+  gap: $e-4;
+  grid-template-columns: 1fr;
+
+  @media (min-width: 40rem) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  &--tres {
+    @media (min-width: 52rem) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+}
+
+// --- Etiquetas de estado ---
+.etiqueta {
+  @include etiqueta;
+  background: $piedra-clara;
+  color: $tinta;
+
+  &--exito { background: $exito-tenue; color: color.adjust($exito, $lightness: -6%); }
+  &--error { background: $error-tenue; color: color.adjust($error, $lightness: -4%); }
+  &--aviso { background: $aviso-tenue; color: $aviso; }
+  &--info { background: $info-tenue; color: color.adjust($info, $lightness: -6%); }
+  &--neutra { background: $piedra-clara; color: $tinta-suave; }
+}
+
+// --- Avisos ---
+.aviso {
+  @include pila($e-2);
+  padding: $e-4;
+  border-radius: $radio;
+  border-left: 4px solid;
+  background: $info-tenue;
+  border-color: $info;
+  color: $tinta;
+
+  &--exito { background: $exito-tenue; border-color: $exito; }
+  &--error { background: $error-tenue; border-color: $error; }
+  &--aviso { background: $aviso-tenue; border-color: $aviso; }
+
+  strong { font-weight: $peso-fuerte; }
+}
+
+// --- Estados vacío y carga ---
+.vacio {
+  @include pila($e-2);
+  align-items: center;
+  padding: $e-7 $e-5;
+  text-align: center;
+  color: $tinta-suave;
+  border: 1px dashed $borde-fuerte;
+  border-radius: $radio;
+
+  &__titulo {
+    font-weight: $peso-medio;
+    color: $tinta;
+  }
+}
+
+.cargando {
+  display: inline-flex;
+  align-items: center;
+  gap: $e-2;
+  color: $tinta-suave;
+  font-size: $texto-sm;
+}
+
+// --- Tablas ---
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $texto-sm;
+
+  caption {
+    @include visually-hidden;
+  }
+
+  th, td {
+    padding: $e-3;
+    text-align: left;
+    border-bottom: 1px solid $borde;
+    vertical-align: top;
+  }
+
+  th {
+    font-weight: $peso-medio;
+    color: $tinta-suave;
+    font-size: $texto-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 2px solid $borde-fuerte;
+  }
+
+  tbody tr:hover {
+    background: rgba(230, 224, 212, 0.4);
+  }
+
+  .cifra { @include cifra; }
+}
+
+// En pantallas pequeñas la tabla se desplaza en lugar de romper el diseño.
+.tabla-envoltura {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+// --- Cabecera y navegación ---
+.cabecera {
+  background: #fff;
+  border-bottom: 1px solid $borde;
+
+  &__interna {
+    @include contenedor;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $e-4;
+    min-height: 4rem;
+    flex-wrap: wrap;
+  }
+
+  &__marca {
+    display: flex;
+    align-items: baseline;
+    gap: $e-2;
+    font-family: $fuente-titulo;
+    font-weight: $peso-fuerte;
+    font-size: $texto-lg;
+    color: $tinta;
+    text-decoration: none;
+
+    &:hover { color: $teja-oscuro; }
+  }
+
+  &__marcador {
+    display: inline-block;
+    width: 0.6rem;
+    height: 1.2rem;
+    background: $teja;
+    border-radius: 2px;
+  }
+}
+
+.nav {
+  display: flex;
+  gap: $e-1;
+  flex-wrap: wrap;
+
+  a {
+    padding: $e-2 $e-3;
+    border-radius: $radio-sm;
+    color: $tinta-suave;
+    text-decoration: none;
+    font-size: $texto-sm;
+    @include focusable;
+
+    &:hover { background: $piedra-clara; color: $tinta; }
+
+    &[aria-current="page"] {
+      background: $piedra-clara;
+      color: $tinta;
+      font-weight: $peso-medio;
+    }
+  }
+}
+
+// --- Pie ---
+.pie {
+  margin-top: $e-8;
+  padding-block: $e-6;
+  background: $piedra-clara;
+  border-top: 1px solid $borde;
+  color: $tinta-suave;
+  font-size: $texto-sm;
+
+  &__interna {
+    @include contenedor;
+    display: flex;
+    flex-wrap: wrap;
+    gap: $e-4;
+    justify-content: space-between;
+  }
+}
+
+// --- Espacio reservado para fotografía del hotel ---
+// Sin imágenes remotas ni enlaces frágiles: es un hueco que el hotel rellena con su foto autorizada.
+.hueco-imagen {
+  position: relative;
+  min-height: 12rem;
+  border-radius: $radio;
+  border: 1px solid $borde;
+  background:
+    linear-gradient(180deg, rgba(107, 147, 184, 0.12), rgba(156, 69, 38, 0.08)),
+    $piedra-clara;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $tinta-suave;
+  font-size: $texto-sm;
+  text-align: center;
+  padding: $e-4;
+  overflow: hidden;
+
+  &--ancho { min-height: 20rem; }
+  &--bajo { min-height: 8rem; }
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+// --- Rejillas ---
+.rejilla {
+  display: grid;
+  gap: $e-4;
+  grid-template-columns: 1fr;
+
+  @media (min-width: 44rem) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 64rem) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  &--dos {
+    @media (min-width: 52rem) {
+      grid-template-columns: 2fr 1fr;
+    }
+  }
+}
+
+// --- Cifras y precios ---
+.cifra { @include cifra; }
+
+.precio {
+  font-family: $fuente-cifra;
+  font-variant-numeric: tabular-nums;
+  font-weight: $peso-fuerte;
+  font-size: $texto-xl;
+  color: $tinta;
+
+  &__detalle {
+    display: block;
+    font-family: $fuente-texto;
+    font-size: $texto-xs;
+    font-weight: $peso-normal;
+    color: $tinta-suave;
+  }
+}
+
+// --- Cabecera de sección ---
+.seccion {
+  padding-block: $e-6;
+
+  @media (min-width: 48rem) {
+    padding-block: $e-7;
+  }
+
+  &__titulo {
+    font-size: $texto-2xl;
+    margin-bottom: $e-2;
+  }
+
+  &__intro {
+    color: $tinta-suave;
+    margin-bottom: $e-5;
+    max-width: $ancho-lectura;
+  }
+}
+
+// --- Indicador en el panel ---
+.tarjeta-indicador {
+  @include tarjeta;
+  @include pila($e-2);
+  padding: $e-4;
+
+  &__nombre {
+    font-family: $fuente-titulo;
+    font-weight: $peso-fuerte;
+    font-size: $texto-base;
+  }
+
+  &__valor {
+    font-family: $fuente-cifra;
+    font-size: $texto-2xl;
+    font-weight: $peso-fuerte;
+    color: $tinta;
+  }
+
+  &__formula {
+    font-size: $texto-xs;
+    color: $tinta-suave;
+  }
+
+  &--faltante &__valor {
+    color: $tinta-tenue;
+    font-size: $texto-lg;
+  }
+}
+
+// --- Franja superior ---
+.hero {
+  padding-block: $e-7 $e-6;
+  background:
+    linear-gradient(180deg, rgba(251, 249, 245, 0.6), rgba(251, 249, 245, 0)),
+    $piedra-clara;
+  border-bottom: 1px solid $borde;
+
+  &__interna {
+    @include contenedor;
+  }
+
+  &__titulo {
+    max-width: 18ch;
+  }
+
+  &__texto {
+    font-size: $texto-lg;
+    color: $tinta-suave;
+    max-width: 46ch;
+  }
+}
+
+// --- Calendario de disponibilidad ---
+.calendario {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  background: $borde;
+  border: 1px solid $borde;
+  border-radius: $radio-sm;
+  overflow: hidden;
+
+  &__dia {
+    background: #fff;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: $texto-xs;
+    @include cifra;
+
+    &--fuera { background: $piedra-clara; color: $tinta-tenue; }
+    &--libre { background: $exito-tenue; color: color.adjust($exito, $lightness: -8%); }
+    &--ocupado { background: $error-tenue; color: color.adjust($error, $lightness: -4%); }
+    &--bloqueado { background: $aviso-tenue; color: $aviso; }
+  }
+
+  &__cabecera {
+    background: $blanco-fachada;
+    font-weight: $peso-medio;
+    color: $tinta-suave;
+    font-size: $texto-xs;
+  }
+}
+
+// --- Código de reserva ---
+.codigo-reserva {
+  font-family: $fuente-cifra;
+  font-size: $texto-2xl;
+  font-weight: $peso-fuerte;
+  letter-spacing: 0.08em;
+  color: $teja-oscuro;
+  padding: $e-3 $e-4;
+  background: $blanco-fachada;
+  border: 1px dashed $borde-fuerte;
+  border-radius: $radio;
+  display: inline-block;
+}

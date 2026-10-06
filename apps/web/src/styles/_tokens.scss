@@ -1,0 +1,77 @@
+// Tokens de color, tipografía, espaciado y estados.
+// Referencias visuales: fachada blanca, piedra clara, teja de barro, arcilla y ocre, vegetación
+// andina y cielo de la región. Se usan con moderación, como acento y no como fondo dominante.
+
+@use "sass:color";
+
+// --- Color ---
+$blanco-fachada: #fbf9f5;   // base de la página, blanca sin ser clínica
+$piedra-clara: #e6e0d4;     // bordes, divisores, superficies frías
+$teja: #9c4526;             // acento principal, ritmo y llamada a la acción
+$teja-oscuro: #7d3419;      // estado hover y foco de acento
+$arcilla: #b8724b;          // acento secundario
+$ocre: #c9922e;             // detalle y avisos no críticos
+$verde-andina: #3f5d3a;     // éxito y elementos naturales
+$cielo: #6b93b8;            // información
+
+// Texto: contraste verificado contra $blanco-fachada (WCAG AA >= 4.5:1)
+$tinta: #2a251f;            // 12.6:1
+$tinta-suave: #57503f;      // 6.9:1  — texto secundario legible
+$tinta-tenue: #7d7566;      // 3.6:1  — solo para elementos no informativos
+
+$borde: #d4cdbe;
+$borde-fuerte: #b9b09e;
+
+// --- Estados ---
+$exito: $verde-andina;
+$exito-tenue: #e6ede4;
+$error: #a32b1e;
+$error-tenue: #f7e6e3;
+$aviso: #8a5a08;
+$aviso-tenue: #faf0dc;
+$info: #1f4f73;
+$info-tenue: #e4eef5;
+
+// --- Tipografía ---
+$fuente-texto: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+$fuente-titulo: "IBM Plex Sans", "Source Sans 3", system-ui, sans-serif;
+$fuente-cifra: "JetBrains Mono", ui-monospace, monospace;
+
+// Escala tipográfica en rem. El usuario controla el tamaño con el navegador.
+$texto-xs: 0.75rem;
+$texto-sm: 0.875rem;
+$texto-base: 1rem;
+$texto-lg: 1.125rem;
+$texto-xl: 1.375rem;
+$texto-2xl: 1.75rem;
+$texto-3xl: 2.25rem;
+$texto-4xl: 3rem;
+
+$peso-normal: 400;
+$peso-medio: 600;
+$peso-fuerte: 700;
+
+// --- Espaciado (base 4px) ---
+$e-1: 0.25rem;
+$e-2: 0.5rem;
+$e-3: 0.75rem;
+$e-4: 1rem;
+$e-5: 1.5rem;
+$e-6: 2rem;
+$e-7: 3rem;
+$e-8: 4rem;
+
+// --- Formas y sombras ---
+$radio-sm: 6px;
+$radio: 10px;
+$radio-lg: 16px;
+$radio-full: 999px;
+
+$sombra-sm: 0 1px 2px rgba(42, 37, 31, 0.06);
+$sombra: 0 2px 8px rgba(42, 37, 31, 0.08);
+$sombra-lg: 0 8px 24px rgba(42, 37, 31, 0.12);
+
+// --- Movimiento ---
+$transicion: 160ms cubic-bezier(0.4, 0, 0.2, 1);
+$ancho-contenido: 72rem;
+$ancho-lectura: 42rem;
