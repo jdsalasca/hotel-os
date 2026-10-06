@@ -34,7 +34,7 @@ public class SecurityConfig {
     http.csrf(c -> c.csrfTokenRepository(csrfCookie).csrfTokenRequestHandler(atributoCsrf))
       .sessionManagement(s -> s.sessionFixation().changeSessionId())
       .authorizeHttpRequests(a -> a
-        .requestMatchers("/api/health", "/api/reservas", "/api/reservas/**").permitAll()
+        .requestMatchers("/api/health", "/api/reservas", "/api/reservas/**", "/api/disponibilidad").permitAll()
         .requestMatchers("/api/admin/init", "/api/admin/login").permitAll()
         .requestMatchers("/api/admin/**").hasRole("ADMIN")
         .anyRequest().denyAll())
