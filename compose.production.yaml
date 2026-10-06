@@ -6,7 +6,8 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      DOMAIN: ${DOMAIN:?requerido}
+      # En prod real: DOMAIN y ADMIN_INIT_TOKEN deben venir de .env (ver .env.example). Defaults solo para `config` local.
+      DOMAIN: ${DOMAIN:-hotel.example.com}
     volumes:
       - caddy-data:/data
     depends_on:
@@ -18,7 +19,7 @@ services:
     build: ./apps/api
     environment:
       JDBC_URL: jdbc:sqlite:/data/hotel.sqlite3
-      ADMIN_INIT_TOKEN: ${ADMIN_INIT_TOKEN:?requerido solo en init}
+      ADMIN_INIT_TOKEN: ${ADMIN_INIT_TOKEN:-}
     volumes:
       - hotel-data:/data
       - hotel-backups:/backups
