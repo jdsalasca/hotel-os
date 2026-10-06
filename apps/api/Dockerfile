@@ -1,16 +1,32 @@
-# Imagen mantenida con Java 25 (LTS) y solo el JRE: el backend no compila en runtime.
+# Imagen del backend. Compila dentro del contenedor y ejecuta solo el JRE.
+#
+# Antes el JAR se copiaba desde `target/`, lo que obligaba a compilar en el host antes de
+# `docker compose up --build`. Passó: un despliegue "correcto"levantó el jar de la ronda anterior
+# porque `target/` estaba viejo, y los endpoints nuevos devolvían 403 con `Allow: POST`. Un build
+# limpio del repositorio no tenía jar, así que ni siquiera arrancaba.
+
+# --- Compilación ---
+FROM maven:3.9-eclipse-temurin-25 AS construccion
+WORKDIR /build
+
+# Las dependencias se resuelven en una capa aparte: cambiar el código no vuelve a bajarlas.
+COPY pom.xml ./
+RUN mvn -B -q dependency:go-offline
+
+COPY src ./src
+RUN mvn -B -q package -DskipTests
+
+# --- Ejecución ---
 FROM eclipse-temurin:25-jre-jammy
 
 WORKDIR /app
-
-# El JAR se compila con el Maven Wrapper del repositorio, fuera de la imagen: el toolchain
-# de construcción no tiene por qué viajar a producción.
-COPY target/hotel-api-*.jar app.jar
 
 # curl solo para el healthcheck; wget viene en la imagen base.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends curl \
   && rm -rf /var/lib/apt/lists/*
+
+COPY --from=construccion /build/target/hotel-api-*.jar app.jar
 
 # El proceso corre como root dentro del contenedor. Es la forma habitual en contenedores de un
 # solo proceso, y evita el fallo real que se vio al intentar bajar el privilegio: el volumen

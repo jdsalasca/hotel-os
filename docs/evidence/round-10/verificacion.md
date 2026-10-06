@@ -46,10 +46,10 @@ En `PaginaAdminInventario`:
 1. **`diasDelMes` devolvía una lista vacía.** `rangoMes` devuelve el primer día del mes *siguiente*,
    así que leer `slice(8, 10)` daba siempre `01` y el bucle `for (dia = 1; dia < 1)` no iteraba
    nunca. La rejilla aparecía sin ninguna noche.
-2. **`toISOString` convertía a UTC.** En husos al este del UTC el día se desplaza hacia atrás, y en
-   un precio eso significa que falta la última noche del mes: la oferta no se totaliza. Ahora las
-   fechas se arman con la hora local (`isoLocal`), que además evita el mismo problema en las
-   consultas de disponibilidad que ya usaban `rangoMes`.
+2. **`rangoMes` usaba `toISOString`, que convertía a UTC.** En husos al este del UTC el día se
+   desplaza hacia atrás, y en un precio eso significa que falta la última noche del mes: la oferta
+   no se totaliza. Ahora las fechas se arman con la hora local (`isoLocal`), que además evita el
+   mismo problema en las consultas de disponibilidad que ya usaban `rangoMes`.
 
 ## Verificación por HTTP contra los contenedores reales
 

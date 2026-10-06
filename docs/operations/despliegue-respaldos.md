@@ -69,21 +69,27 @@ En todos los casos: **una sola instancia de escritura**. El backend está diseñ
 git clone <repo> && cd hotel-os
 cp .env.example .env && nano .env      # DOMAIN, ACME_EMAIL, ADMIN_INIT_TOKEN
 
-# 1. El JAR se compila fuera del contenedor: la imagen solo lleva el runtime.
-cd apps/api && ./mvnw.cmd clean package && cd ../..
+# 1. La imagen compila el JAR dentro del contenedor: no hace falta Maven en el servidor.
+docker compose -f compose.production.yaml build api
 
 # 2. Respaldo ANTES de actualizar. Ver tools/operacion/respaldar.sh
 docker compose -f compose.production.yaml run --rm --entrypoint \
   sh api /usr/local/bin/respaldar.sh /data/hotel.sqlite3 /backups
 
 # 3. Despliegue
-docker compose -f compose.production.yaml up -d --build
+docker compose -f compose.production.yaml up -d
 
 # 4. Crear el primer administrador (un solo uso)
 curl -X POST https://tu-dominio.com/api/admin/init \
   -H 'Content-Type: application/json' \
   -d '{"token":"<ADMIN_INIT_TOKEN>","email":"admin@hotel","password":"<contraseña larga del hotel>"}'
 ```
+
+> El Dockerfile de la API es multietapa: `maven:3.9-eclipse-temurin-25` compila y la imagen final
+> solo lleva el JRE. Antes copiaba el JAR de `target/`, y eso ya costó un despliegue con la versión
+> anterior: `docker compose up --build` levantaba sin error un `target/` viejo y los endpoints
+> nuevos devolvían 403 con `Allow: POST`. Si alguna vez ves un endpoint que "no existe" en un
+> contenedor recién construido, casi siempre es esto.
 
 `compose.production.yaml` **falla al validar** si faltan `DOMAIN`, `ACME_EMAIL` o
 `ADMIN_INIT_TOKEN`. Es intencionado: es mejor un despliegue que no arranca que uno que arranca sin
@@ -178,13 +184,12 @@ Recomendación: copia diaria automática (`cron`) más rotación mensual en un d
 ## Actualización con respaldo previo
 
 ```bash
-cd apps/api && ./mvnw.cmd clean package        # 1. compila y prueba antes de tocar nada
-cd ../..
+git pull                                                                     # 1. código nuevo
+docker compose -f compose.production.yaml build api                          # 2. compila (con sus pruebas)
 docker compose -f compose.production.yaml run --rm --entrypoint \
-  sh api /usr/local/bin/respaldar.sh /data/hotel.sqlite3 /backups   # 2. respaldo
-git pull                                                                  # 3. nuevo código
-docker compose -f compose.production.yaml up -d --build                # 4. reinicia
-curl -fsS https://tu-dominio.com/api/health                            # 5. verifica
+  sh api /usr/local/bin/respaldar.sh /data/hotel.sqlite3 /backups            # 3. respaldo
+docker compose -f compose.production.yaml up -d                              # 4. reinicia
+curl -fsS https://tu-dominio.com/api/health                                  # 5. verifica
 ```
 
 Si la salud no vuelve a `ok`, se restaura el respaldo del paso 2.
