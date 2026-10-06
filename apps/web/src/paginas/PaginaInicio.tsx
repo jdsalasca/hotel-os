@@ -122,7 +122,7 @@ export function PaginaInicio() {
               </p>
             ) : null}
 
-            <div style={{ marginTop: '1rem' }}>
+            <div className="mt-e4">
               <button className="boton boton--primario" type="submit" disabled={cargando || !llegada || !salida}>
                 {cargando ? 'Buscando…' : 'Buscar disponibilidad'}
               </button>

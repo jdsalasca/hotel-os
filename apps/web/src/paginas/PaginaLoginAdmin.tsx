@@ -25,7 +25,7 @@ export function PaginaLoginAdmin() {
 
   return (
     <main id="contenido" className="centrado">
-      <section className="seccion" style={{ maxWidth: '28rem', marginInline: 'auto' }}>
+      <section className="seccion ancho-acceso">
         <h1 className="seccion__titulo">Panel del hotel</h1>
         <p className="seccion__intro">Acceso para el personal autorizado.</p>
 

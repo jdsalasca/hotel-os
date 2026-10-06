@@ -55,6 +55,11 @@ export function PaginaReserva() {
     );
   }
 
+  // Tras el guard, TypeScript no puede estrechar `enCurso` dentro de `enviar` (es un closure y
+  // podría ejecutarse antes de que el estado cambie). Se fija aquí y se usa `eleccion` en todas
+  // partes: además evita leer un estado que React ya pudo limpiar.
+  const eleccion = enCurso;
+
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
     setError(null);
@@ -63,11 +68,11 @@ export function PaginaReserva() {
       const r = await api.post<RespuestaReserva>('/api/reservas', {
         email,
         nombre,
-        llegada: enCurso.llegada,
-        salida: enCurso.salida,
-        huespedes: enCurso.huespedes,
-        roomId: enCurso.habitacion.id,
-        idempotencia: enCurso.clave,
+        llegada: eleccion.llegada,
+        salida: eleccion.salida,
+        huespedes: eleccion.huespedes,
+        roomId: eleccion.habitacion.id,
+        idempotencia: eleccion.clave,
       });
       setReserva(r);
       sessionStorage.removeItem('reserva-en-curso');
@@ -84,7 +89,7 @@ export function PaginaReserva() {
         <section className="seccion">
           <h1 className="seccion__titulo">Reserva registrada</h1>
 
-          <p className="pila" style={{ gap: '0.5rem' }}>
+          <p className="pila gap-e2">
             <span className="campo__etiqueta">Tu código de reserva</span>
             <br />
             <span className="codigo-reserva">{reserva.codigo}</span>
@@ -94,17 +99,17 @@ export function PaginaReserva() {
             <p>{reserva.mensaje}</p>
           </Aviso>
 
-          <div className="tarjeta pila" style={{ marginTop: '1.5rem' }}>
+          <div className="tarjeta pila mt-e5">
             <dl className="pila">
               <div>
                 <dt className="campo__etiqueta">Habitación</dt>
-                <dd>{enCurso.tipo.nombre}</dd>
+                <dd>{eleccion.tipo.nombre}</dd>
               </div>
               <div>
                 <dt className="campo__etiqueta">Fechas</dt>
                 <dd className="cifra">
-                  {fechaCorta(reserva.llegada)} → {fechaCorta(reserva.salida)} ({enCurso.noches}{' '}
-                  {enCurso.noches === 1 ? 'noche' : 'noches'})
+                  {fechaCorta(reserva.llegada)} → {fechaCorta(reserva.salida)} ({eleccion.noches}{' '}
+                  {eleccion.noches === 1 ? 'noche' : 'noches'})
                 </dd>
               </div>
               <div>
@@ -118,10 +123,10 @@ export function PaginaReserva() {
             </dl>
           </div>
 
-          <p style={{ marginTop: '1.5rem' }}>
+          <p className="mt-e5">
             Guarda el código: con él y tu correo puedes consultar la reserva cuando quieras.
           </p>
-          <p className="pila" style={{ gap: '0.5rem' }}>
+          <p className="pila gap-e2">
             <Link className="boton boton--primario" to="/">
               Volver al inicio
             </Link>
@@ -136,7 +141,7 @@ export function PaginaReserva() {
 
   return (
     <main id="contenido" className="centrado">
-      <div className="rejilla rejilla--dos" style={{ paddingTop: '2rem' }}>
+      <div className="rejilla rejilla--dos pt-e6">
         <section className="seccion">
           <h1 className="seccion__titulo">Confirma tu reserva</h1>
           <p className="seccion__intro">
@@ -187,21 +192,21 @@ export function PaginaReserva() {
         </section>
 
         <aside aria-labelledby="titulo-resumen">
-          <h2 id="titulo-resumen" className="seccion__titulo" style={{ fontSize: '1.25rem' }}>
+          <h2 id="titulo-resumen" className="seccion__titulo t-xl">
             Tu selección
           </h2>
           <div className="tarjeta pila">
             <HuecoImagen alto="bajo" texto="Fotografía de la habitación" />
-            <h3 style={{ margin: 0 }}>{enCurso.tipo.nombre}</h3>
-            <p className="campo__ayuda" style={{ margin: 0 }}>
-              {fechaCorta(enCurso.llegada)} → {fechaCorta(enCurso.salida)}
+            <h3 className="sin-margen">{eleccion.tipo.nombre}</h3>
+            <p className="campo__ayuda sin-margen">
+              {fechaCorta(eleccion.llegada)} → {fechaCorta(eleccion.salida)}
             </p>
-            <p className="campo__ayuda" style={{ margin: 0 }}>
-              {enCurso.huespedes} {enCurso.huespedes === 1 ? 'huésped' : 'huéspedes'} ·{' '}
-              {enCurso.noches} {enCurso.noches === 1 ? 'noche' : 'noches'}
+            <p className="campo__ayuda sin-margen">
+              {eleccion.huespedes} {eleccion.huespedes === 1 ? 'huésped' : 'huéspedes'} ·{' '}
+              {eleccion.noches} {eleccion.noches === 1 ? 'noche' : 'noches'}
             </p>
             <p className="precio">
-              {monto(enCurso.totalCents, enCurso.moneda)}
+              {monto(eleccion.totalCents, eleccion.moneda)}
               <span className="precio__detalle">total del periodo</span>
             </p>
             <Link className="boton boton--fantasma boton--chico" to="/">

@@ -75,9 +75,9 @@ export function PaginaAdminReservas() {
   return (
     <main id="contenido" className="centrado">
       <section className="seccion">
-        <div className="pila" style={{ marginBottom: '1rem' }}>
-          <h1 className="seccion__titulo" style={{ marginBottom: 0 }}>Reservas</h1>
-          <p className="seccion__intro" style={{ marginBottom: 0 }}>
+        <div className="pila mb-e4">
+          <h1 className="seccion__titulo mb-0">Reservas</h1>
+          <p className="seccion__intro mb-0">
             Cada reserva muestra su origen y su historial de cambios de estado.
           </p>
         </div>
@@ -122,7 +122,7 @@ export function PaginaAdminReservas() {
                       </Etiqueta>
                     </td>
                     <td data-label="Acciones">
-                      <div className="pila" style={{ gap: '0.25rem' }}>
+                      <div className="pila gap-e1">
                         {ESTADOS.filter((e) => e.valor !== r.estado).map((e) => (
                           <button
                             key={e.valor}
@@ -146,14 +146,14 @@ export function PaginaAdminReservas() {
         ) : null}
 
         {detalle ? (
-          <aside className="tarjeta pila" style={{ marginTop: '2rem' }} aria-labelledby="titulo-detalle">
-            <h2 id="titulo-detalle" style={{ marginBottom: 0 }}>{detalle.reserva.codigo}</h2>
-            <p style={{ margin: 0 }}>
+          <aside className="tarjeta pila mt-e6" aria-labelledby="titulo-detalle">
+            <h2 id="titulo-detalle" className="mb-0">{detalle.reserva.codigo}</h2>
+            <p className="sin-margen">
               {detalle.reserva.nombre || detalle.reserva.email} · {fechaCorta(detalle.reserva.llegada)} →{' '}
               {fechaCorta(detalle.reserva.salida)}
             </p>
-            <h3 style={{ fontSize: '1rem', marginBottom: 0 }}>Historial</h3>
-            <ol className="pila" style={{ gap: '0.25rem', paddingLeft: '1.25rem' }}>
+            <h3 className="t-base mb-0">Historial</h3>
+            <ol className="pila gap-e1 lista-marcada">
               {detalle.historial.map((h, i) => (
                 <li key={i} className="campo__ayuda">
                   {h.estado_ant ? `${h.estado_ant} → ` : 'creada como '}

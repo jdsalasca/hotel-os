@@ -50,7 +50,7 @@ export function PaginaAdminInventario() {
           return r.ofertas.some((o) => o.habitacion.id === h.id);
         }),
       );
-      setOcupadas(new Set(habs.filter((h, i) => !libres[i]).map((h) => h.id)));
+      setOcupadas(new Set(habs.filter((_h, i) => !libres[i]).map((h) => h.id)));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cargar el inventario');
     } finally {
@@ -87,12 +87,12 @@ export function PaginaAdminInventario() {
         {error ? <MensajeError texto={error} /> : null}
         {cargando ? <Cargando /> : null}
 
-        <div className="campo" style={{ maxWidth: '14rem', marginBottom: '1.5rem' }}>
+        <div className="campo ancho-campo mb-e5">
           <label className="campo__etiqueta" htmlFor="mes-inv">Mes</label>
           <input id="mes-inv" type="month" className="cifra" value={mes} onChange={(e) => setMes(e.target.value)} />
         </div>
 
-        <h2 style={{ fontSize: '1.25rem' }}>Habitaciones ({habitaciones?.length ?? 0})</h2>
+        <h2 className="t-xl">Habitaciones ({habitaciones?.length ?? 0})</h2>
         {habitaciones && habitaciones.length > 0 ? (
           <div className="tabla-envoltura">
             <table className="tabla">
@@ -116,7 +116,7 @@ export function PaginaAdminInventario() {
                       {ocupadas.has(h.id) ? <Etiqueta tono="aviso">Con ocupación</Etiqueta> : <Etiqueta tono="exito">Libre</Etiqueta>}
                     </td>
                     <td>
-                      <div className="pila" style={{ flexDirection: 'row', gap: '0.25rem' }}>
+                      <div className="pila pila--fila gap-e1">
                         {h.estado === 'ACTIVA' ? (
                           <button
                             className="boton boton--chico boton--secundario"
@@ -143,7 +143,7 @@ export function PaginaAdminInventario() {
           <p className="campo__ayuda">No hay habitaciones registradas todavía.</p>
         )}
 
-        <div className="rejilla" style={{ marginTop: '2.5rem' }}>
+        <div className="rejilla mt-e6">
           <form
             className="tarjeta pila"
             onSubmit={(e) => {
@@ -157,7 +157,7 @@ export function PaginaAdminInventario() {
               );
             }}
           >
-            <h2 style={{ fontSize: '1.125rem', marginBottom: 0 }}>Nuevo tipo de habitación</h2>
+            <h2 className="t-lg mb-0">Nuevo tipo de habitación</h2>
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="tipo-codigo">Código</label>
               <input id="tipo-codigo" required value={nuevoTipo.codigo} onChange={(e) => setNuevoTipo({ ...nuevoTipo, codigo: e.target.value })} />
@@ -193,7 +193,7 @@ export function PaginaAdminInventario() {
               );
             }}
           >
-            <h2 style={{ fontSize: '1.125rem', marginBottom: 0 }}>Nueva habitación</h2>
+            <h2 className="t-lg mb-0">Nueva habitación</h2>
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="hab-codigo">Código</label>
               <input id="hab-codigo" required className="cifra" value={nuevaHabitacion.codigo} onChange={(e) => setNuevaHabitacion({ ...nuevaHabitacion, codigo: e.target.value })} />
@@ -237,7 +237,7 @@ export function PaginaAdminInventario() {
               );
             }}
           >
-            <h2 style={{ fontSize: '1.125rem', marginBottom: 0 }}>Bloqueo de mantenimiento</h2>
+            <h2 className="t-lg mb-0">Bloqueo de mantenimiento</h2>
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="bloqueo-hab">Habitación</label>
               <select id="bloqueo-hab" value={bloqueo.roomId} onChange={(e) => setBloqueo({ ...bloqueo, roomId: e.target.value })}>
@@ -265,7 +265,7 @@ export function PaginaAdminInventario() {
           </form>
         </div>
 
-        <p style={{ marginTop: '2rem' }}>
+        <p className="mt-e6">
           <Link to="/admin/reservas">Volver a las reservas</Link>
         </p>
       </section>

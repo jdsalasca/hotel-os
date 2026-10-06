@@ -1,0 +1,57 @@
+// Utilidades de espaciado, tamaño y línea base.
+//
+// Existen para que los componentes no lleven `style={{...}}`. Cada clase está atada a un token
+// de `_tokens.scss` y se genera en bucle, así que no hay números mágicos: si cambia la escala de
+// espaciado, cambia todo el sitio. Los nombres llevan el nombre del token (`mt-e5` = margen
+// superior de $e-5) para que no haya que adivinar a qué rem corresponde.
+
+@use "tokens" as t;
+
+// Separaciones que aparecen en más de un componente. La clave es el número del token
+// (`$e-6`), y el nombre sale de ahí: `mt-e6` es margen superior de `$e-6`.
+$separaciones: (
+  "1": t.$e-1,
+  "2": t.$e-2,
+  "4": t.$e-4,
+  "5": t.$e-5,
+  "6": t.$e-6,
+);
+
+@each $nombre, $valor in $separaciones {
+  .mt-e#{$nombre} { margin-top: $valor; }
+  .mb-e#{$nombre} { margin-bottom: $valor; }
+  .gap-e#{$nombre} { gap: $valor; }
+}
+
+.pt-e6 { padding-top: t.$e-6; }
+
+// Cero y ausencia de margen: `sin-margen` borra los cuatro lados, `mb-0` solo el inferior.
+.sin-margen { margin: 0; }
+.mb-0 { margin-bottom: 0; }
+
+// Títulos de sección dentro de tarjetas y paneles: por debajo del h2 de página ($texto-2xl).
+.t-xl { font-size: t.$texto-xl; }
+.t-lg { font-size: t.$texto-lg; }
+.t-base { font-size: t.$texto-base; }
+.t-sm { font-size: t.$texto-sm; }
+
+// Anchos de lectura acotados. `margin-inline: auto` va dentro de cada uno para no depender de
+// combinar dos clases.
+.ancho-campo { max-width: 14rem; }
+.ancho-acceso {
+  max-width: 28rem;
+  margin-inline: auto;
+}
+.ancho-formulario { max-width: 34rem; }
+
+// Filas de etiquetas y botones dentro de una pila vertical.
+.pila--fila {
+  flex-direction: row;
+  align-items: center;
+}
+
+// Listas con viñeta o numeración, sin el margen por defecto del navegador.
+.lista-marcada {
+  margin: 0;
+  padding-left: 1.25rem;
+}

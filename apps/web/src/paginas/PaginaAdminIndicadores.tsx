@@ -59,8 +59,8 @@ export function PaginaAdminIndicadores() {
   return (
     <main id="contenido" className="centrado">
       <section className="seccion">
-        <div className="pila no-imprimir" style={{ marginBottom: '1rem' }}>
-          <h1 className="seccion__titulo" style={{ marginBottom: 0 }}>Indicadores</h1>
+        <div className="pila no-imprimir mb-e4">
+          <h1 className="seccion__titulo mb-0">Indicadores</h1>
           <div className="campos">
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="periodo">Periodo</label>
@@ -86,8 +86,8 @@ export function PaginaAdminIndicadores() {
               const filas = informe.indicadores.filter((i) => i.fase === indice + 1);
               if (filas.length === 0) return null;
               return (
-                <section key={titulo} style={{ marginBottom: '2.5rem' }}>
-                  <h2 style={{ fontSize: '1.25rem' }}>{titulo}</h2>
+                <section key={titulo} className="mb-e6">
+                  <h2 className="t-xl">{titulo}</h2>
                   <div className="rejilla">
                     {filas.map((fila) => (
                       <article
@@ -122,7 +122,7 @@ export function PaginaAdminIndicadores() {
                           <p className="campo__ayuda">Motivo: {fila.datosFaltantes}</p>
                         ) : null}
 
-                        <div className="pila" style={{ gap: '0.25rem' }}>
+                        <div className="pila gap-e1">
                           <Etiqueta tono={fila.tieneResultado ? 'exito' : 'neutra'}>
                             {fila.tieneResultado ? 'Calculado' : 'Sin datos'}
                           </Etiqueta>
@@ -141,7 +141,7 @@ export function PaginaAdminIndicadores() {
 
         {informe ? (
           <section>
-            <h2 style={{ fontSize: '1.25rem' }}>Reservas por canal</h2>
+            <h2 className="t-xl">Reservas por canal</h2>
             {Object.keys(informe.reservasPorCanal).length === 0 ? (
               <p className="campo__ayuda">Sin reservas en el periodo.</p>
             ) : (
@@ -164,13 +164,13 @@ export function PaginaAdminIndicadores() {
               </table>
             )}
 
-            <h2 style={{ fontSize: '1.25rem', marginTop: '1.5rem' }}>Actividades de adopción</h2>
+            <h2 className="t-xl mt-e5">Actividades de adopción</h2>
             {informe.actividades.length === 0 ? (
               <p className="campo__ayuda">
                 Sin actividades confirmadas. No se atribuyen ventas a ninguna campaña.
               </p>
             ) : (
-              <ul className="pila" style={{ gap: '0.5rem' }}>
+              <ul className="pila gap-e2">
                 {informe.actividades.map((a, i) => (
                   <li key={i}>
                     <strong>{a.tipo}</strong> · {a.descripcion} ({a.fecha}) —{' '}
@@ -184,7 +184,7 @@ export function PaginaAdminIndicadores() {
           </section>
         ) : null}
 
-        <p style={{ marginTop: '2rem' }}>
+        <p className="mt-e6">
           <Link to="/admin/reservas">Volver a las reservas</Link>
         </p>
       </section>

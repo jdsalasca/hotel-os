@@ -47,7 +47,7 @@ export function PaginaConsulta() {
           Necesitas el código que te dimos al reservar y el mismo correo con el que lo hiciste.
         </p>
 
-        <form onSubmit={consultar} noValidate style={{ maxWidth: '34rem' }}>
+        <form onSubmit={consultar} noValidate className="ancho-formulario">
           <div className="pila">
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="codigo">Código de reserva</label>
@@ -80,22 +80,22 @@ export function PaginaConsulta() {
         </form>
 
         {reserva ? (
-          <div className="tarjeta pila" style={{ marginTop: '2rem' }}>
-            <div className="pila" style={{ gap: '0.5rem' }}>
-              <h2 style={{ margin: 0 }}>{reserva.codigo}</h2>
+          <div className="tarjeta pila mt-e6">
+            <div className="pila gap-e2">
+              <h2 className="sin-margen">{reserva.codigo}</h2>
               <Etiqueta tono={reserva.estado === 'CONFIRMADA' ? 'exito' : 'neutra'}>
                 {reserva.estado === 'PENDIENTE' ? 'Pendiente de confirmación' : reserva.estado}
               </Etiqueta>
             </div>
-            <p className="cifra" style={{ margin: 0 }}>
+            <p className="cifra sin-margen">
               {fechaCorta(reserva.llegada)} → {fechaCorta(reserva.salida)} · {reserva.huespedes}{' '}
               {reserva.huespedes === 1 ? 'huésped' : 'huéspedes'}
             </p>
-            <p className="campo__ayuda" style={{ margin: 0 }}>Reserva creada desde {reserva.origen}</p>
+            <p className="campo__ayuda sin-margen">Reserva creada desde {reserva.origen}</p>
           </div>
         ) : null}
 
-        <p style={{ marginTop: '2rem' }}>
+        <p className="mt-e6">
           <Link to="/">Volver al inicio</Link>
         </p>
       </section>

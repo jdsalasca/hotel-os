@@ -82,18 +82,18 @@ export function PaginaAdminIntegraciones() {
         {error ? <MensajeError texto={error} /> : null}
         {cargando ? <Cargando /> : null}
 
-        <div className="pila" style={{ gap: '1.5rem' }}>
+        <div className="pila gap-e5">
           {panel &&
             Object.values(panel).map((canal) => (
               <article className="tarjeta pila" key={canal.canal}>
-                <div className="pila" style={{ gap: '0.5rem' }}>
-                  <div className="pila" style={{ flexDirection: 'row', gap: '0.5rem', alignItems: 'center' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{nombreCanal(canal.canal)}</h2>
+                <div className="pila gap-e2">
+                  <div className="pila pila--fila gap-e2">
+                    <h2 className="sin-margen t-xl">{nombreCanal(canal.canal)}</h2>
                     <Etiqueta tono={TONO[canal.estado] ?? 'neutra'}>{traducirEstado(canal.estado)}</Etiqueta>
                     {canal.entorno ? <Etiqueta tono="neutra">entorno {canal.entorno}</Etiqueta> : null}
                   </div>
 
-                  <p className="campo__ayuda" style={{ margin: 0 }}>
+                  <p className="campo__ayuda sin-margen">
                     Última sincronización: {canal.ultimaSync ?? 'sin registrar'}
                     {canal.ultimaSyncResultado ? ` — ${canal.ultimaSyncResultado}` : ''}
                   </p>
@@ -101,7 +101,7 @@ export function PaginaAdminIntegraciones() {
 
                 {canal.variablesFaltantes.length > 0 ? (
                   <Aviso tono="aviso" titulo="Faltan credenciales">
-                    <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+                    <ul className="sin-margen lista-marcada">
                       {canal.variablesFaltantes.map((v) => (
                         <li key={v}>
                           <code>{v}</code>
@@ -112,9 +112,9 @@ export function PaginaAdminIntegraciones() {
                 ) : null}
 
                 {canal.requisitosPendientes.length > 0 ? (
-                  <div className="pila" style={{ gap: '0.25rem' }}>
-                    <h3 style={{ fontSize: '0.875rem', marginBottom: 0 }}>Requisitos pendientes</h3>
-                    <ul className="campo__ayuda" style={{ margin: 0, paddingLeft: '1.25rem' }}>
+                  <div className="pila gap-e1">
+                    <h3 className="t-sm mb-0">Requisitos pendientes</h3>
+                    <ul className="campo__ayuda sin-margen lista-marcada">
                       {canal.requisitosPendientes.map((r) => (
                         <li key={r}>{r}</li>
                       ))}
@@ -132,11 +132,11 @@ export function PaginaAdminIntegraciones() {
                   </p>
                 )}
 
-                <div className="pila" style={{ gap: '0.5rem' }}>
+                <div className="pila gap-e2">
                   {canal.ultimasSincronizaciones && canal.ultimasSincronizaciones.length > 0 ? (
                     <>
-                      <h3 style={{ fontSize: '0.875rem', marginBottom: 0 }}>Intentos recientes</h3>
-                      <ul className="campo__ayuda" style={{ margin: 0, paddingLeft: '1.25rem' }}>
+                      <h3 className="t-sm mb-0">Intentos recientes</h3>
+                      <ul className="campo__ayuda sin-margen lista-marcada">
                         {canal.ultimasSincronizaciones.map((s, i) => (
                           <li key={i}>
                             {s.en.slice(0, 16).replace('T', ' ')} — {s.exitosa ? 'correcto' : 'fallido'}: {s.detalle}
@@ -158,7 +158,7 @@ export function PaginaAdminIntegraciones() {
             ))}
         </div>
 
-        <p style={{ marginTop: '2rem' }}>
+        <p className="mt-e6">
           <Link to="/admin/reservas">Volver a las reservas</Link>
         </p>
       </section>

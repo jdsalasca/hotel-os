@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { urlApi } from './cliente';
 
 /**
  * Sesión administrativa. El backend usa sesión con cookie HttpOnly y CSRF por cookie: aquí solo
