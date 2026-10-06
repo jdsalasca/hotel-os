@@ -40,6 +40,12 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 8 - Despliegue y operación.** Compose dev/prod, HTTPS, respaldos consistentes,
   restauración probada y guía de despliegue. Evidencia:
   `docs/evidence/round-8/verificacion.md`.
+- [x] **Ronda 9 - Estilos y tipos.** 57 estilos inline extraídos a SCSS y typecheck real, que
+  descriptor un bug de sesión. Evidencia: `docs/evidence/round-9/verificacion.md`.
+- [x] **Ronda 10 - Planes y precios por noche desde el panel.** El hotel deja de necesitar curl
+  para tarifar. Evidencia: `docs/evidence/round-10/verificacion.md`.
+- [x] **Build reproducible.** La imagen del backend compila el jar; un clon limpio levanta sin
+  tener Maven en el servidor. Evidencia: `docs/evidence/round-10/verificacion.md`.
 
 ## Criterios de aceptación, verificados con ejecución real
 
@@ -52,7 +58,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | 5 | Las OTAs muestran su estado real | `BOOKING/DESPEGAR/AIRBNB = NO_CONFIGURADO` | ✅ |
 | 6 | Los indicadores no inventan datos | `tieneResultado=False` con motivo concreto | ✅ |
 | 7 | `compose up --build` funciona en dev y prod | Ambos `config` validan con exit 0 | ✅ |
-| 8 | Pruebas verdes | `Tests run: 138, Failures: 0, Errors: 0` | ✅ |
+| 8 | Pruebas verdes | `Tests run: 142, Failures: 0, Errors: 0` | ✅ |
 | 9 | Sin secretos en el repositorio | Escaneo del diff antes de cada commit | ✅ |
 
 ### Escalado medido de SQLite
@@ -65,21 +71,23 @@ el backend no puede ir en Vercel (filesystem efímero) y sí en una VM o servici
 
 ## Estado real 2026-10-06
 - Java 25.0.4.1, Docker 29.8.2, Maven Wrapper 3.9.11 funcionando. `distributionUrl` corregido.
-- **138/138 pruebas verdes**. Jar empaquetado y ejecutado; el frontend compila con Node 22 dentro
-  de Docker, igual que en Vercel.
-- **Node.js sigue ausente en el host**: el frontend se construye y verifica en `node:22-alpine`, sin
-  instalar nada en la máquina.
+- **142/142 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
+  faltaban: todo React era `any` implícito y nadie lo notaba porque `vite build` no comprueba tipos).
+- 20 capturas verificadas por guion (18 anteriores + 2 de precios), sin errores de consola ni de API.
+- **Node.js sigue ausente en el host**: el frontend se construye y verifica en `node:22-alpine`,
+  que es el mismo toolchain que usa Vercel.
 - **Sin credenciales OTA** (esperado): ver `docs/integrations/ota-estado.md` con el bloqueo exacto
   de cada canal. Ninguna integración aparece como conectada.
 - Gmail implementado con OAuth 2.0; falta el `GOOGLE_REFRESH_TOKEN` del hotel para probarlo contra
   una cuenta real. Procedimiento en `docs/operations/correo.md`.
 - Demostración de extremo a extremo verificada por HTTP contra los contenedores reales, no solo por
-  pruebas unitarias.
+  pruebas unitarias: tipo, habitación, plan y precios fijados desde la API aparecen en la web
+  pública, y desaparecen cuando falta una noche de precio.
 
 ## Pendiente antes de declarar el sistema en operación
 1. Dominio y correo del hotel, y `ADMIN_INIT_TOKEN` generado en el servidor.
 2. Credenciales y aprobación de partner de Booking.com, Despegar y Airbnb.
-3. Inventario y tarifas reales cargados por el panel.
-4. Copia de respaldos externa configurada y probada una vez.
-5. Cargar los estilos inline restantes a SCSS y completar el calendario y la gestión de tarifas en
-   el panel.
+3. Calendario de ocupación día a día en el panel (hoy hay una comprobación por habitación del mes).
+4. Mapeos por canal, conciliación y recepción real de reservas y cancelaciones de las OTAs.
+5. Facturación/recibos, configuración del hotel y auditoría de acciones administrativas.
+6. Copia de respaldos externa configurada y probada una vez.
