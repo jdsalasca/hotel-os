@@ -34,7 +34,7 @@ class CanalEstadoTest {
 
     @Test void sinCredencialesEsNoConfiguradoAunqueHuboSync() {
       CanalEstadoRegistry reg = registro(booking(Map.of()));
-      reg.registrar(Canal.BOOKING, true, "HTTP 200");
+      reg.registrarResultadoDeSync(Canal.BOOKING, true, "HTTP 200");
       assertEquals(Estado.NO_CONFIGURADO, reg.estadoDe(Canal.BOOKING));
     }
 
@@ -45,26 +45,26 @@ class CanalEstadoTest {
 
     @Test void syncExitosaEnSandboxEsSandbox() {
       CanalEstadoRegistry reg = registro(booking(envBooking("sandbox")));
-      reg.registrar(Canal.BOOKING, true, "HTTP 200");
+      reg.registrarResultadoDeSync(Canal.BOOKING, true, "HTTP 200");
       assertEquals(Estado.SANDBOX, reg.estadoDe(Canal.BOOKING));
     }
 
     @Test void syncExitosaEnProdEsConectado() {
       CanalEstadoRegistry reg = registro(booking(envBooking("prod")));
-      reg.registrar(Canal.BOOKING, true, "HTTP 200");
+      reg.registrarResultadoDeSync(Canal.BOOKING, true, "HTTP 200");
       assertEquals(Estado.CONECTADO, reg.estadoDe(Canal.BOOKING));
     }
 
     @Test void syncFallidaEsErrorYConservaElMotivoParaDiagnosticar() {
       CanalEstadoRegistry reg = registro(booking(envBooking("prod")));
-      reg.registrar(Canal.BOOKING, false, "HTTP 401 unauthorized");
+      reg.registrarResultadoDeSync(Canal.BOOKING, false, "HTTP 401 unauthorized");
       assertEquals(Estado.ERROR, reg.estadoDe(Canal.BOOKING));
       assertEquals("HTTP 401 unauthorized", reg.ultimaSyncDe(Canal.BOOKING).resultado());
     }
 
     @Test void desconectarPrevaleceSobreSyncExitosa() {
       CanalEstadoRegistry reg = registro(booking(envBooking("prod")));
-      reg.registrar(Canal.BOOKING, true, "HTTP 200");
+      reg.registrarResultadoDeSync(Canal.BOOKING, true, "HTTP 200");
       reg.marcarDesconectado(Canal.BOOKING);
       assertEquals(Estado.DESCONECTADO, reg.estadoDe(Canal.BOOKING));
     }
@@ -127,7 +127,7 @@ class CanalEstadoTest {
 
     @Test void elPanelInformaSandboxComoNoProduccion() {
       CanalEstadoRegistry reg = registro(booking(envBooking("sandbox")));
-      reg.registrar(Canal.BOOKING, true, "HTTP 200");
+      reg.registrarResultadoDeSync(Canal.BOOKING, true, "HTTP 200");
       assertTrue(reg.panel().toString().contains("no es conexión de producción"));
     }
   }

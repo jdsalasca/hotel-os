@@ -30,7 +30,7 @@ public class CanalEstadoRegistry {
   public SyncResult ultimaSyncDe(Canal canal) { return ultimaSync.get(canal); }
 
   /** Registra el resultado autoritativo de una llamada al proveedor. El conector decide, no el panel. */
-  public void registrar(Canal canal, boolean exitosa, String detalle) {
+  public void registrarResultadoDeSync(Canal canal, boolean exitosa, String detalle) {
     ultimaSync.put(canal, exitosa ? SyncResult.ok(detalle) : SyncResult.fallo(detalle));
   }
 

@@ -31,6 +31,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [ ] **Ronda 5 — Conectores OTA.** Un conector por canal con su documentación oficial, reintentos,
   idempotencia y bitácora. Entregable: bloqueos externos identificados con precisión; ninguna
   integración declarada conectada sin llamada autorizada.
+  **Hecho 2026-10-06** (100 pruebas): los tres conectores, cliente HTTP con timeouts y reintentos,
+  bitácora y pantalla con reintento. **Conexión validada: ninguna** por falta de credenciales de
+  partner. Evidencia: `docs/evidence/round-5/verificacion.md`.
 - [ ] **Ronda 6 — Indicadores.** Definiciones, fórmulas, fuentes, periodos, exportación CSV y vista
   imprimible. Entregable: informe calculado con datos de prueba sintéticos marcados como tales.
 - [ ] **Ronda 7 — Frontend y calidad visual.** Sistema SCSS, flujos públicos y admin, accesibilidad,

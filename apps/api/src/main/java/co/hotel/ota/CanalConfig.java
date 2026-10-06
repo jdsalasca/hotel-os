@@ -16,6 +16,9 @@ public final class CanalConfig {
     "DESPEGAR", List.of("DESPEGAR_API_KEY", "DESPEGAR_HOTEL_CODE", "DESPEGAR_ENV"),
     "AIRBNB", List.of("AIRBNB_CLIENT_ID", "AIRBNB_CLIENT_SECRET", "AIRBNB_LISTING_IDS", "AIRBNB_ENV"));
 
+  /** Variables opcionales que solo necesita el conector (endpoint base para sandbox o pruebas). */
+  private static final List<String> OPCIONALES = List.of("API_BASE");
+
   private static final List<String> SUFIJOS_CREDENCIAL = List.of("CLIENT_ID", "CLIENT_SECRET", "API_KEY");
   private static final List<String> SUFIJOS_IDENTIFICADOR = List.of("HOTEL_ID", "HOTEL_CODE", "LISTING_IDS");
   private static final List<String> ENTORNOS = List.of("sandbox", "prod");
