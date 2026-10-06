@@ -1,9 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, Etiqueta, MensajeError } from '../componentes/Estado';
 
+type MapeoCanal = {
+  id: number;
+  canal: string;
+  roomId: number | null;
+  roomCodigo: string | null;
+  roomNombre: string | null;
+  roomTypeId: number | null;
+  tipoNombre: string | null;
+  ratePlanId: number | null;
+  planNombre: string | null;
+  planMoneda: string | null;
+  externalId: string;
+};
 type EstadoCanal = {
   canal: string;
   estado: string;
@@ -15,8 +28,11 @@ type EstadoCanal = {
   ultimaSync: string | null;
   ultimaSyncResultado: string | null;
   ultimasSincronizaciones?: { operacion: string; exitosa: number; detalle: string; en: string }[];
-  mapeos?: { room_id: number | null; external_id: string }[];
+  mapeos?: MapeoCanal[];
 };
+type Habitacion = { id: number; codigo: string; nombre: string };
+type TipoHabitacion = { id: number; nombre: string };
+type PlanTarifario = { id: number; nombre: string; moneda: string };
 
 const TONO: Record<string, 'exito' | 'error' | 'aviso' | 'info' | 'neutra'> = {
   CONECTADO: 'exito',
@@ -34,15 +50,29 @@ const TONO: Record<string, 'exito' | 'error' | 'aviso' | 'info' | 'neutra'> = {
 export function PaginaAdminIntegraciones() {
   const sesion = useSesion();
   const [panel, setPanel] = useState<Record<string, EstadoCanal> | null>(null);
+  const [habitaciones, setHabitaciones] = useState<Habitacion[]>([]);
+  const [tipos, setTipos] = useState<TipoHabitacion[]>([]);
+  const [planes, setPlanes] = useState<PlanTarifario[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [sincronizando, setSincronizando] = useState<string | null>(null);
+  const [mapeoPorConfirmar, setMapeoPorConfirmar] = useState<number | null>(null);
+  const [eliminandoMapeo, setEliminandoMapeo] = useState<number | null>(null);
 
   async function cargar() {
     setCargando(true);
     setError(null);
     try {
-      setPanel(await api.get<Record<string, EstadoCanal>>('/api/admin/integraciones'));
+      const [estado, habs, tiposCargados, planesCargados] = await Promise.all([
+        api.get<Record<string, EstadoCanal>>('/api/admin/integraciones'),
+        api.get<Habitacion[]>('/api/admin/habitaciones'),
+        api.get<TipoHabitacion[]>('/api/admin/tipos'),
+        api.get<PlanTarifario[]>('/api/admin/planes'),
+      ]);
+      setPanel(estado);
+      setHabitaciones(habs);
+      setTipos(tiposCargados);
+      setPlanes(planesCargados);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cargar el estado de los canales');
     } finally {
@@ -64,6 +94,20 @@ export function PaginaAdminIntegraciones() {
     } finally {
       setSincronizando(null);
       await cargar();
+    }
+  }
+
+  async function eliminarMapeo(id: number) {
+    setEliminandoMapeo(id);
+    setMapeoPorConfirmar(null);
+    setError(null);
+    try {
+      await api.post(`/api/admin/integraciones/mapeos/${id}/eliminar`);
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'El mapeo no pudo eliminarse');
+    } finally {
+      setEliminandoMapeo(null);
     }
   }
 
@@ -122,15 +166,59 @@ export function PaginaAdminIntegraciones() {
                   </div>
                 ) : null}
 
-                {canal.mapeos && canal.mapeos.length > 0 ? (
-                  <p className="campo__ayuda">
-                    {canal.mapeos.length} mapeo(s) configurado(s) con el canal.
-                  </p>
-                ) : (
-                  <p className="campo__ayuda">
-                    Sin mapeos de habitaciones: nada de este inventario se publica en el canal.
-                  </p>
-                )}
+                <div className="pila gap-e2">
+                  <h3 className="t-sm mb-0">Mapeos declarados</h3>
+                  {canal.mapeos && canal.mapeos.length > 0 ? (
+                    <ul className="pila gap-e2 sin-margen lista-marcada">
+                      {canal.mapeos.map((mapeo) => (
+                        <li key={mapeo.id}>
+                          <div>
+                            <strong><code>{mapeo.externalId}</code></strong>
+                            <p className="campo__ayuda sin-margen">{describirMapeo(mapeo)}</p>
+                          </div>
+                          {mapeoPorConfirmar === mapeo.id ? (
+                            <div className="pila pila--fila gap-e1">
+                              <button
+                                type="button"
+                                className="boton boton--peligro boton--chico"
+                                disabled={eliminandoMapeo === mapeo.id}
+                                onClick={() => void eliminarMapeo(mapeo.id)}
+                              >
+                                {eliminandoMapeo === mapeo.id ? 'Eliminando…' : 'Confirmar eliminación'}
+                              </button>
+                              <button
+                                type="button"
+                                className="boton boton--secundario boton--chico"
+                                onClick={() => setMapeoPorConfirmar(null)}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="boton boton--secundario boton--chico"
+                              onClick={() => setMapeoPorConfirmar(mapeo.id)}
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="campo__ayuda sin-margen">
+                      Sin mapeos de habitaciones: nada de este inventario se publica en el canal.
+                    </p>
+                  )}
+                  <FormularioMapeo
+                    canal={canal.canal}
+                    habitaciones={habitaciones}
+                    tipos={tipos}
+                    planes={planes}
+                    onCreado={() => cargar()}
+                  />
+                </div>
 
                 <div className="pila gap-e2">
                   {canal.ultimasSincronizaciones && canal.ultimasSincronizaciones.length > 0 ? (
@@ -163,6 +251,138 @@ export function PaginaAdminIntegraciones() {
         </p>
       </section>
     </main>
+  );
+}
+
+function describirMapeo(mapeo: MapeoCanal): string {
+  const recurso = mapeo.roomId !== null
+    ? `Habitación ${mapeo.roomCodigo ?? mapeo.roomId}${mapeo.roomNombre ? ` · ${mapeo.roomNombre}` : ''}`
+    : `Tipo ${mapeo.tipoNombre ?? mapeo.roomTypeId}`;
+  const plan = mapeo.ratePlanId !== null
+    ? ` · plan ${mapeo.planNombre ?? mapeo.ratePlanId}${mapeo.planMoneda ? ` (${mapeo.planMoneda})` : ''}`
+    : '';
+  return `${recurso}${plan}`;
+}
+
+function FormularioMapeo({
+  canal,
+  habitaciones,
+  tipos,
+  planes,
+  onCreado,
+}: {
+  canal: string;
+  habitaciones: Habitacion[];
+  tipos: TipoHabitacion[];
+  planes: PlanTarifario[];
+  onCreado: () => Promise<void>;
+}) {
+  const [alcance, setAlcance] = useState<'habitacion' | 'tipo'>('habitacion');
+  const [recurso, setRecurso] = useState('');
+  const [planId, setPlanId] = useState('');
+  const [externo, setExterno] = useState('');
+  const [errorFormulario, setErrorFormulario] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const recursos = alcance === 'habitacion' ? habitaciones : tipos;
+
+  async function enviar(evento: FormEvent) {
+    evento.preventDefault();
+    setErrorFormulario(null);
+    if (!recurso) {
+      setErrorFormulario('Selecciona el recurso local que reconoce el proveedor.');
+      return;
+    }
+    if (!externo.trim()) {
+      setErrorFormulario('Escribe el identificador externo que usa el proveedor.');
+      return;
+    }
+    setEnviando(true);
+    try {
+      await api.post('/api/admin/integraciones/mapeos', {
+        canal,
+        roomId: alcance === 'habitacion' ? Number(recurso) : null,
+        roomTypeId: alcance === 'tipo' ? Number(recurso) : null,
+        ratePlanId: planId ? Number(planId) : null,
+        externalId: externo.trim(),
+      });
+      setRecurso('');
+      setPlanId('');
+      setExterno('');
+      await onCreado();
+    } catch (e) {
+      setErrorFormulario(e instanceof Error ? e.message : 'El mapeo no pudo registrarse');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <form className="pila gap-e2" aria-label={`Nuevo mapeo en ${nombreCanal(canal)}`} onSubmit={(e) => void enviar(e)}>
+      <h4 className="t-sm mb-0">Nuevo mapeo</h4>
+      <p className="campo__ayuda sin-margen">
+        El identificador externo lo da el proveedor. Aquí solo se declara el enlace; no se publica nada.
+      </p>
+      <div className="campos">
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor={`mapeo-alcance-${canal}`}>Recurso local</label>
+          <select
+            id={`mapeo-alcance-${canal}`}
+            value={alcance}
+            onChange={(e) => {
+              setAlcance(e.target.value as 'habitacion' | 'tipo');
+              setRecurso('');
+            }}
+          >
+            <option value="habitacion">Habitación</option>
+            <option value="tipo">Tipo de habitación</option>
+          </select>
+        </div>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor={`mapeo-recurso-${canal}`}>
+            {alcance === 'habitacion' ? 'Habitación' : 'Tipo'}
+          </label>
+          <select
+            id={`mapeo-recurso-${canal}`}
+            value={recurso}
+            onChange={(e) => setRecurso(e.target.value)}
+          >
+            <option value="">Selecciona un recurso</option>
+            {recursos.map((item) => (
+              <option key={item.id} value={item.id}>
+                {'codigo' in item ? `${item.codigo} · ${item.nombre || 'sin nombre'}` : item.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="campos">
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor={`mapeo-plan-${canal}`}>Plan tarifario (opcional)</label>
+          <select id={`mapeo-plan-${canal}`} value={planId} onChange={(e) => setPlanId(e.target.value)}>
+            <option value="">Sin plan específico</option>
+            {planes.map((plan) => (
+              <option key={plan.id} value={plan.id}>
+                {plan.nombre} ({plan.moneda})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor={`mapeo-externo-${canal}`}>Identificador externo</label>
+          <input
+            id={`mapeo-externo-${canal}`}
+            value={externo}
+            maxLength={120}
+            onChange={(e) => setExterno(e.target.value)}
+            placeholder="p. ej. 123456"
+          />
+        </div>
+      </div>
+      {errorFormulario ? <p className="campo__error" role="alert">{errorFormulario}</p> : null}
+      <button className="boton boton--primario boton--chico no-estirar" type="submit" disabled={enviando}>
+        {enviando ? 'Registrando…' : 'Registrar mapeo'}
+      </button>
+    </form>
   );
 }
 

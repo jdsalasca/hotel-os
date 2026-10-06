@@ -142,8 +142,24 @@ for (const [nombre, opciones] of [
 
   // 5. Integraciones: estado real de los canales
   await pagina.goto(`${BASE}/admin/integraciones`);
-  await esperar(pagina, 'text=Booking.com', "${nombre}-08-integraciones");
+  await esperar(pagina, 'text=Booking.com', `${nombre}-08-integraciones`);
   await guardar(pagina, `${nombre}-08-integraciones`);
+
+  // El mapeo de demostración usa un identificador único y se elimina al final: la base de
+  // desarrollo no acumula enlaces de prueba y el guion sigue siendo repetible.
+  const externo = `BOOKING-E2E-${Date.now()}`;
+  const formulario = pagina.locator('form[aria-label="Nuevo mapeo en Booking.com"]');
+  await formulario.locator('select').nth(1).selectOption({ index: 1 });
+  await formulario.getByLabel('Identificador externo').fill(externo);
+  await formulario.getByRole('button', { name: 'Registrar mapeo' }).click();
+  await esperar(pagina, `code:text-is("${externo}")`, `${nombre}-08b-mapeo`);
+  const tarjeta = pagina.locator('article:has(h2:text-is("Booking.com"))');
+  await tarjeta.locator(`code:text-is("${externo}")`).scrollIntoViewIfNeeded();
+  await guardarRegion(pagina, `${nombre}-08b-mapeo`, 'article:has(h2:text-is("Booking.com"))');
+  const elemento = pagina.locator(`li:has(code:text-is("${externo}"))`);
+  await elemento.getByRole('button', { name: 'Eliminar' }).click();
+  await elemento.getByRole('button', { name: 'Confirmar eliminación' }).click();
+  await elemento.waitFor({ state: 'detached' });
 
   // 6. Indicadores
   await pagina.goto(`${BASE}/admin/indicadores`);
