@@ -1,6 +1,7 @@
 package co.hotel.inventario;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -105,11 +106,13 @@ public class InventarioAdminController {
   /** Bloqueo de una habitación (roomId) o de todo el hotel si se omite. */
   @PostMapping("/api/admin/bloqueos")
   public ResponseEntity<?> bloquear(@RequestBody BloqueoReq req) {
-    LocalDate desde = LocalDate.parse(req.desde());
-    LocalDate hasta = LocalDate.parse(req.hasta());
-    return ok(() -> Map.of("bloqueoId", req.roomId() == null
-      ? inventario.bloquearTodo(desde, hasta, req.motivo())
-      : inventario.bloquear(req.roomId(), desde, hasta, req.motivo())));
+    return ok(() -> {
+      LocalDate desde = LocalDate.parse(req.desde());
+      LocalDate hasta = LocalDate.parse(req.hasta());
+      return Map.of("bloqueoId", req.roomId() == null
+        ? inventario.bloquearTodo(desde, hasta, req.motivo())
+        : inventario.bloquear(req.roomId(), desde, hasta, req.motivo()));
+    });
   }
 
   private PlanTarifario plan(long id) {
@@ -135,6 +138,8 @@ public class InventarioAdminController {
         : ResponseEntity.status(201).body(resultado);
     } catch (DatosInvalidosException e) {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    } catch (DateTimeParseException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "las fechas deben tener formato YYYY-MM-DD"));
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(Map.of("error", "dato inválido: " + e.getMessage()));
     }

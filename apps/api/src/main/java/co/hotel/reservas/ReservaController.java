@@ -1,6 +1,7 @@
 package co.hotel.reservas;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,18 +34,20 @@ public class ReservaController {
   public ResponseEntity<?> crear(@RequestBody CrearReq req,
                                  @RequestHeader(value = "Idempotency-Key", required = false) String claveCabecera) {
     String clave = (claveCabecera != null && !claveCabecera.isBlank()) ? claveCabecera : req.idempotencia();
-    Long habitacion = req.roomId() != null ? req.roomId() : rooms.primeraDisponible(
-      LocalDate.parse(req.llegada()), LocalDate.parse(req.salida()));
     try {
-      var datos = new CrearReserva(req.email(), req.nombre(), LocalDate.parse(req.llegada()),
-        LocalDate.parse(req.salida()), req.huespedes() == null ? 0 : req.huespedes(),
-        Origen.WEB, clave, habitacion);
+      LocalDate llegada = LocalDate.parse(req.llegada());
+      LocalDate salida = LocalDate.parse(req.salida());
+      Long habitacion = req.roomId() != null ? req.roomId() : rooms.primeraDisponible(llegada, salida);
+      var datos = new CrearReserva(req.email(), req.nombre(), llegada, salida,
+        req.huespedes() == null ? 0 : req.huespedes(), Origen.WEB, clave, habitacion);
       String codigo = svc.crear(datos);
       return ResponseEntity.status(201).body(ReservaResp.de(svc.buscar(codigo).orElseThrow(),
         "Reserva registrada. Queda pendiente de confirmación: el hotel aún no ha configurado pago ni "
           + "confirmación automática."));
     } catch (DatosInvalidosException e) {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    } catch (DateTimeParseException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "las fechas deben tener formato YYYY-MM-DD"));
     } catch (SinDisponibilidadException e) {
       return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     }

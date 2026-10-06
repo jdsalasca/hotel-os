@@ -91,6 +91,27 @@ class CalendarioControllerTest {
   }
 
   @Test
+  @DisplayName("un bloqueo con fecha mal escrita devuelve 400, no un error 500")
+  void bloqueoFechaMalaEs400() throws Exception {
+    mvc.perform(post("/api/admin/bloqueos").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("desde", "ayer", "hasta", "2027-04-02", "motivo", "prueba"))))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
+  @DisplayName("una tarifa con fecha mal escrita devuelve 400, no un error 500")
+  void tarifaFechaMalaEs400() throws Exception {
+    mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("ratePlanId", 1, "roomTypeId", 1, "fecha", "ayer",
+          "precioCents", 100))))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
   @DisplayName("el calendario solo lo ve el administrador")
   void sinRolNoHayCalendario() throws Exception {
     var anonimo = user("visitante").roles("USER");

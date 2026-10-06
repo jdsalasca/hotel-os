@@ -145,4 +145,15 @@ class AdminReservasControllerTest {
   void elPanelExigeSesion() throws Exception {
     mvc.perform(get("/api/admin/reservas")).andExpect(status().isUnauthorized());
   }
+
+  @Test
+  @DisplayName("una reserva pública con fecha mal escrita devuelve 400, no un error 500")
+  void reservaPublicaFechaMalaEs400() throws Exception {
+    mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("email", "mala@example.com", "llegada", "ayer",
+          "salida", "2026-11-22", "huespedes", 2))))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
 }
