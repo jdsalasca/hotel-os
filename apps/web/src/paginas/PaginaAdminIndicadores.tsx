@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api/cliente';
+import { api, urlApi } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, Etiqueta, MensajeError } from '../componentes/Estado';
 
@@ -73,7 +73,7 @@ export function PaginaAdminIndicadores() {
               />
             </div>
           </div>
-          <a className="boton boton--secundario boton--chico" href={`/api/admin/indicadores.csv?periodo=${periodo}`}>
+          <a className="boton boton--secundario boton--chico" href={`${urlApi(`/api/admin/indicadores.csv?periodo=${periodo}`)}`}>
             Descargar CSV
           </a>
         </div>

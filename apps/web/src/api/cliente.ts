@@ -7,6 +7,23 @@
  * - Usa `credentials: same-origin` para enviar la sesión: sin cookies no hay panel.
  */
 
+/**
+ * Base de la API. Vacía = mismo origen (docker compose, o Vercel con la reescritura /api).
+ * Con VITE_API_BASE definida (frontend en Vercel y backend en otro dominio) se prepende.
+ *
+ * `same-origin` deja de servir cuando la API está en otro dominio: las cookies de sesión no
+ * viajan entre sitios distintos. En ese caso el backend debe permitir el origen con credenciales,
+ * y es una decisión de configuración, no un ajuste de estilo.
+ */
+const BASE_API = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+
+function urlApi(ruta: string): string {
+  return `${BASE_API}${ruta}`;
+}
+
+/** Se exporta porque la comprobación de sesión vive en su propio módulo. */
+export { urlApi };
+
 export class ErrorApi extends Error {
   constructor(
     readonly estado: number,
@@ -30,7 +47,7 @@ async function peticion<T>(ruta: string, opciones: RequestInit = {}): Promise<T>
   if (opciones.body) cabeceras.set('Content-Type', 'application/json');
   if (esEscritura) cabeceras.set('X-XSRF-TOKEN', leerTokenCsrf());
 
-  const respuesta = await fetch(ruta, {
+  const respuesta = await fetch(urlApi(ruta), {
     ...opciones,
     headers: cabeceras,
     credentials: 'same-origin',

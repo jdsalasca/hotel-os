@@ -1,4 +1,16 @@
-# ⚠️ No ejecutar `docker compose down -v` en producción: elimina volúmenes.
+# Producción. Este archivo NO borra datos: no usar `docker compose down -v` con datos reales.
+#
+# ⚠️  `docker compose down -v` elimina los volúmenes nombrados, incluido el de SQLite.
+#     En producción eso son todas las reservas del hotel. Para parar sin borrar datos:
+#         docker compose -f compose.production.yaml down        (sin -v)
+#
+# Requisitos antes de arrancar:
+#   1. Un .env real (ignorado por git) con DOMAIN, ADMIN_INIT_TOKEN y, si aplica, credenciales OTA.
+#   2. HOTEL_AMBIENTE=produccion y HOTEL_DEMO_ADMIN=false: con el usuario demo activo, la
+#      aplicación se niega a arrancar.
+#   3. Un disco persistente montado para Docker. El volumen vive en ese disco: si la VM o el
+#      disco se pierden, se pierden las reservas. Por eso los respaldos se copian fuera.
+
 services:
   proxy:
     image: caddy:2-alpine
@@ -6,36 +18,73 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      # En prod real: DOMAIN y ADMIN_INIT_TOKEN deben venir de .env (ver .env.example). Defaults solo para `config` local.
-      DOMAIN: ${DOMAIN:-hotel.example.com}
+      DOMAIN: ${DOMAIN:?define DOMAIN en el .env}
+      ACME_EMAIL: ${ACME_EMAIL:?define ACME_EMAIL en el .env}
     volumes:
+      # Certificados y claves TLS: también en disco persistente.
       - caddy-data:/data
+      - caddy-config:/config
     depends_on:
       api:
         condition: service_healthy
       web:
-        condition: service_started
+        condition: service_healthy
+    restart: unless-stopped
+
   api:
     build: ./apps/api
     environment:
       JDBC_URL: jdbc:sqlite:/data/hotel.sqlite3
-      ADMIN_INIT_TOKEN: ${ADMIN_INIT_TOKEN:-}
+      # Sin esto, el usuario demo admin/admin es un riesgo abierto.
+      HOTEL_AMBIENTE: ${HOTEL_AMBIENTE:-produccion}
+      HOTEL_DEMO_ADMIN: ${HOTEL_DEMO_ADMIN:-false}
+      ADMIN_INIT_TOKEN: ${ADMIN_INIT_TOKEN:?define ADMIN_INIT_TOKEN para crear el primer administrador}
+      CORREO_HABILITADO: ${CORREO_HABILITADO:-false}
+      CORREO_REMITENTE: ${CORREO_REMITENTE:-}
+      CORREO_REMITENTE_NOMBRE: ${CORREO_REMITENTE_NOMBRE:-Hotel}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+      BOOKING_CLIENT_ID: ${BOOKING_CLIENT_ID:-}
+      BOOKING_CLIENT_SECRET: ${BOOKING_CLIENT_SECRET:-}
+      BOOKING_HOTEL_ID: ${BOOKING_HOTEL_ID:-}
+      BOOKING_ENV: ${BOOKING_ENV:-sandbox}
+      DESPEGAR_API_KEY: ${DESPEGAR_API_KEY:-}
+      DESPEGAR_HOTEL_CODE: ${DESPEGAR_HOTEL_CODE:-}
+      DESPEGAR_ENV: ${DESPEGAR_ENV:-sandbox}
+      AIRBNB_CLIENT_ID: ${AIRBNB_CLIENT_ID:-}
+      AIRBNB_CLIENT_SECRET: ${AIRBNB_CLIENT_SECRET:-}
+      AIRBNB_LISTING_IDS: ${AIRBNB_LISTING_IDS:-}
+      AIRBNB_ENV: ${AIRBNB_ENV:-sandbox}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
     volumes:
       - hotel-data:/data
       - hotel-backups:/backups
+    # Sin puertos publicados: el backend no se expone a internet, solo lo ve el proxy.
     expose:
       - "8080"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health | grep -q ok || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health | grep -q '\"estado\":\"ok\"' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+
+  web:
+    build: ./apps/web
+    ports: []   # sin puertos: lo sirve el proxy
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-  web:
-    build: ./apps/web
-    expose:
-      - "80"
+    restart: unless-stopped
 
 volumes:
   hotel-data:
   hotel-backups:
   caddy-data:
+  caddy-config:

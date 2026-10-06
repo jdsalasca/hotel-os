@@ -9,7 +9,7 @@ export function useSesion() {
 
   async function comprobar() {
     try {
-      const respuesta = await fetch('/api/admin/reservas?limit=1', { credentials: 'same-origin' });
+      const respuesta = await fetch(urlApi('/api/admin/reservas?limit=1'), { credentials: 'same-origin' });
       setHaySesion(respuesta.ok);
     } catch {
       setHaySesion(false);
@@ -24,7 +24,7 @@ export function useSesion() {
     haySesion,
     comprobar,
     async entrar(email: string, clave: string) {
-      const r = await fetch('/api/admin/login', {
+      const r = await fetch(urlApi('/api/admin/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -39,7 +39,7 @@ export function useSesion() {
     },
     async salir() {
       const csrf = leerCsrf();
-      await fetch('/api/admin/logout', {
+      await fetch(urlApi('/api/admin/logout'), {
         method: 'POST',
         headers: { 'X-XSRF-TOKEN': csrf },
         credentials: 'same-origin',
