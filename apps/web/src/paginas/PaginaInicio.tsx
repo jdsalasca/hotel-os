@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, nuevaClaveIdempotencia } from '../api/cliente';
-import { fechaCorta, mananaIso } from '../api/formato';
+import { fechaCorta, mananaIso, monto } from '../api/formato';
 import { HuecoImagen, MensajeError } from '../componentes/Estado';
 
 type Oferta = {
@@ -49,6 +49,7 @@ export function PaginaInicio() {
   }
 
   function elegir(oferta: Oferta) {
+    // Clave de idempotencia por intento: el respaldo cubre entornos sin secure context (HTTP local).
     const clave = nuevaClaveIdempotencia();
     sessionStorage.setItem('reserva-en-curso', JSON.stringify({ ...oferta, llegada, salida, huespedes, clave }));
     navegar('/reserva');
@@ -159,11 +160,7 @@ export function PaginaInicio() {
                     {oferta.tipo.capacidadMax} huéspedes
                   </p>
                   <p className="precio">
-                    {new Intl.NumberFormat('es-CO', {
-                      style: 'currency',
-                      currency: oferta.moneda,
-                      minimumFractionDigits: oferta.moneda === 'COP' ? 0 : 2,
-                    }).format(oferta.totalCents / 100)}
+                    {monto(oferta.totalCents, oferta.moneda)}
                     <span className="precio__detalle">
                       total por {oferta.noches} {oferta.noches === 1 ? 'noche' : 'noches'}
                     </span>

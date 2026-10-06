@@ -177,6 +177,10 @@
   width: 100%;
   border-collapse: collapse;
   font-size: $texto-sm;
+  // Sin ancho mínimo, en móvil las celdas se comprimen y una fecha queda partida en una palabra
+  // por línea. Con min-width, el contenedor de abajo la desplaza horizontalmente, que es lo
+  // legible en un panel de gestión.
+  min-width: 46rem;
 
   caption {
     @include visually-hidden;
@@ -205,10 +209,64 @@
   .cifra { @include cifra; }
 }
 
-// En pantallas pequeñas la tabla se desplaza en lugar de romper el diseño.
+// La envoltura solo existe para el desplazamiento en pantallas grandes.
 .tabla-envoltura {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 100%;
+}
+
+// En pantallas pequeñas la tabla se convierte en tarjetas apiladas en lugar de desplazarse.
+// Se probó el desplazamiento horizontal con min-width: el contenedor lo recortaba, pero el
+// documento entero seguía creciendo y la página quedaba con scroll lateral. En un panel que se
+// revisa desde el teléfono, apilar la información es más legible que obligar a arrastrar.
+@media (max-width: 47.99rem) {
+  .tabla,
+  .tabla thead,
+  .tabla tbody,
+  .tabla tr,
+  .tabla th,
+  .tabla td {
+    display: block;
+    min-width: 0;
+  }
+
+  .tabla thead {
+    // La cabecera pasa a ser la etiqueta de cada celda (data-label).
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .tabla tbody tr {
+    border: 1px solid $borde;
+    border-radius: $radio;
+    margin-bottom: $e-3;
+    padding: $e-2 0;
+    background: #fff;
+  }
+
+  .tabla tbody tr:hover {
+    background: #fff;
+  }
+
+  .tabla td {
+    display: grid;
+    grid-template-columns: 7.5rem 1fr;
+    gap: $e-2;
+    border-bottom: 0;
+    padding: $e-2 $e-3;
+  }
+
+  .tabla td::before {
+    content: attr(data-label);
+    font-size: $texto-xs;
+    font-weight: $peso-medio;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $tinta-suave;
+  }
 }
 
 // --- Cabecera y navegación ---
@@ -325,6 +383,13 @@
   display: grid;
   gap: $e-4;
   grid-template-columns: 1fr;
+
+  // Sin esto, un hijo con contenido ancho (una tabla con min-width) estira la pista del grid
+  // en vez de dejar que su propio contenedor desplace. El valor por defecto min-width:auto es
+  // la causa clásica del scroll horizontal en páginas con grid.
+  > * {
+    min-width: 0;
+  }
 
   @media (min-width: 44rem) {
     grid-template-columns: repeat(2, 1fr);

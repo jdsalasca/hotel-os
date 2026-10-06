@@ -107,21 +107,21 @@ export function PaginaAdminReservas() {
               <tbody>
                 {reservas.map((r) => (
                   <tr key={r.codigo}>
-                    <td className="cifra">{r.codigo}</td>
-                    <td>{r.nombre || r.email}</td>
-                    <td className="cifra">
+                    <td className="cifra" data-label="Código">{r.codigo}</td>
+                    <td data-label="Huésped">{r.nombre || r.email}</td>
+                    <td className="cifra" data-label="Fechas">
                       {fechaCorta(r.llegada)} → {fechaCorta(r.salida)}
                       <br />
                       <span className="campo__ayuda">{r.noches} noches</span>
                     </td>
-                    <td className="cifra">{r.huespedes}</td>
-                    <td><Etiqueta tono="neutra">{r.origen}</Etiqueta></td>
-                    <td>
+                    <td className="cifra" data-label="Huéspedes">{r.huespedes}</td>
+                    <td data-label="Origen"><Etiqueta tono="neutra">{r.origen}</Etiqueta></td>
+                    <td data-label="Estado">
                       <Etiqueta tono={r.estado === 'CONFIRMADA' ? 'exito' : r.estado === 'CANCELADA' ? 'error' : 'aviso'}>
                         {r.estado}
                       </Etiqueta>
                     </td>
-                    <td>
+                    <td data-label="Acciones">
                       <div className="pila" style={{ gap: '0.25rem' }}>
                         {ESTADOS.filter((e) => e.valor !== r.estado).map((e) => (
                           <button

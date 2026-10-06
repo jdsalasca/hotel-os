@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
-import { fechaCorta } from '../api/formato';
+import { fechaCorta, monto } from '../api/formato';
 import { Aviso, HuecoImagen, MensajeError } from '../componentes/Estado';
 
 type EnCurso = {
@@ -30,7 +30,9 @@ type RespuestaReserva = {
 
 /** Pasos 2 a 5 del flujo público: datos mínimos, envío y resultado con su estado real. */
 export function PaginaReserva() {
-  const enCurso = leerEnCurso();
+  // Se lee UNA vez al montar. Si se relejera en cada render, al borrar la selección tras el
+  // éxito volvería a ser null y la pantalla de confirmación no se llegaría a pintar.
+  const [enCurso] = useState<EnCurso | null>(() => leerEnCurso());
   const [email, setEmail] = useState('');
   const [nombre, setNombre] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -81,7 +83,14 @@ export function PaginaReserva() {
       <main id="contenido" className="centrado">
         <section className="seccion">
           <h1 className="seccion__titulo">Reserva registrada</h1>
-          <Aviso tono="exito" titulo={`Código ${reserva.codigo}`}>
+
+          <p className="pila" style={{ gap: '0.5rem' }}>
+            <span className="campo__etiqueta">Tu código de reserva</span>
+            <br />
+            <span className="codigo-reserva">{reserva.codigo}</span>
+          </p>
+
+          <Aviso tono="exito" titulo="Solicitud recibida">
             <p>{reserva.mensaje}</p>
           </Aviso>
 
@@ -192,11 +201,7 @@ export function PaginaReserva() {
               {enCurso.noches} {enCurso.noches === 1 ? 'noche' : 'noches'}
             </p>
             <p className="precio">
-              {new Intl.NumberFormat('es-CO', {
-                style: 'currency',
-                currency: enCurso.moneda,
-                minimumFractionDigits: enCurso.moneda === 'COP' ? 0 : 2,
-              }).format(enCurso.totalCents / 100)}
+              {monto(enCurso.totalCents, enCurso.moneda)}
               <span className="precio__detalle">total del periodo</span>
             </p>
             <Link className="boton boton--fantasma boton--chico" to="/">

@@ -1,0 +1,23 @@
+# Solo para generar capturas de verificación. No forma parte del despliegue.
+services:
+  # Reinicia los datos de demostración antes de capturar, para que el guion sea repetible.
+  # ⚠️ Borra reservas con correo @example.com. NUNCA contra datos reales.
+  demo-reset:
+    build: ./tools/demo-reset
+    volumes:
+      - hotel-data:/data
+    restart: "no"
+
+  capturas:
+    build: ./tools/capturas
+    environment:
+      BASE_URL: http://web:80
+      SALIDA: /salida
+    volumes:
+      - ./docs/screenshots:/salida
+    depends_on:
+      web:
+        condition: service_healthy
+      demo-reset:
+        condition: service_completed_successfully
+    restart: "no"

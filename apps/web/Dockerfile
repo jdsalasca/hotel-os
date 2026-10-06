@@ -11,6 +11,8 @@ COPY src ./src
 RUN npm run build
 
 FROM nginx:1.27-alpine AS ejecucion
+# wget no viene en la imagen de nginx: el healthcheck necesita una herramienta real.
+RUN apk add --no-cache wget
 COPY --from=construccion /app/dist /usr/share/nginx/html
 # SPA: cualquier ruta desconocida devuelve el index y la resuelve React Router.
 COPY <<'EOF' /etc/nginx/conf.d/default.conf

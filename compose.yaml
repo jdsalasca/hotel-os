@@ -1,30 +1,50 @@
+# Desarrollo local. Para producción ver compose.production.yaml.
+#
+# ⚠️  `docker compose down -v` BORRA los volúmenes, incluido el de la base de datos.
+#     Nunca lo ejecutes en un entorno con datos.
+
 services:
   api:
     build: ./apps/api
     environment:
       JDBC_URL: jdbc:sqlite:/data/hotel.sqlite3
+      HOTEL_AMBIENTE: ${HOTEL_AMBIENTE:-dev}
+      HOTEL_DEMO_ADMIN: ${HOTEL_DEMO_ADMIN:-false}
       ADMIN_INIT_TOKEN: ${ADMIN_INIT_TOKEN:-}
+      # Correo: deshabilitado por defecto. Ver docs/operations/correo.md
+      CORREO_HABILITADO: ${CORREO_HABILITADO:-false}
+      CORREO_REMITENTE: ${CORREO_REMITENTE:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
     volumes:
       - hotel-data:/data
       - hotel-backups:/backups
     ports:
       - "8080:8080"
+    # Healthcheck real: consulta el esquema de SQLite, no solo la versión de Java.
+    # Usa curl porque la imagen instala curl y no wget.
     healthcheck:
-      test: ["CMD", "java", "-version"]
-      interval: 30s
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health | grep -q '\"estado\":\"ok\"' || exit 1"]
+      interval: 15s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
   web:
-    image: node:22-alpine
-    working_dir: /app
-    volumes:
-      - ./apps/web:/app
+    build:
+      context: ./apps/web
+    environment:
+      # El nginx interno reenvía /api al backend del compose.
+      API_URL: http://api:8080
     ports:
-      - "5173:5173"
-    command: ["sh", "-c", "npm install && npm run dev -- --host"]
+      # Puerto local del frontend. Cámbialo con WEB_PORT si está ocupado.
+      - "${WEB_PORT:-5173}:80"
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   hotel-data:

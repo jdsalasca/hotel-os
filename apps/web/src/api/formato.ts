@@ -13,14 +13,17 @@ export function noches(llegada: string, salida: string): number {
   return Number.isFinite(d) && d > 0 ? d : 0;
 }
 
-/** Centavos a moneda legible. Sin decimales cuando la moneda no los usa (COP, por ejemplo). */
+/**
+ * Centavos a moneda legible. La moneda la fija el hotel; aquí no hay ninguna por defecto.
+ * Con `currencyDisplay: 'code'` el importe no se confunde: "$ 4.500" no dice de qué moneda.
+ */
 export function monto(centavos: number, moneda: string): string {
-  const decimales = moneda === 'COP' ? 0 : 2;
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: moneda,
-    minimumFractionDigits: decimales,
-    maximumFractionDigits: decimales,
+    currencyDisplay: 'code',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: moneda === 'COP' ? 0 : 2,
   }).format(centavos / 100);
 }
 

@@ -51,7 +51,15 @@ export const api = {
     peticion<T>(ruta, { method: 'POST', body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) }),
 };
 
-/** Clave de idempotencia estable por intento: repetir el envío no duplica la reserva. */
+/**
+ * Clave de idempotencia estable por intento: repetir el envío no duplica la reserva.
+ *
+ * crypto.randomUUID() solo existe en contextos seguros (HTTPS o localhost). En una red local por
+ * HTTP no está, y llamarlo sin más rompe el flujo de reserva entero. Por eso hay respaldo.
+ */
 export function nuevaClaveIdempotencia(): string {
-  return crypto.randomUUID();
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'id-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
 }
