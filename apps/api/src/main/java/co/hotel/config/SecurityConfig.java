@@ -38,7 +38,7 @@ public class SecurityConfig {
         // Spring reenvía los errores de validación a /error. Si ese reenvío queda denegado, un
         // mal parámetro responde 403 y parece un fallo de sesión en lugar de un 400 con mensaje.
         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-        .requestMatchers("/api/health", "/api/reservas", "/api/reservas/**", "/api/disponibilidad").permitAll()
+        .requestMatchers("/api/health", "/api/hotel", "/api/reservas", "/api/reservas/**", "/api/disponibilidad").permitAll()
         .requestMatchers("/api/admin/init", "/api/admin/login").permitAll()
         .requestMatchers("/api/admin/**").hasRole("ADMIN")
         .anyRequest().denyAll())

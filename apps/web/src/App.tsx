@@ -1,4 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { api } from './api/cliente';
 import { PaginaInicio } from './paginas/PaginaInicio';
 import { PaginaReserva } from './paginas/PaginaReserva';
 import { PaginaConsulta } from './paginas/PaginaConsulta';
@@ -6,9 +8,28 @@ import { PaginaLoginAdmin } from './paginas/PaginaLoginAdmin';
 import { PaginaAdminReservas } from './paginas/PaginaAdminReservas';
 import { PaginaAdminInventario } from './paginas/PaginaAdminInventario';
 import { PaginaAdminIntegraciones } from './paginas/PaginaAdminIntegraciones';
+import { PaginaAdminHotel } from './paginas/PaginaAdminHotel';
 import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
 
+function texto(valor?: string): string {
+  return valor?.trim() ?? '';
+}
+
 export function App() {
+  const [hotel, setHotel] = useState<Record<string, string> | null>(null);
+
+  // La marca pública llega del hotel; si la API falla, la cabecera usa el nombre genérico.
+  useEffect(() => {
+    void api
+      .get<Record<string, string>>('/api/hotel')
+      .then((datos) => setHotel(datos))
+      .catch(() => setHotel(null));
+  }, []);
+
+  const nombre = texto(hotel?.nombre) || 'Hotel';
+  const contacto = [texto(hotel?.direccion), texto(hotel?.contacto_telefono), texto(hotel?.contacto_email)]
+    .filter((dato) => dato.length > 0);
+
   return (
     <>
       <a className="solo-lectores" href="#contenido">
@@ -19,7 +40,7 @@ export function App() {
         <div className="cabecera__interna">
           <NavLink to="/" className="cabecera__marca">
             <span className="cabecera__marcador" aria-hidden="true" />
-            Hotel
+            {nombre}
           </NavLink>
           <nav className="nav" aria-label="Navegación principal">
             <NavLink to="/" end>Reservar</NavLink>
@@ -39,17 +60,22 @@ export function App() {
         <Route path="/admin/entrar" element={<PaginaLoginAdmin />} />
         <Route path="/admin/reservas" element={<PaginaAdminReservas />} />
         <Route path="/admin/inventario" element={<PaginaAdminInventario />} />
+        <Route path="/admin/hotel" element={<PaginaAdminHotel />} />
         <Route path="/admin/integraciones" element={<PaginaAdminIntegraciones />} />
         <Route path="/admin/indicadores" element={<PaginaAdminIndicadores />} />
       </Routes>
 
       <footer className="pie no-imprimir">
         <div className="pie__interna">
-          <p style={{ margin: 0 }}>
-            Reservas directas del hotel. Los precios mostrados son los que el hotel ha configurado.
+          <p className="sin-margen">
+            Reservas directas de {nombre}. Los precios mostrados son los que el hotel ha configurado.
           </p>
+          {contacto.length > 0 ? (
+            <p className="campo__ayuda sin-margen">{contacto.join(' · ')}</p>
+          ) : null}
           <nav className="nav" aria-label="Navegación del panel">
             <NavLink to="/admin/inventario">Inventario</NavLink>
+            <NavLink to="/admin/hotel">Hotel</NavLink>
             <NavLink to="/admin/integraciones">Integraciones</NavLink>
             <NavLink to="/admin/indicadores">Indicadores</NavLink>
           </nav>

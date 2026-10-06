@@ -163,8 +163,13 @@ for (const [nombre, opciones] of [
 
   // 6. Indicadores
   await pagina.goto(`${BASE}/admin/indicadores`);
-  await esperar(pagina, 'text=Operación estabilizada', "${nombre}-09-indicadores");
+  await esperar(pagina, 'text=Operación estabilizada', `${nombre}-09-indicadores`);
   await guardar(pagina, `${nombre}-09-indicadores`);
+
+  // 7. Datos del hotel
+  await pagina.goto(`${BASE}/admin/hotel`);
+  await esperar(pagina, '#hotel-nombre', `${nombre}-10-hotel`);
+  await guardar(pagina, `${nombre}-10-hotel`);
 
   await contexto.close();
 }
