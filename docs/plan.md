@@ -14,7 +14,7 @@ Monolito modular desplegable en instancia única con disco persistente, web púb
 
 ## Rondas
 - [x] **Ronda 1 — Contexto y modelo (esta):** repo inspeccionado (Default Project sin git, sin docs/apps; Java 25 OK, Docker OK, Node ausente), arquitectura + modelo + requisitos OTA documentados, esqueleto verificable (pom, V1 SQL, health test, compose, web tokens). Criterio: `mvn -q test` verde en `apps/api`, `docker compose config` válido, docs presentes.
-- [ ] **Ronda 2 — Backend y reservas:** API seguridad + migraciones + inventario transaccional anti-doble-reserva + reserva web pendiente/confirmada + origen. Entregable: reserva de prueba en panel y en SQLite del volumen, sobrevive a restart. Tests: superposición rechazada, idempotencia.
+- [x] **Ronda 2 — Backend y reservas:** API Spring Boot 4.1.1 + Security Basic + JDBC SQLite transaccional (BEGIN IMMEDIATE) + PENDIENTE sin pago + origen + idempotencia + consulta segura + init admin por token + BCrypt. Verificado: 5/5 tests, reserva H-3F947A7F DEMO en SQLite 57KB, 409 ante solape, idempotencia mismo código, persiste tras reinicio, admin lista 1 y 401 sin auth. Evidencia `docs/evidence/round-2/`.
 - [ ] **Ronda 3 — OTA:** conectores separados, mapeos, estados (no-configurado/pendiente/sandbox/conectado/error/desconectado), reintentos, conciliación, bitácora sin secretos. Entregable: sandbox donde haya acceso; si no, bloqueo exacto documentado, nada simulado como conectado. Resiliencia local ante caídas.
 - [ ] **Ronda 4 — Indicadores:** definiciones/fórmulas/fuentes/periodos + CSV + vista imprimible, sin inventar bases/metas. Entregable: informe con DEMO marcado.
 - [ ] **Ronda 5 — Frontend y visual:** SCSS sistema, flujos públicos/admin, a11y, responsive, capturas `docs/screenshots/` móvil+desktop verificadas con Playwright.
@@ -24,4 +24,5 @@ Monolito modular desplegable en instancia única con disco persistente, web púb
 - ✅ Java 25.0.4.1, Maven 3.9.11 global (solo para bootstrap, build usa wrapper), Docker 29.8.2, Git 2.55.0.
 - ⛔ Node/npm/bun ausentes → bloquea build `apps/web` hasta instalar Node LTS global (documentar, no instalar sin autorización).
 - ⛔ Sin credenciales OTA (esperado): Booking necesita Connectivity Partner + certificación pricing; Airbnb necesita Partner Program + NDA + security review; Despegar necesita HotelCode + API key + mTLS + certificación PDF + PCI si tarjeta. Detalle en `docs/integrations/ota-estado.md`.
-- Siguiente: Ronda 2 backend+reservas.
+- ✅ R2 2026-10-06: backend verificable corriendo (health ok, jar 38MB), SQLite local persiste tras reinicio, sin secretos en repo, `data/` ignorado.
+- Siguiente: Ronda 3 OTA (conectores, mapeos, estados, reintentos, conciliación).
