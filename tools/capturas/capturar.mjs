@@ -46,6 +46,13 @@ async function guardar(pagina, nombre) {
   console.log(`ok ${nombre}.png`);
 }
 
+async function guardarRegion(pagina, nombre, selector) {
+  await pagina.waitForLoadState('load');
+  await pagina.waitForTimeout(400);
+  await pagina.locator(selector).screenshot({ path: `${SALIDA}/${nombre}.png` });
+  console.log(`ok ${nombre}.png`);
+}
+
 /** Si un paso falla, guarda lo que se estaba viendo: un error sin pantalla no se diagnostica. */
 async function esperar(pagina, selector, nombre) {
   try {
@@ -123,6 +130,15 @@ for (const [nombre, opciones] of [
     await esperar(pagina, '[id^="precio-"]', `${nombre}-07b-precios`);
     await guardar(pagina, `${nombre}-07b-precios`);
   }
+
+  // El calendario se verifica con las reservas de demostración del propio guion: siempre deja
+  // dos habitaciones ocupadas del 10 al 12 de diciembre, así que diciembre es el mes estable.
+  await pagina.fill('#mes-inv', '2026-12');
+  await esperar(pagina, 'td[title*="reserva H-"]', `${nombre}-07c-calendario`);
+  // La región puede empezar en el día 1 en pantallas estrechas: se centra en la primera ocupación
+  // para que la evidencia muestre el estado ocupado y no solo una cuadrícula vacía.
+  await pagina.locator('td[title*="reserva H-"]').first().scrollIntoViewIfNeeded();
+  await guardarRegion(pagina, `${nombre}-07c-calendario`, '.ocupacion');
 
   // 5. Integraciones: estado real de los canales
   await pagina.goto(`${BASE}/admin/integraciones`);

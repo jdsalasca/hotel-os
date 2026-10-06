@@ -1,5 +1,6 @@
 package co.hotel.config;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -34,6 +35,9 @@ public class SecurityConfig {
     http.csrf(c -> c.csrfTokenRepository(csrfCookie).csrfTokenRequestHandler(atributoCsrf))
       .sessionManagement(s -> s.sessionFixation().changeSessionId())
       .authorizeHttpRequests(a -> a
+        // Spring reenvía los errores de validación a /error. Si ese reenvío queda denegado, un
+        // mal parámetro responde 403 y parece un fallo de sesión en lugar de un 400 con mensaje.
+        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
         .requestMatchers("/api/health", "/api/reservas", "/api/reservas/**", "/api/disponibilidad").permitAll()
         .requestMatchers("/api/admin/init", "/api/admin/login").permitAll()
         .requestMatchers("/api/admin/**").hasRole("ADMIN")

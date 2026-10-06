@@ -531,6 +531,139 @@
   }
 }
 
+// --- Calendario de ocupación del panel ---
+.ocupacion {
+  overflow: auto;
+  max-height: 34rem;
+  border: 1px solid $borde;
+  border-radius: $radio;
+  background: #fff;
+
+  &:focus-visible {
+    outline: 3px solid $teja;
+    outline-offset: 2px;
+  }
+
+  &__leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $e-2 $e-4;
+    margin: 0 0 $e-4;
+    padding: 0;
+    list-style: none;
+    font-size: $texto-sm;
+    color: $tinta-suave;
+  }
+
+  &__tabla {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: max-content;
+    width: 100%;
+    font-size: $texto-xs;
+
+    caption {
+      @include visually-hidden;
+    }
+  }
+
+  &__habitacion,
+  &__dia,
+  &__celda {
+    padding: $e-1 $e-2;
+    border-bottom: 1px solid $borde;
+    text-align: center;
+    background: #fff;
+  }
+
+  &__habitacion {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 6.5rem;
+    text-align: left;
+  }
+
+  thead .ocupacion__habitacion,
+  thead .ocupacion__dia {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: $blanco-fachada;
+    border-bottom: 2px solid $borde-fuerte;
+  }
+
+  thead .ocupacion__habitacion {
+    z-index: 4;
+  }
+
+  &__numero {
+    display: block;
+    font-weight: $peso-fuerte;
+    @include cifra;
+  }
+
+  &__semana {
+    display: block;
+    color: $tinta-suave;
+  }
+
+  &__dia--fin-semana,
+  &__celda--fin-semana {
+    background: $blanco-fachada;
+  }
+
+  &__celda--ocupada { background: $error-tenue; }
+  &__celda--bloqueada { background: $aviso-tenue; }
+  &__celda--mantenimiento { background: $info-tenue; }
+  &__celda--fuera-de-servicio { background: $piedra-clara; }
+  &__celda--desconocida { background: $error-tenue; }
+
+  &__marca {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    line-height: 1;
+
+    &--libre {
+      border: 2px solid $borde-fuerte;
+      color: $tinta-suave;
+    }
+
+    &--ocupada {
+      background: $error;
+      color: #fff;
+    }
+
+    &--bloqueada {
+      background: $aviso;
+      border-radius: $radio-sm;
+      color: #fff;
+    }
+
+    &--mantenimiento {
+      background: $info-tenue;
+      border: 2px solid $info;
+      color: $info;
+    }
+
+    &--fuera-de-servicio {
+      background: $piedra-clara;
+      border: 2px solid $borde-fuerte;
+      color: $tinta-suave;
+    }
+
+    &--desconocida {
+      border: 2px dashed $error;
+      color: $error;
+    }
+  }
+}
+
 // --- Código de reserva ---
 .codigo-reserva {
   font-family: $fuente-cifra;

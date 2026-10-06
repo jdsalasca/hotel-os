@@ -3,6 +3,7 @@ package co.hotel.inventario;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -64,14 +65,22 @@ public class InventarioAdminController {
   @GetMapping("/api/admin/planes")
   public List<PlanTarifario> listarPlanes() { return tarifas.listarPlanes(); }
 
-  /**
-   * Noches con precio del tipo en el periodo, para que el hotel vea lo que ha fijado. `planId` y
-   * `tipoId` son obligatorios: sin plan no hay tarifa que leer.
-   */
   @GetMapping("/api/admin/tarifas")
   public ResponseEntity<?> listarTarifas(@RequestParam Long planId, @RequestParam Long tipoId,
-                                          @RequestParam String desde, @RequestParam String hasta) {
-    return ok(() -> tarifas.nochesDe(planId, tipoId, LocalDate.parse(desde), LocalDate.parse(hasta)));
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+    return lectura(() -> tarifas.nochesDe(planId, tipoId, desde, hasta));
+  }
+
+  /**
+   * Calendario de ocupación del hotel: una fila por habitación y una noche por día. Es el dato
+   * que el panel necesita para mostrar qué noche vende y cuál no.
+   */
+  @GetMapping("/api/admin/calendario")
+  public ResponseEntity<?> calendario(
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+    return lectura(() -> inventario.ocupacion(desde, hasta));
   }
 
   /** Alta o actualización del precio de una noche. Repetir la misma fecha la sobrescribe. */
@@ -107,9 +116,20 @@ public class InventarioAdminController {
     return tarifas.planPorId(id);
   }
 
+  /** Escritura: 201 al crear, 200 si no hubo nada que crear. */
   private ResponseEntity<?> ok(java.util.function.Supplier<Object> trabajo) {
+    return responder(trabajo, true);
+  }
+
+  /** Lectura: siempre 200. El 201 es para crear; un GET que responde 201 confunde a quien lo llame. */
+  private ResponseEntity<?> lectura(java.util.function.Supplier<Object> trabajo) {
+    return responder(trabajo, false);
+  }
+
+  private ResponseEntity<?> responder(java.util.function.Supplier<Object> trabajo, boolean creacion) {
     try {
       Object resultado = trabajo.get();
+      if (!creacion) return ResponseEntity.ok(resultado);
       return resultado instanceof Integer i && i == 0
         ? ResponseEntity.ok(resultado)
         : ResponseEntity.status(201).body(resultado);

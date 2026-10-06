@@ -67,6 +67,40 @@ public class InventarioRepository {
         rs.getString("nombre"), EstadoHabitacion.valueOf(rs.getString("estado"))), id).stream().findFirst();
   }
 
+  /** Un ítem de reserva vigente que se solapa con el intervalo pedido. */
+  public record OcupacionReserva(long roomId, LocalDate desde, LocalDate hasta, String codigo) {}
+
+  /**
+   * Reservas vigentes (no canceladas ni rechazadas) que se solapan con el intervalo. No se expande
+   * la fecha aquí: el servicio recorre las noches, porque SQLite no genera días.
+   */
+  public List<OcupacionReserva> ocupacionesDeReservas(LocalDate desde, LocalDate hasta) {
+    return jdbc.query(
+      "SELECT ri.room_id, ri.desde, ri.hasta, res.codigo FROM reservation_items ri "
+        + "JOIN reservations res ON res.id = ri.reservation_id "
+        + "WHERE res.estado IN ('PENDIENTE','CONFIRMADA') "
+        + "  AND ri.desde < ? AND ? < ri.hasta "
+        + "ORDER BY ri.room_id, ri.desde",
+      (rs, n) -> new OcupacionReserva(rs.getLong("room_id"), LocalDate.parse(rs.getString("desde")),
+        LocalDate.parse(rs.getString("hasta")), rs.getString("codigo")),
+      hasta.toString(), desde.toString());
+  }
+
+  /** Un bloqueo. `roomId` nulo es un bloqueo del hotel entero. */
+  public record OcupacionBloqueo(Long roomId, LocalDate desde, LocalDate hasta, String motivo) {}
+
+  public List<OcupacionBloqueo> bloqueosDe(LocalDate desde, LocalDate hasta) {
+    return jdbc.query(
+      "SELECT room_id, desde, hasta, motivo FROM blocks "
+        + "WHERE desde < ? AND ? < hasta ORDER BY desde",
+      (rs, n) -> {
+        long id = rs.getLong("room_id");
+        return new OcupacionBloqueo(rs.wasNull() ? null : id, LocalDate.parse(rs.getString("desde")),
+          LocalDate.parse(rs.getString("hasta")), rs.getString("motivo"));
+      },
+      hasta.toString(), desde.toString());
+  }
+
   /** Habitaciones activas sin reserva vigente ni bloqueo en el intervalo semiabierto. */
   public List<Habitacion> disponibles(LocalDate desde, LocalDate hasta) {
     return jdbc.query(

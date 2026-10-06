@@ -262,4 +262,87 @@ class InventarioServiceTest {
     assertThrows(DatosInvalidosException.class, () -> tarifas.nochesDe(plan.id(), tipo.id(),
       LocalDate.parse("2026-01-01"), LocalDate.parse("2036-01-01")));
   }
+
+  @Test
+  @DisplayName("el calendario dice ocupada, libre, bloqueada y fuera de servicio, noche por noche")
+  void calendarioDeOcupacionNocheAPorNoche() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    Habitacion libre = svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    Habitacion reservada = svc.crearHabitacion("102", tipo.id(), "Habitación 102");
+    Habitacion bloqueada = svc.crearHabitacion("103", tipo.id(), "Habitación 103");
+    Habitacion fuera = svc.crearHabitacion("104", tipo.id(), "Habitación 104");
+    Habitacion cancelada = svc.crearHabitacion("105", tipo.id(), "Habitación 105");
+
+    // Reserva confirmada en 102: del 1 al 3 ocupa las noches 1 y 2 (el 3 es el día de salida).
+    reservar("H-CONFIRMADA", reservada.id(), "2026-12-01", "2026-12-03", "CONFIRMADA");
+    // Una reserva cancelada no ocupa nada: es la trampa que hace que un calendario mienta.
+    reservar("H-CANCELADA", cancelada.id(), "2026-12-01", "2026-12-03", "CANCELADA");
+    // Bloqueo de mantenimiento en 103 del 2 al 3.
+    svc.bloquear(bloqueada.id(), LocalDate.parse("2026-12-02"), LocalDate.parse("2026-12-03"),
+      "Mantenimiento");
+    svc.cambiarEstado(fuera.id(), EstadoHabitacion.FUERA_DE_SERVICIO);
+
+    var calendario = svc.ocupacion(LocalDate.parse("2026-12-01"), LocalDate.parse("2026-12-04"));
+    assertEquals(5, calendario.size(), "una fila por habitación del hotel");
+    assertEquals(3, calendario.get(0).noches().size(), "noche 1, 2 y 3 del periodo");
+
+    var libre101 = porCodigo(calendario, libre.codigo());
+    assertEquals("LIBRE", libre101.noches().get(0).estado());
+    assertEquals("LIBRE", libre101.noches().get(1).estado());
+
+    var ocupada102 = porCodigo(calendario, reservada.codigo());
+    assertEquals("OCUPADA", ocupada102.noches().get(0).estado());
+    assertEquals("H-CONFIRMADA", ocupada102.noches().get(0).codigoReserva());
+    assertEquals("OCUPADA", ocupada102.noches().get(1).estado(), "la noche 2 sigue reservada");
+    assertEquals("LIBRE", ocupada102.noches().get(2).estado(), "el 3 es el día de salida: sale y queda libre");
+
+    var bloqueada103 = porCodigo(calendario, bloqueada.codigo());
+    assertEquals("LIBRE", bloqueada103.noches().get(0).estado());
+    assertEquals("BLOQUEADA", bloqueada103.noches().get(1).estado());
+
+    assertEquals("FUERA_DE_SERVICIO", porCodigo(calendario, fuera.codigo()).noches().get(0).estado());
+
+    var cancelada105 = porCodigo(calendario, cancelada.codigo());
+    assertEquals("LIBRE", cancelada105.noches().get(0).estado(),
+      "una reserva cancelada no puede retener la habitación");
+    assertNull(cancelada105.noches().get(0).codigoReserva());
+  }
+
+  @Test
+  @DisplayName("un bloqueo del hotel entero (room_id nulo) aparece en todas las habitaciones")
+  void bloqueoGlobalApareceEnTodas() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    Habitacion otra = svc.crearHabitacion("102", tipo.id(), "Habitación 102");
+    svc.bloquearTodo(LocalDate.parse("2026-12-01"), LocalDate.parse("2026-12-02"), "Cierre");
+
+    var calendario = svc.ocupacion(LocalDate.parse("2026-12-01"), LocalDate.parse("2026-12-03"));
+    assertEquals("BLOQUEADA", porCodigo(calendario, "101").noches().get(0).estado());
+    assertEquals("BLOQUEADA", porCodigo(calendario, otra.codigo()).noches().get(0).estado());
+    assertEquals("LIBRE", porCodigo(calendario, "101").noches().get(1).estado(),
+      "el bloqueo termina el día 2");
+  }
+
+  @Test
+  @DisplayName("un calendario con las fechas invertidas o desmedido se rechaza")
+  void calendarioInvalidoSeRechaza() {
+    assertThrows(DatosInvalidosException.class,
+      () -> svc.ocupacion(LocalDate.parse("2026-12-04"), LocalDate.parse("2026-12-01")));
+    assertThrows(DatosInvalidosException.class,
+      () -> svc.ocupacion(LocalDate.parse("2026-01-01"), LocalDate.parse("2030-01-01")));
+  }
+
+  private InventarioService.OcupacionHabitacion porCodigo(
+      java.util.List<InventarioService.OcupacionHabitacion> calendario, String codigo) {
+    return calendario.stream().filter(c -> codigo.equals(c.codigo())).findFirst().orElseThrow();
+  }
+
+  private void reservar(String codigo, long roomId, String desde, String hasta, String estado) {
+    jdbc.update("INSERT INTO reservations(codigo,email,nombre,llegada,salida,huespedes,estado,"
+        + "origen,idempotencia,creado_en) VALUES(?,?,?,?,?,2,?,?,?,datetime('now'))",
+      codigo, "hotel@ejemplo.com", "Huésped", desde, hasta, estado, "WEB", codigo);
+    Long id = jdbc.queryForObject("SELECT id FROM reservations WHERE codigo=?", Long.class, codigo);
+    jdbc.update("INSERT INTO reservation_items(reservation_id,room_id,desde,hasta) VALUES(?,?,?,?)",
+      id, roomId, desde, hasta);
+  }
 }

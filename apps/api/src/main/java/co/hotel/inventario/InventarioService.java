@@ -77,6 +77,78 @@ public class InventarioService {
     return inventario.disponibles(desde, hasta);
   }
 
+  /** Estado de una noche: libre, ocupada por una reserva, bloqueada o habitación no vendible. */
+  public record Noche(LocalDate fecha, String estado, String codigoReserva) {}
+
+  /** Una habitación con sus noches en el periodo pedido. */
+  public record OcupacionHabitacion(long id, String codigo, List<Noche> noches) {}
+
+  /**
+   * Calendario de ocupación: una fila por habitación y una columna por noche. Es el dato que el
+   * hotel necesita ver para saber qué noche vende y cuál no; hasta ahora se respondía con una
+   * consulta por habitación contra la API pública, que es un atajo caro y que no distingue entre
+   * una reserva cancelada y una habitación libre.
+   *
+   * Intervalo semiabierto: la noche `d` está ocupada si `desde <= d < hasta`. El día de salida no
+   * cuenta, como en el resto del sistema.
+   */
+  public List<OcupacionHabitacion> ocupacion(LocalDate desde, LocalDate hasta) {
+    validarPeriodo(desde, hasta);
+    if (java.time.temporal.ChronoUnit.DAYS.between(desde, hasta) > 366)
+      throw new DatosInvalidosException("el periodo no puede superar un año");
+
+    var reservas = inventario.ocupacionesDeReservas(desde, hasta);
+    var bloqueos = inventario.bloqueosDe(desde, hasta);
+    List<OcupacionHabitacion> calendario = new java.util.ArrayList<>();
+
+    for (Habitacion habitacion : inventario.habitaciones()) {
+      List<Noche> noches = new java.util.ArrayList<>();
+      for (LocalDate dia = desde; dia.isBefore(hasta); dia = dia.plusDays(1)) {
+        noches.add(new Noche(dia, estadoDe(habitacion, dia, reservas, bloqueos), codigoDe(habitacion, dia, reservas)));
+      }
+      calendario.add(new OcupacionHabitacion(habitacion.id(), habitacion.codigo(), noches));
+    }
+    return calendario;
+  }
+
+  /**
+   * Prioridad: primero si la habitación no está activa, después el bloqueo y por último la
+   * reserva. Una habitación retirada no vende; un bloqueo vigente tapa lo que el hotel marcó; y
+   * si hay reserva, hay huésped y eso es lo que hay que mostrar.
+   */
+  private String estadoDe(Habitacion habitacion, LocalDate dia,
+      List<InventarioRepository.OcupacionReserva> reservas,
+      List<InventarioRepository.OcupacionBloqueo> bloqueos) {
+    if (habitacion.estado() != EstadoHabitacion.ACTIVA) return habitacion.estado().name();
+    for (InventarioRepository.OcupacionBloqueo bloqueo : bloqueos)
+      if (cubreBloqueo(bloqueo, habitacion, dia)) return "BLOQUEADA";
+    for (InventarioRepository.OcupacionReserva reserva : reservas)
+      if (cubreReserva(reserva, habitacion, dia)) return "OCUPADA";
+    return "LIBRE";
+  }
+
+  private String codigoDe(Habitacion habitacion, LocalDate dia,
+      List<InventarioRepository.OcupacionReserva> reservas) {
+    for (InventarioRepository.OcupacionReserva reserva : reservas)
+      if (cubreReserva(reserva, habitacion, dia)) return reserva.codigo();
+    return null;
+  }
+
+  /** Intervalo semiabierto [desde, hasta): el día de salida no se cuenta. */
+  private static boolean dentro(LocalDate desde, LocalDate hasta, LocalDate dia) {
+    return !dia.isBefore(desde) && dia.isBefore(hasta);
+  }
+
+  private static boolean cubreReserva(InventarioRepository.OcupacionReserva reserva, Habitacion habitacion, LocalDate dia) {
+    return reserva.roomId() == habitacion.id() && dentro(reserva.desde(), reserva.hasta(), dia);
+  }
+
+  /** Bloqueo con `roomId` nulo = hotel entero, así que se aplica a todas las habitaciones. */
+  private static boolean cubreBloqueo(InventarioRepository.OcupacionBloqueo bloqueo, Habitacion habitacion, LocalDate dia) {
+    return (bloqueo.roomId() == null || bloqueo.roomId() == habitacion.id())
+      && dentro(bloqueo.desde(), bloqueo.hasta(), dia);
+  }
+
   /**
    * Habitaciones libres cuyo precio se puede totalizar. Quedan fuera las que no alcanzan la
    * capacidad pedida, las que tienen una noche cerrada o sin tarifa, y las que incumplen una

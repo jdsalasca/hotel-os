@@ -6,16 +6,44 @@ import { Aviso, Cargando, Etiqueta, MensajeError } from '../componentes/Estado';
 import { fechaCorta } from '../api/formato';
 
 type Habitacion = { id: number; codigo: string; roomTypeId: number; nombre: string; estado: string };
-type Oferta = {
-  habitacion: { id: number; codigo: string };
-  tipo: { capacidadMax: number };
-  totalCents: number;
-  moneda: string;
-  noches: number;
-};
 type Tipo = { id: number; codigo: string; nombre: string; capacidadMax: number };
 type Plan = { id: number; codigo: string; nombre: string; moneda: string };
 type Noche = { fecha: string; precioCents: number; minEstancia: number | null; maxEstancia: number | null; cerrado: boolean };
+/** Fila del calendario: una habitación con una entrada por noche del mes. */
+type CalendarioDia = {
+  id: number;
+  codigo: string;
+  noches: { fecha: string; estado: string; codigoReserva: string | null }[];
+};
+/** Estados del calendario. La forma visible cambia además del color para no depender solo del color. */
+const ESTADOS_CALENDARIO: Record<string, { etiqueta: string; simbolo: string }> = {
+  LIBRE: { etiqueta: 'Libre', simbolo: '○' },
+  OCUPADA: { etiqueta: 'Ocupada', simbolo: '●' },
+  BLOQUEADA: { etiqueta: 'Bloqueada', simbolo: '■' },
+  MANTENIMIENTO: { etiqueta: 'En mantenimiento', simbolo: '✕' },
+  FUERA_DE_SERVICIO: { etiqueta: 'Fuera de servicio', simbolo: '✕' },
+};
+
+function estadoCalendario(valor: string): { etiqueta: string; simbolo: string } {
+  return ESTADOS_CALENDARIO[valor] ?? { etiqueta: `Estado desconocido (${valor})`, simbolo: '?' };
+}
+
+function claveEstadoCalendario(valor: string): string {
+  return Object.hasOwn(ESTADOS_CALENDARIO, valor) ? valor.toLowerCase().replace(/_/g, '-') : 'desconocida';
+}
+
+function fechaDia(iso: string): Date {
+  return new Date(`${iso}T12:00:00`);
+}
+
+function letraDiaSemana(iso: string): string {
+  return ['D', 'L', 'M', 'X', 'J', 'V', 'S'][fechaDia(iso).getDay()] ?? '';
+}
+
+function esFinDeSemana(iso: string): boolean {
+  const dia = fechaDia(iso).getDay();
+  return dia === 0 || dia === 6;
+}
 
 /** Calendario de ocupación y gestión de inventario y bloqueos. */
 export function PaginaAdminInventario() {
@@ -23,7 +51,7 @@ export function PaginaAdminInventario() {
   const [mes, setMes] = useState(mesActual());
   const [habitaciones, setHabitaciones] = useState<Habitacion[] | null>(null);
   const [tipos, setTipos] = useState<Tipo[] | null>(null);
-  const [ocupadas, setOcupadas] = useState<Set<number>>(new Set());
+  const [calendario, setCalendario] = useState<CalendarioDia[] | null>(null);
   const [planes, setPlanes] = useState<Plan[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -44,28 +72,19 @@ export function PaginaAdminInventario() {
     setCargando(true);
     setError(null);
     try {
-      const [habs, tiposCargados, planesCargados] = await Promise.all([
+      const [desde, hasta] = rangoMes(mes);
+      const [habs, tiposCargados, planesCargados, calendarioCargado] = await Promise.all([
         api.get<Habitacion[]>('/api/admin/habitaciones'),
         api.get<Tipo[]>('/api/admin/tipos'),
         api.get<Plan[]>('/api/admin/planes'),
+        api.get<CalendarioDia[]>(`/api/admin/calendario?desde=${desde}&hasta=${hasta}`),
       ]);
       setHabitaciones(habs);
       setTipos(tiposCargados);
       setPlanes(planesCargados);
-
-      // Disponibilidad real del mes: si una habitación no aparece en la oferta del mes completo,
-      // tiene alguna noche ocupada o bloqueada. Es la misma consulta que ve el huésped.
-      const [desde, hasta] = rangoMes(mes);
-      const libres = await Promise.all(
-        habs.map(async (h) => {
-          const r = await api
-            .get<{ ofertas: Oferta[] }>(`/api/disponibilidad?llegada=${desde}&salida=${hasta}&huespedes=1`)
-            .catch(() => ({ ofertas: [] }));
-          return r.ofertas.some((o) => o.habitacion.id === h.id);
-        }),
-      );
-      setOcupadas(new Set(habs.filter((_h, i) => !libres[i]).map((h) => h.id)));
+      setCalendario(calendarioCargado);
     } catch (e) {
+      setCalendario(null);
       setError(e instanceof Error ? e.message : 'No se pudo cargar el inventario');
     } finally {
       setCargando(false);
@@ -110,6 +129,18 @@ export function PaginaAdminInventario() {
   if (sesion.haySesion === false) return <Aviso tono="aviso" titulo="Sesión requerida">Inicia sesión para gestionar el inventario.</Aviso>;
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
 
+  const dias = diasDelMes(mes);
+  const filasCalendario = calendario ?? [];
+  const calendarioPorHabitacion = new Map(
+    filasCalendario.map((fila) => [fila.id, new Map(fila.noches.map((noche) => [noche.fecha, noche]))]),
+  );
+  const nochesCalendario = filasCalendario.flatMap((fila) => fila.noches);
+  const ocupadasMes = nochesCalendario.filter((noche) => noche.estado === 'OCUPADA').length;
+  const bloqueadasMes = nochesCalendario.filter((noche) => noche.estado === 'BLOQUEADA').length;
+  const noVendiblesMes = nochesCalendario.filter(
+    (noche) => noche.estado === 'MANTENIMIENTO' || noche.estado === 'FUERA_DE_SERVICIO',
+  ).length;
+
   return (
     <main id="contenido" className="centrado">
       <section className="seccion">
@@ -127,18 +158,111 @@ export function PaginaAdminInventario() {
           <input id="mes-inv" type="month" className="cifra" value={mes} onChange={(e) => setMes(e.target.value)} />
         </div>
 
-        <h2 className="t-xl">Habitaciones ({habitaciones?.length ?? 0})</h2>
+        <h2 id="titulo-calendario" className="t-xl">Calendario de ocupación</h2>
+        <p className="seccion__intro mb-0">
+          Una casilla por habitación y noche, con el código de la reserva cuando está ocupada.
+          El día de salida cuenta como libre porque la habitación vuelve a estar disponible.
+        </p>
+        {filasCalendario.length > 0 ? (
+          <>
+            <p className="campo__ayuda">
+              En {mes}: <strong>{ocupadasMes} noches ocupadas</strong>, {bloqueadasMes} bloqueadas y{' '}
+              {noVendiblesMes} fuera de servicio.
+            </p>
+            <ul className="ocupacion__leyenda" aria-label="Leyenda del calendario">
+              {Object.entries(ESTADOS_CALENDARIO).map(([estado, datos]) => (
+                <li key={estado}>
+                  <span
+                    aria-hidden="true"
+                    className={`ocupacion__marca ocupacion__marca--${claveEstadoCalendario(estado)}`}
+                  >
+                    {datos.simbolo}
+                  </span>{' '}
+                  {datos.etiqueta}
+                </li>
+              ))}
+            </ul>
+            <div className="ocupacion" role="region" aria-labelledby="titulo-calendario" tabIndex={0}>
+              <table className="ocupacion__tabla">
+                <caption>
+                  Ocupación nocturna por habitación durante {mes}. Desplázate horizontalmente para ver
+                  todo el mes.
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col" className="ocupacion__habitacion">Habitación</th>
+                    {dias.map((dia) => (
+                      <th key={dia} scope="col" className={`ocupacion__dia${esFinDeSemana(dia) ? ' ocupacion__dia--fin-semana' : ''}`}>
+                        <span aria-hidden="true" className="ocupacion__numero">
+                          {new Date(`${dia}T12:00:00`).getDate()}
+                        </span>
+                        <span aria-hidden="true" className="ocupacion__semana">
+                          {letraDiaSemana(dia)}
+                        </span>
+                        <span className="visually-hidden">{fechaCorta(dia)}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filasCalendario.map((fila) => (
+                    <tr key={fila.id}>
+                      <th scope="row" className="ocupacion__habitacion">
+                        <span className="cifra">{fila.codigo}</span>
+                      </th>
+                      {dias.map((dia) => {
+                        const noche = calendarioPorHabitacion.get(fila.id)?.get(dia);
+                        if (!noche) {
+                          return (
+                            <td key={dia} className="ocupacion__celda">
+                              <span className="visually-hidden">
+                                {fila.codigo}, {fechaCorta(dia)}, sin dato
+                              </span>
+                              <span aria-hidden="true">—</span>
+                            </td>
+                          );
+                        }
+                        const estado = estadoCalendario(noche.estado);
+                        const texto = `${fila.codigo}, ${fechaCorta(noche.fecha)}, ${estado.etiqueta}${
+                          noche.codigoReserva ? `, reserva ${noche.codigoReserva}` : ''
+                        }`;
+                        return (
+                          <td
+                            key={dia}
+                            className={`ocupacion__celda ocupacion__celda--${claveEstadoCalendario(noche.estado)}${esFinDeSemana(dia) ? ' ocupacion__celda--fin-semana' : ''}`}
+                            title={texto}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`ocupacion__marca ocupacion__marca--${claveEstadoCalendario(noche.estado)}`}
+                            >
+                              {estado.simbolo}
+                            </span>
+                            <span className="visually-hidden">{texto}</span>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <p className="campo__ayuda">Todavía no hay datos del calendario para este mes.</p>
+        )}
+
+        <h2 className="t-xl mt-e6">Habitaciones ({habitaciones?.length ?? 0})</h2>
         {habitaciones && habitaciones.length > 0 ? (
           <div className="tabla-envoltura">
             <table className="tabla">
               <caption>Habitaciones registradas</caption>
               <thead>
                 <tr>
-                  <th scope="col">Código</th>
-                  <th scope="col">Nombre</th>
-                  <th scope="col">Estado</th>
-                  <th scope="col">Mes completo</th>
-                  <th scope="col"><span className="visually-hidden">Acciones</span></th>
+                    <th scope="col">Código</th>
+                    <th scope="col">Nombre</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col"><span className="visually-hidden">Acciones</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -147,9 +271,6 @@ export function PaginaAdminInventario() {
                     <td className="cifra">{h.codigo}</td>
                     <td>{h.nombre || '—'}</td>
                     <td><Etiqueta tono={h.estado === 'ACTIVA' ? 'exito' : 'neutra'}>{h.estado}</Etiqueta></td>
-                    <td>
-                      {ocupadas.has(h.id) ? <Etiqueta tono="aviso">Con ocupación</Etiqueta> : <Etiqueta tono="exito">Libre</Etiqueta>}
-                    </td>
                     <td>
                       <div className="pila pila--fila gap-e1">
                         {h.estado === 'ACTIVA' ? (
