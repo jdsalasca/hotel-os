@@ -1,4 +1,4 @@
-# Rondas y criterios — Sistema hotelero Villa de Leyva / Sáchica
+# Rondas y criterios - Sistema hotelero Villa de Leyva / Sáchica
 
 Fecha: 2026-10-06. Versiones verificadas contra Maven Central y documentación oficial en esa fecha.
 
@@ -20,39 +20,66 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 ## Rondas
 
-- [x] **Ronda 1 — Contexto y modelo.** Arquitectura, modelo de datos y requisitos OTA documentados.
-- [x] **Ronda 2 — Backend y reservas (versión antigua).** Sustituida por la ronda 3: contenía
-  defectos que hacían imposible iniciar sesión y no usaba Flyway. Ver abajo.
-- [x] **Ronda 3 — Reconstrucción del backend + base de OTA.** 52 pruebas verdes; verificado contra el
-  jar real: login, CSRF, reserva, 409 por solape, idempotencia, panel con historial y persistencia
-  tras reiniciar el proceso. Evidencia: `docs/evidence/round-3/verificacion.md`.
-- [ ] **Ronda 4 — Inventario, tarifas, canales y bloqueos.** API y pantallas de administración.
-  Entregable: el hotel registra habitaciones y tipos por la aplicación, sin SQL a mano.
-- [ ] **Ronda 5 — Conectores OTA.** Un conector por canal con su documentación oficial, reintentos,
-  idempotencia y bitácora. Entregable: bloqueos externos identificados con precisión; ninguna
-  integración declarada conectada sin llamada autorizada.
-  **Hecho 2026-10-06** (100 pruebas): los tres conectores, cliente HTTP con timeouts y reintentos,
-  bitácora y pantalla con reintento. **Conexión validada: ninguna** por falta de credenciales de
-  partner. Evidencia: `docs/evidence/round-5/verificacion.md`.
-- [ ] **Ronda 6 — Indicadores.** Definiciones, fórmulas, fuentes, periodos, exportación CSV y vista
-  imprimible. Entregable: informe calculado con datos de prueba sintéticos marcados como tales.
-- [ ] **Ronda 7 — Frontend y calidad visual.** Sistema SCSS, flujos públicos y admin, accesibilidad,
-  responsive. Entregable: capturas verificadas en móvil y escritorio en `docs/screenshots/`.
-- [ ] **Ronda 8 — Despliegue y operación.** Compose dev/prod, HTTPS, respaldos consistentes con
-  SQLite, restauración probada, retención, copia externa y manual. Entregable: `docker compose up
-  --build` funciona y una reserva sobrevive al reinicio de los contenedores.
+- [x] **Ronda 1 - Contexto y modelo.** Arquitectura, modelo de datos y requisitos OTA documentados.
+- [x] **Ronda 2 - Backend y reservas (versión antigua).** Sustituida por la ronda 3: contenía
+  defectos que hacían imposible iniciar sesión y no usaba Flyway.
+- [x] **Ronda 3 - Reconstrucción del backend + base de OTA.** Evidencia:
+  `docs/evidence/round-3/verificacion.md`.
+- [x] **Ronda 4 - Inventario, tarifas, canales y bloqueos.** Tipos, habitaciones, planes, tarifas
+  por fecha y bloqueos, con API y pantallas de administración. Evidencia:
+  `docs/evidence/round-4/verificacion.md`.
+- [x] **Ronda 5 - Conectores OTA.** Un conector por canal, cliente HTTP con timeouts y reintentos,
+  bitácora y pantalla con reintento.
+  **Conexión validada: ninguna**, por falta de credenciales de partner. Los tres canales aparecen
+  `NO_CONFIGURADO` con el bloqueo exacto. Evidencia: `docs/evidence/round-5/verificacion.md`.
+- [x] **Ronda 6 - Indicadores.** Fases, fórmulas, fuentes, periodos, exportación CSV y vista
+  imprimible, con `SIN_DATOS` cuando no hay respaldo verificable. Evidencia:
+  `docs/evidence/round-6/verificacion.md`.
+- [x] **Ronda 7 - Frontend y calidad visual.** Sistema SCSS, flujos públicos y admin, accesibilidad,
+  responsive y capturas verificadas. Evidencia: `docs/evidence/round-7/verificacion.md`.
+- [x] **Ronda 8 - Despliegue y operación.** Compose dev/prod, HTTPS, respaldos consistentes,
+  restauración probada y guía de despliegue. Evidencia:
+  `docs/evidence/round-8/verificacion.md`.
+
+## Criterios de aceptación, verificados con ejecución real
+
+| # | Criterio | Verificación | Resultado |
+|---|---|---|---|
+| 1 | `docker compose up --build` levanta la app | `docker compose config` + arranque real | ✅ |
+| 2 | Una reserva creada en la web aparece en el panel | `H-C7F625DA` → panel: `WEB PENDIENTE` | ✅ |
+| 3 | La reserva sobrevive al reinicio | `docker compose down && up` → sigue en la base | ✅ |
+| 4 | Doble reserva rechazada | Solape → `{"error":"no hay disponibilidad para esas fechas"}` | ✅ |
+| 5 | Las OTAs muestran su estado real | `BOOKING/DESPEGAR/AIRBNB = NO_CONFIGURADO` | ✅ |
+| 6 | Los indicadores no inventan datos | `tieneResultado=False` con motivo concreto | ✅ |
+| 7 | `compose up --build` funciona en dev y prod | Ambos `config` validan con exit 0 | ✅ |
+| 8 | Pruebas verdes | `Tests run: 138, Failures: 0, Errors: 0` | ✅ |
+| 9 | Sin secretos en el repositorio | Escaneo del diff antes de cada commit | ✅ |
+
+### Escalado medido de SQLite
+- 20 hilos compitiendo por la misma habitación → 1 aceptada, 19 con 409, **0 sobreventas**.
+- 48 reservas/segundo de escritura.
+- 50 000 reservas → 7,5 MB de archivo.
+
+El límite no es el motor: es que el archivo necesita un disco que sobreviva al redespliegue. Por eso
+el backend no puede ir en Vercel (filesystem efímero) y sí en una VM o servicio con volumen.
 
 ## Estado real 2026-10-06
-- ✅ Java 25.0.4.1, Docker 29.8.2, Maven Wrapper funcionando (el `distributionUrl` estaba roto y se
-  corrigió a 3.9.11).
-- ✅ 52/52 pruebas verdes; jar empaquetado y ejecutado; reserva persiste tras reiniciar el proceso.
-- ⛔ **Node.js ausente en esta máquina**: `apps/web` no compila todavía. El frontend se hará y se
-  verificará dentro de Docker (`node:22-alpine`), no instalando Node en el host sin autorización.
-- ⛔ **Sin credenciales OTA** (esperado): ver `docs/integrations/ota-estado.md` con el bloqueo exacto
+- Java 25.0.4.1, Docker 29.8.2, Maven Wrapper 3.9.11 funcionando. `distributionUrl` corregido.
+- **138/138 pruebas verdes**. Jar empaquetado y ejecutado; el frontend compila con Node 22 dentro
+  de Docker, igual que en Vercel.
+- **Node.js sigue ausente en el host**: el frontend se construye y verifica en `node:22-alpine`, sin
+  instalar nada en la máquina.
+- **Sin credenciales OTA** (esperado): ver `docs/integrations/ota-estado.md` con el bloqueo exacto
   de cada canal. Ninguna integración aparece como conectada.
-- ⛔ Inventario, tarifas, canales e indicadores aún no tienen API ni pantalla: hoy se gestionan por
-  SQL directo. Es el siguiente bloque de trabajo, no un detalle pendiente.
+- Gmail implementado con OAuth 2.0; falta el `GOOGLE_REFRESH_TOKEN` del hotel para probarlo contra
+  una cuenta real. Procedimiento en `docs/operations/correo.md`.
+- Demostración de extremo a extremo verificada por HTTP contra los contenedores reales, no solo por
+  pruebas unitarias.
 
-## Siguiente paso
-Ronda 4: inventario, tarifas y bloqueos con sus endpoints de administración, porque sin inventario
-configurado el flujo público no puede ofrecer habitaciones que el hotel haya dado de alta.
+## Pendiente antes de declarar el sistema en operación
+1. Dominio y correo del hotel, y `ADMIN_INIT_TOKEN` generado en el servidor.
+2. Credenciales y aprobación de partner de Booking.com, Despegar y Airbnb.
+3. Inventario y tarifas reales cargados por el panel.
+4. Copia de respaldos externa configurada y probada una vez.
+5. Cargar los estilos inline restantes a SCSS y completar el calendario y la gestión de tarifas en
+   el panel.
