@@ -1,0 +1,40 @@
+# ⚠️ No ejecutar `docker compose down -v` en producción: elimina volúmenes.
+services:
+  proxy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?requerido}
+    volumes:
+      - caddy-data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+  api:
+    build: ./apps/api
+    environment:
+      JDBC_URL: jdbc:sqlite:/data/hotel.sqlite3
+      ADMIN_INIT_TOKEN: ${ADMIN_INIT_TOKEN:?requerido solo en init}
+    volumes:
+      - hotel-data:/data
+      - hotel-backups:/backups
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health | grep -q ok || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  web:
+    build: ./apps/web
+    expose:
+      - "80"
+
+volumes:
+  hotel-data:
+  hotel-backups:
+  caddy-data:
