@@ -97,6 +97,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   guarda solo: el redirect no persistía la sesión y `/api/yo` daba 401 al volver de Google, en los
   dos caminos (panel y huésped). Y la vuelta del huésped aceptaba un `vuelve` de otro dominio, que
   es un redirect abierto. Evidencia: `docs/evidence/round-24/verificacion.md`.
+- [x] **Ronda 25 - CSP estricta y cabeceras iguales en las tres rutas.** Sin
+  `unsafe-inline` ni `unsafe-eval` (el build no emite nada inline) y verificada además de que el
+  navegador la hace cumplir, no solo que la cabecera existe. `Permissions-Policy` faltaba en el
+  nginx. Evidencia: `docs/evidence/round-25/verificacion.md`.
 - [ ] **Siguiente: endurecer el borde.** Revisar qué endpoints públicos siguen sin cobertura (rate
   limit, CSP) y qué queda del plan de indicadores. Sin ítems externos bloqueados.
 

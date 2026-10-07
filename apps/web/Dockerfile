@@ -69,9 +69,17 @@ server {
     try_files $uri $uri/ /index.html;
   }
 
+  # Cabeceras de seguridad. La CSP no lleva 'unsafe-inline' ni 'unsafe-eval' porque el build de
+  # Vite no emite scripts ni estilos en línea (comprobado: el index.html solo referencia /assets), así
+  # que se puede cerrar de verdad. Si algún día se añade un script en línea, esto lo rompe de forma
+  # visible en vez de dejarlo pasar en silencio.
+  add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; font-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'" always;
   add_header X-Content-Type-Options "nosniff" always;
   add_header X-Frame-Options "DENY" always;
   add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  # Esta sí estaba en el Caddy y en Vercel, pero faltaba aquí: el hotel no necesita cámara ni
+  # micrófono, y decirlo de más no cuesta nada.
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 }
 EOF
 EXPOSE 80

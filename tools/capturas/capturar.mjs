@@ -72,7 +72,41 @@ async function iniciarSesion(pagina) {
   await pagina.waitForResponse((r) => r.url().includes('/api/admin/login'));
 }
 
+// La CSP solo vale si está presente Y muerde. Comprobar el encabezado es fácil y no demuestra
+// nada; lo que importa es que el navegador la haga cumplir.
+async function comprobarCsp(navegador) {
+  // Página aparte a propósito: el script inyectado genera a propósito un error de consola que el
+  // resto del guion considera un fallo. Aquí se espera, y solo se mira si se ejecutó o no.
+  const contexto = await navegador.newContext();
+  const pagina = await contexto.newPage();
+
+  const respuesta = await contexto.request.get(BASE);
+  const cabecera = respuesta.headers()['content-security-policy'];
+  if (!cabecera) {
+    problemas.push('no hay cabecera Content-Security-Policy en la respuesta');
+    await contexto.close();
+    return;
+  }
+  if (cabecera.includes('unsafe-inline')) problemas.push('la CSP usa unsafe-inline');
+  if (cabecera.includes('unsafe-eval')) problemas.push('la CSP usa unsafe-eval');
+
+  await pagina.goto(BASE);
+  const trasInyectar = await pagina.evaluate(() => {
+    window.__csp = 'original';
+    const s = document.createElement('script');
+    s.textContent = 'window.__csp = "ejecutado";';
+    document.head.appendChild(s);
+    return window.__csp;
+  });
+  await contexto.close();
+  if (trasInyectar !== 'original') {
+    problemas.push(`la CSP dejó ejecutar un script en línea (quedó: ${trasInyectar})`);
+  }
+  console.log(`csp activa y efectiva: ${cabecera.slice(0, 58)}...`);
+}
+
 const navegador = await chromium.launch();
+await comprobarCsp(navegador);
 
 for (const [nombre, opciones] of [
   ['escritorio', { viewport: ESCRITORIO }],
