@@ -147,10 +147,33 @@ public class IndicadoresService {
   /**
    * Registra una actividad de adopción o difusión. El hotel confirma que ocurrió; si no hay datos
    * de origen medibles, queda marcado así para que nadie atribuya ventas a la campaña.
+   *
+   * Todo se valida antes de insertar: una fecha inválida se rechaza sin dejar la fila a medias,
+   * que luego rompería el informe al leerla.
    */
   public void registrarActividad(String tipo, String descripcion, String fecha, Integer participantes,
                                  String confirmadaPor, boolean conDatosDeOrigen) {
-    repo.registrarActividad(tipo, descripcion, fecha, participantes, confirmadaPor, conDatosDeOrigen);
+    if (tipo == null || tipo.isBlank()) throw new IllegalArgumentException("tipo de actividad requerido");
+    if (tipo.trim().length() > 40)
+      throw new IllegalArgumentException("el tipo no puede pasar de 40 caracteres");
+    if (descripcion == null || descripcion.isBlank())
+      throw new IllegalArgumentException("descripción de actividad requerida");
+    if (descripcion.trim().length() > 1000)
+      throw new IllegalArgumentException("la descripción no puede pasar de 1000 caracteres");
+    if (fecha == null || fecha.isBlank()) throw new IllegalArgumentException("la fecha es obligatoria");
+    final java.time.LocalDate dia;
+    try {
+      dia = java.time.LocalDate.parse(fecha.trim());
+    } catch (java.time.format.DateTimeParseException e) {
+      throw new IllegalArgumentException("la fecha debe tener formato YYYY-MM-DD");
+    }
+    if (participantes != null && participantes < 0)
+      throw new IllegalArgumentException("los participantes no pueden ser negativos");
+    String confirma = confirmadaPor == null ? null : confirmadaPor.trim();
+    if (confirma != null && confirma.length() > 200)
+      throw new IllegalArgumentException("quien confirma no puede pasar de 200 caracteres");
+    repo.registrarActividad(tipo.trim(), descripcion.trim(), dia.toString(), participantes, confirma,
+      conDatosDeOrigen);
   }
 
   /** Informe completo del periodo, cubriendo las tres fases. */

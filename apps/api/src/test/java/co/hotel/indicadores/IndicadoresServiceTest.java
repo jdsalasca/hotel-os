@@ -228,6 +228,38 @@ class IndicadoresServiceTest {
       assertTrue(actividades.stream().allMatch(a -> !a.tieneDatosDeOrigen()));
       assertNotNull(indicadores.calcular("f2_difusion", periodo).nota());
     }
+
+    private int actividadesRegistradas() {
+      return jdbc.queryForObject("SELECT COUNT(*) FROM adoption_activities", Integer.class);
+    }
+
+    @Test void actividadConFechaInvalidaNoSeGuarda() {
+      assertThrows(IllegalArgumentException.class, () -> indicadores.registrarActividad(
+        "CAPACITACION", "Uso del panel", "ayer", 3, "admin@hotel.test", false));
+      assertEquals(0, actividadesRegistradas(),
+        "una fecha inválida se rechaza antes de insertar: un POST inválido no deja datos");
+    }
+
+    @Test void actividadSinTipoODescripcionSeRechaza() {
+      assertThrows(IllegalArgumentException.class, () -> indicadores.registrarActividad(
+        "   ", "Uso del panel", "2026-11-03", 3, "admin@hotel.test", false));
+      assertThrows(IllegalArgumentException.class, () -> indicadores.registrarActividad(
+        "CAPACITACION", null, "2026-11-03", 3, "admin@hotel.test", false));
+      assertEquals(0, actividadesRegistradas());
+    }
+
+    @Test void actividadConParticipantesNegativosSeRechaza() {
+      assertThrows(IllegalArgumentException.class, () -> indicadores.registrarActividad(
+        "CAPACITACION", "Uso del panel", "2026-11-03", -1, "admin@hotel.test", false));
+      assertEquals(0, actividadesRegistradas());
+    }
+
+    @Test void actividadValidaSeGuardaConFechaReal() {
+      indicadores.registrarActividad("CAPACITACION", "Uso del panel", "2026-11-03", 3,
+        "admin@hotel.test", false);
+      assertEquals(1, actividadesRegistradas());
+      assertEquals(LocalDate.parse("2026-11-03"), indicadores.actividades(periodo).get(0).fecha());
+    }
   }
 
   @Nested

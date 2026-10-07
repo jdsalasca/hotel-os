@@ -254,6 +254,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `POST /api/admin/tarifas/lote/preview` (200, sin escribir) y `/lote` (201 o 400 con
   detalle por fila, atómico). El panel revisa Antes/Después y confirma; al guardar
   relee del servidor. Evidencia: `docs/evidence/round-67/verificacion.md`.
+- [x] **Ronda 68 - Indicadores: lo rechazado es 400 y no deja datos (saldos Etapa D).**
+  Actividad con fecha inválida ya no se inserta antes del 400; inventario-esperado
+  inválido es 400 (no 200); `2026-99` es 400 (no 500); el CSV neutraliza con espacios
+  o tabs antes de la fórmula. Evidencia: `docs/evidence/round-68/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
