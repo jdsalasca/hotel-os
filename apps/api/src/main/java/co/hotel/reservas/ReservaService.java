@@ -68,6 +68,7 @@ public class ReservaService {
     return tx.enTransaccion(estado -> {
       var actual = repo.porCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
       long id = repo.idPorCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+      EstadoReserva.validar(actual.estado(), nuevo);
       repo.actualizarEstado(codigo, nuevo);
       auditoria.cambioEstado(id, actual.estado().name(), nuevo.name(), actor);
       return actual.cambiarEstado(nuevo);

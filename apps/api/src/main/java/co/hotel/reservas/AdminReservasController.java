@@ -66,22 +66,28 @@ public class AdminReservasController {
       return ResponseEntity.ok(fila(actualizada));
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(Map.of("error", "estado no válido: " + req.estado()));
+    } catch (ExcepcionDeEstado e) {
+      return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     } catch (DatosInvalidosException e) {
       return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
     }
   }
 
   private static Map<String, Object> fila(Reserva r) {
-    return Map.of(
-      "codigo", r.codigo(),
-      "email", r.email(),
-      "nombre", r.nombre(),
-      "llegada", r.llegada().toString(),
-      "salida", r.salida().toString(),
-      "noches", r.noches(),
-      "huespedes", r.huespedes(),
-      "estado", r.estado().name(),
-      "origen", r.origen().name(),
-      "creadoEn", r.creadoEn());
+    return Map.ofEntries(
+      Map.entry("codigo", r.codigo()),
+      Map.entry("email", r.email()),
+      Map.entry("nombre", r.nombre()),
+      Map.entry("llegada", r.llegada().toString()),
+      Map.entry("salida", r.salida().toString()),
+      Map.entry("noches", r.noches()),
+      Map.entry("huespedes", r.huespedes()),
+      Map.entry("estado", r.estado().name()),
+      // Los estados alcanzables los decide el dominio, no el panel. El navegador no lleva su propia
+      // copia de las reglas: cuando V6 perdió RECHAZADA del CHECK, dos listas de transiciones
+      // divergentes se habrían desincronizado en silencio.
+      Map.entry("siguientes", r.estado().desde().stream().map(Enum::name).toList()),
+      Map.entry("origen", r.origen().name()),
+      Map.entry("creadoEn", r.creadoEn()));
   }
 }

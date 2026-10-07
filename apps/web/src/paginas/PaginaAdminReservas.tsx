@@ -5,6 +5,8 @@ import { fechaCorta, monto } from '../api/formato';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
 
+type Estado = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'RECHAZADA';
+
 type Reserva = {
   codigo: string;
   email: string;
@@ -13,7 +15,9 @@ type Reserva = {
   salida: string;
   noches: number;
   huespedes: number;
-  estado: string;
+  estado: Estado;
+  /** Estados que el servidor acepta desde aquí. La lista la manda el dominio, no el panel. */
+  siguientes: Estado[];
   origen: string;
   creadoEn: string;
 };
@@ -24,11 +28,34 @@ type Detalle = {
   historial: { estado_ant: string | null; estado_nuevo: string; actor: string; en: string }[];
 };
 
-const ESTADOS: { valor: string; texto: string }[] = [
+const ESTADOS: { valor: Estado; texto: string }[] = [
   { valor: 'CONFIRMADA', texto: 'Confirmar' },
   { valor: 'CANCELADA', texto: 'Cancelar' },
   { valor: 'RECHAZADA', texto: 'Rechazar' },
 ];
+
+/**
+ * Los botones son los que el servidor dice que valen, no una copia local de las reglas.
+ *
+ * Este panel ya se salió una vez: el CHECK de la base y el enum no coincidían, y una lista de
+ * transiciones escrita aquí habría_divergido en silencio. La lista viene en la respuesta, así que
+ * lo que se ve es lo que el servidor acepta. Solo el texto de cada botón es de aquí.
+ */
+function accionesPosibles(reserva: Reserva) {
+  return ESTADOS.filter((e) => reserva.siguientes.includes(e.valor));
+}
+
+/**
+ * El color sigue a la misma regla que los botones: si no tiene salida, está muerta.
+ *
+ * RECHAZADA salía en el mismo amarillo que PENDIENTE y las dos son lo contrario: una espera una
+ * respuesta del hotel, la otra ya la tiene y no va a volver.
+ */
+function tonoEstado(estado: Estado): 'exito' | 'error' | 'aviso' {
+  if (estado === 'CONFIRMADA') return 'exito';
+  if (estado === 'CANCELADA' || estado === 'RECHAZADA') return 'error';
+  return 'aviso';
+}
 
 export function PaginaAdminReservas() {
   const sesion = useSesion();
@@ -123,13 +150,13 @@ export function PaginaAdminReservas() {
                     <td className="cifra" data-label="Huéspedes">{r.huespedes}</td>
                     <td data-label="Origen"><Etiqueta tono="neutra">{r.origen}</Etiqueta></td>
                     <td data-label="Estado">
-                      <Etiqueta tono={r.estado === 'CONFIRMADA' ? 'exito' : r.estado === 'CANCELADA' ? 'error' : 'aviso'}>
+                      <Etiqueta tono={tonoEstado(r.estado)}>
                         {r.estado}
                       </Etiqueta>
                     </td>
                     <td data-label="Acciones">
                       <div className="pila gap-e1">
-                        {ESTADOS.filter((e) => e.valor !== r.estado).map((e) => (
+                        {accionesPosibles(r).map((e) => (
                           <button
                             key={e.valor}
                             className={`boton boton--chico ${e.valor === 'CONFIRMADA' ? 'boton--primario' : 'boton--secundario'}`}
@@ -139,6 +166,9 @@ export function PaginaAdminReservas() {
                             {e.texto}
                           </button>
                         ))}
+                        {accionesPosibles(r).length === 0 ? (
+                          <span className="t-sm tenue">Sin acciones</span>
+                        ) : null}
                         <button className="boton boton--chico boton--fantasma" onClick={() => abrir(r.codigo)}>
                           Ver detalle
                         </button>

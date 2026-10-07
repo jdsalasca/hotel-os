@@ -34,6 +34,9 @@ $separaciones: (
 .t-lg { font-size: t.$texto-lg; }
 .t-base { font-size: t.$texto-base; }
 .t-sm { font-size: t.$texto-sm; }
+/* Texto secundario legible (6.9:1). Para contenido que informa, no para adornos:
+   $tinta-tenue queda al 3.6:1 y es solo para texto no informativo. */
+.tenue { color: t.$tinta-suave; }
 
 // Anchos de lectura acotados. `margin-inline: auto` va dentro de cada uno para no depender de
 // combinar dos clases.

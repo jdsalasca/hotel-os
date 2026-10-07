@@ -122,6 +122,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   detectan: el backend respondía bien, faltaba el camino. `verificar-despliegue.mjs` mira rutas,
   cabeceras y CSP en nginx y Vercel, sin Docker ni despliegue, y falla si falta una. Evidencia:
   `docs/evidence/round-30/verificacion.md`.
+- [x] **Ronda 32 - Los estados tienen reglas, y dos estaban rotas.** Se podía volver a confirmar una
+  reserva cancelada, lo que devolvía inventario ya liberado; RECHAZADA no se podia ni guardar (V6 la
+  perdio del CHECK) y V8 la devuelve. El panel ya no deduce los botones: los recibe del servidor.
+  Evidencia: `docs/evidence/round-32/verificacion.md`.
 - [x] **Ronda 31 - La reserva con sesión, probada y ofrecida.** El enganche de la ronda 23 nunca se
   probó de extremo a extremo; ahora tres tests lo cubren (engancha, anónima intacta, no pisa dueño).
   Y la confirmación ofrece "Ver mis reservas" cuando hay sesión, en lugar de insistir en el código.
@@ -141,7 +145,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | 5 | Las OTAs muestran su estado real | `BOOKING/DESPEGAR/AIRBNB = NO_CONFIGURADO` | ✅ |
 | 6 | Los indicadores no inventan datos | `tieneResultado=False` con motivo concreto | ✅ |
 | 7 | `compose up --build` funciona en dev y prod | Ambos `config` validan con exit 0 | ✅ |
-| 8 | Pruebas verdes | `Tests run: 208, Failures: 0, Errors: 0` | ✅ |
+| 8 | Pruebas verdes | `Tests run: 225, Failures: 0, Errors: 0` | ✅ |
 | 9 | Sin secretos en el repositorio | Escaneo del diff antes de cada commit | ✅ |
 
 ### Escalado medido de SQLite
@@ -154,7 +158,7 @@ el backend no puede ir en Vercel (filesystem efímero) y sí en una VM o servici
 
 ## Estado real 2026-10-06
 - Java 25.0.4.1, Docker 29.8.2, Maven Wrapper 3.9.11 funcionando. `distributionUrl` corregido.
-- **208 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
+- **225 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
   faltaban: todo React era `any` implícito y nadie lo notaba porque `vite build` no comprueba tipos).
 - 34 capturas verificadas por guion, sin errores de consola ni de API.
 - **Node.js sigue ausente en el host**: el frontend se construye y verifica en `node:22-alpine`,

@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -25,6 +26,16 @@ public class LimiteReservas {
   private static final int MAX_CLAVES = 10_000;
 
   private final Map<String, Ventana> porIp = new ConcurrentHashMap<>();
+  private final int maxPorIp;
+
+  /**
+   * Configurable porque en un resort todos los huéspedes salen por la misma IP: con diez de tope, la
+   * tercera casa del pueblo que reserve se encuentra con un 429 sin haber hecho nada malo. Subirlo
+   * es decisión de quien despliega, no un default.
+   */
+  public LimiteReservas(@Value("${hotel.limites.reservas:10}") int maxPorIp) {
+    this.maxPorIp = maxPorIp;
+  }
 
   /** true si la petición puede seguir. Cuenta el intento aunque se permita. */
   public boolean permitir(String ip) {
@@ -33,7 +44,7 @@ public class LimiteReservas {
     if (porIp.size() > MAX_CLAVES) porIp.clear();
     Ventana v = porIp.compute(ip, (k, previa) ->
       previa == null || previa.caducada(ahora) ? new Ventana(ahora, 1) : previa.conUno());
-    return v.conteo <= MAX_POR_IP;
+    return v.conteo <= maxPorIp;
   }
 
   private record Ventana(Instant inicio, int conteo) {

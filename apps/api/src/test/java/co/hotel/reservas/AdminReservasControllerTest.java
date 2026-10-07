@@ -1,5 +1,6 @@
 package co.hotel.reservas;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -50,6 +51,9 @@ class AdminReservasControllerTest {
   @DynamicPropertySource
   static void propiedades(DynamicPropertyRegistry reg) {
     reg.add("hotel.jdbc-path", () -> DB.toAbsolutePath().toString());
+    // Esta clase crea una reserva por test y ya supera las diez del límite público; sin esto los
+    // últimos tests se comerían un 429 y el fallo parecería del endpoint y no del tope.
+    reg.add("hotel.limites.reservas", () -> 200);
   }
 
   @Autowired MockMvc mvc;
@@ -245,5 +249,91 @@ class AdminReservasControllerTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.reserva.totalCents").value(300000))
       .andExpect(jsonPath("$.habitacion.codigo").exists());
+  }
+
+  @Test
+  @DisplayName("una reserva cancelada ya no se puede volver a confirmar")
+  void cancelarEsTerminal() throws Exception {
+    String codigo = crearReserva("terminal@example.com", "2026-12-01", "2026-12-03");
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/estado").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("estado", "CANCELADA"))))
+      .andExpect(status().isOk());
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/estado").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("estado", "CONFIRMADA"))))
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.error").value(containsString("CANCELADA")));
+
+    mvc.perform(get("/api/admin/reservas/" + codigo).with(ADMIN))
+      .andExpect(jsonPath("$.reserva.estado").value("CANCELADA"));
+  }
+
+  @Test
+  @DisplayName("rechazar tampoco tiene vuelta atrás")
+  void rechazarEsTerminal() throws Exception {
+    String codigo = crearReserva("rechazo@example.com", "2026-12-05", "2026-12-07");
+    cambiarEstado(codigo, "RECHAZADA");
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/estado").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("estado", "PENDIENTE"))))
+      .andExpect(status().isConflict());
+  }
+
+  @Test
+  @DisplayName("los caminos de cada día siguen abiertos: confirmar y cancelar")
+  void losCaminosNormalesSiguenAbiertos() throws Exception {
+    String a = crearReserva("camino1@example.com", "2026-12-09", "2026-12-11");
+    mvc.perform(post("/api/admin/reservas/" + a + "/estado").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("estado", "CONFIRMADA"))))
+      .andExpect(status().isOk());
+    mvc.perform(post("/api/admin/reservas/" + a + "/estado").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("estado", "CANCELADA"))))
+      .andExpect(status().isOk());
+
+    String b = crearReserva("camino2@example.com", "2026-12-09", "2026-12-11");
+    mvc.perform(post("/api/admin/reservas/" + b + "/estado").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("estado", "CONFIRMADA"))))
+      .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("el panel recibe del servidor los estados alcanzables, no los deduce")
+  void elPanelRecibeLasTransicionesValidas() throws Exception {
+    String cancelada = crearReserva("siguientes1@example.com", "2026-12-17", "2026-12-19");
+    cambiarEstado(cancelada, "CANCELADA");
+
+    mvc.perform(get("/api/admin/reservas/" + cancelada).with(ADMIN))
+      .andExpect(jsonPath("$.reserva.siguientes").isEmpty());
+
+    mvc.perform(get("/api/admin/reservas").with(ADMIN))
+      .andExpect(jsonPath("$[?(@.codigo=='" + cancelada + "')][0].siguientes").isEmpty())
+      .andExpect(jsonPath("$[0].siguientes").exists());
+  }
+
+  @Test
+  @DisplayName("una confirmada solo ofrece cancelar; una pendiente ofrece las tres")
+  void lasTransicionesQueOfreceCadaEstado() throws Exception {
+    String confirmada = crearReserva("siguientes2@example.com", "2026-12-21", "2026-12-23");
+    cambiarEstado(confirmada, "CONFIRMADA");
+    mvc.perform(get("/api/admin/reservas/" + confirmada).with(ADMIN))
+      .andExpect(jsonPath("$.reserva.siguientes[0]").value("CANCELADA"))
+      .andExpect(jsonPath("$.reserva.siguientes.length()").value(1));
+
+    String pendiente = crearReserva("siguientes3@example.com", "2026-12-25", "2026-12-27");
+    mvc.perform(get("/api/admin/reservas/" + pendiente).with(ADMIN))
+      .andExpect(jsonPath("$.reserva.siguientes.length()").value(3));
+  }
+
+  @Test
+  @DisplayName("un estado que no existe sigue siendo un 400, no un 409")
+  void estadoInexistenteSigoSiendo400() throws Exception {
+    String codigo = crearReserva("inexistente@example.com", "2026-12-13", "2026-12-15");
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/estado").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("estado", "VOLADORA"))))
+      .andExpect(status().isBadRequest());
   }
 }
