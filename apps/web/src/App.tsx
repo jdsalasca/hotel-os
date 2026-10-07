@@ -56,7 +56,7 @@ export function App() {
       .catch(() => setHotel(null));
   }, []);
 
-  const nombre = texto(hotel?.nombre) || 'Hotel';
+  const nombre = texto(hotel?.nombre) || 'Hotel Eridu';
   const contacto = [texto(hotel?.direccion), texto(hotel?.contacto_telefono), texto(hotel?.contacto_email)]
     .filter((dato) => dato.length > 0);
 
@@ -69,7 +69,7 @@ export function App() {
       <header className="cabecera no-imprimir">
         <div className="cabecera__interna">
           <NavLink to="/" className="cabecera__marca">
-            <span className="cabecera__marcador" aria-hidden="true" />
+            <img src="/icono-hotel.svg" alt="" width={28} height={28} className="cabecera__logo" />
             {nombre}
           </NavLink>
           <nav className="nav" aria-label="Navegación principal">
@@ -83,7 +83,7 @@ export function App() {
 
       <Routes>
         {/* Público */}
-        <Route path="/" element={<PaginaInicio />} />
+        <Route path="/" element={<PaginaInicio nombreHotel={nombre} />} />
         <Route path="/reserva" element={<PaginaReserva />} />
         <Route path="/consulta" element={<PaginaConsulta />} />
         <Route path="/mis-reservas" element={<PaginaMisReservas />} />

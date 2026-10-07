@@ -63,7 +63,7 @@ function desplazarMes(mesIso: string, delta: number): string {
 }
 
 /** Paso 1 del flujo público: fechas, huéspedes y habitaciones disponibles con su precio. */
-export function PaginaInicio() {
+export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: string }) {
   const navegar = useNavigate();
   const [llegada, setLlegada] = useState('');
   const [salida, setSalida] = useState('');
@@ -176,10 +176,21 @@ export function PaginaInicio() {
     <main id="contenido">
       <section className="hero">
         <div className="hero__interna">
-          <h1 className="hero__titulo">Reserva directa en el hotel</h1>
+          <img src="/icono-hotel.svg" alt="" width={72} height={72} className="hero__logo" />
+          <p className="hero__nombre">{nombreHotel}</p>
+          <h1 className="hero__titulo">Reserva directa, sin intermediarios</h1>
           <p className="hero__texto">
-            Consulta la disponibilidad y reserva sin intermediarios. Si el hotel no ha configurado
-            precios para tus fechas, no te mostraremos un importe inventado.
+            Consulta la disponibilidad de {nombreHotel}, reserva tus fechas y gestiona tu
+            reserva con tu código o tu cuenta de Google. Sin comisiones ni apps de terceros:
+            lo que ves es lo que el hotel configuró.
+          </p>
+          <p className="hero__acciones">
+            <a className="boton boton--primario" href="#titulo-buscar">
+              Ver disponibilidad
+            </a>{' '}
+            <a className="boton boton--secundario" href="/consulta">
+              Consultar mi reserva
+            </a>
           </p>
         </div>
       </section>
