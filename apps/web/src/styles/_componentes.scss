@@ -322,6 +322,16 @@
     width: 1.75rem;
     height: 1.75rem;
   }
+
+  &__saludo {
+    font-size: $texto-sm;
+    font-weight: $peso-medio;
+    color: $tinta-suave;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 16rem;
+  }
 }
 
 .nav {

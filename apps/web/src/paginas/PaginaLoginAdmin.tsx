@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSesion } from '../api/useSesion';
 import { urlApi } from '../api/cliente';
 import { Aviso } from '../componentes/Estado';
@@ -10,6 +10,7 @@ import { Aviso } from '../componentes/Estado';
  */
 export function PaginaLoginAdmin() {
   const sesion = useSesion();
+  const navegar = useNavigate();
   const [parametros] = useSearchParams();
   const [email, setEmail] = useState('');
   const [clave, setClave] = useState('');
@@ -28,6 +29,7 @@ export function PaginaLoginAdmin() {
     try {
       const estado = await sesion.entrar(email, clave);
       if (estado === 'cambio_requerido') setPideCambio(true);
+      else navegar('/admin/reservas');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo iniciar sesión');
     } finally {
@@ -50,7 +52,10 @@ export function PaginaLoginAdmin() {
       setNueva2('');
       const estado = await sesion.entrar(email, nueva);
       if (estado === 'cambio_requerido') setPideCambio(true);
-      else setClave(nueva);
+      else {
+        setClave(nueva);
+        navegar('/admin/reservas');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cambiar la contraseña');
     } finally {

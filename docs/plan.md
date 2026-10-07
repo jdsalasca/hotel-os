@@ -226,6 +226,17 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 60 - Todos los planes válidos se ofrecen.** Una oferta por (habitación,
   plan con tarifa completa) con núcleo de precio compartido; el huésped elige plan de verdad.
   Evidencia: `docs/evidence/round-60/verificacion.md`.
+- [x] **Ronda 60 - Entrar lleva a alguna parte y se ve quién eres.** El login con contraseña
+  no navegaba y nadie mostraba la identidad: nuevo `GET /api/admin/sesion`, redirect a
+  `/admin/reservas`, "Hola, {correo|nombre}" en la cabecera para admin y huésped. Evidencia:
+  `docs/evidence/round-60/verificacion.md`.
+- [ ] **Ronda 61 - Mis reservas con estado de pago.** Saldo/abonos visibles por reserva del huésped.
+- [ ] **Ronda 62 - Habitaciones fáciles para el hotelero.** Alta guiada + checkboxes donde hoy hay
+  campo abierto (servicios, monedas).
+- [ ] **Ronda 63 - GPS, distancias y mapa.** Ubicación del hotel, cercanía a sitios y panel de
+  lugares/experiencias.
+- [ ] **Ronda 64 - Chat huésped ↔ hotel.** Conversación por reserva con bandeja en el panel.
+- [ ] **Ronda 65 - El admin también reserva.** Entrar como huésped sin perder el panel.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

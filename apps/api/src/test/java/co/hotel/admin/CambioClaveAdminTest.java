@@ -149,4 +149,24 @@ class CambioClaveAdminTest {
         .session((org.springframework.mock.web.MockHttpSession) mockSesion))
       .andExpect(status().isOk());
   }
+
+  @Test
+  @Order(6)
+  @DisplayName("la sesión dice quién es el administrador, y sin sesión es 401")
+  void sesionDiceQuienEs() throws Exception {
+    mvc.perform(get("/api/admin/sesion")).andExpect(status().isUnauthorized());
+
+    var login = mvc.perform(post("/api/admin/login").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("email", "propia@hotel.test", "password", "ClavePropia12345"))))
+      .andExpect(status().isOk())
+      .andReturn();
+
+    var mockSesion = login.getRequest().getSession(false);
+    assertNotNull(mockSesion);
+    mvc.perform(get("/api/admin/sesion")
+        .session((org.springframework.mock.web.MockHttpSession) mockSesion))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.email").value("propia@hotel.test"));
+  }
 }

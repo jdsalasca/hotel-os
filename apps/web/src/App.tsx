@@ -2,6 +2,7 @@ import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { api } from './api/cliente';
 import { useSesion } from './api/useSesion';
+import { useSesionHuesped } from './api/useSesionHuesped';
 import { PaginaInicio } from './paginas/PaginaInicio';
 import { PaginaReserva } from './paginas/PaginaReserva';
 import { PaginaConsulta } from './paginas/PaginaConsulta';
@@ -19,6 +20,35 @@ import { PaginaTerminos } from './paginas/PaginaTerminos';
 
 function texto(valor?: string): string {
   return valor?.trim() ?? '';
+}
+
+/**
+ * Quién está detrás de la pantalla, en la cabecera y en todas las páginas. El panel pregunta
+ * "soy admin" y la web "soy huésped": si hay admin manda el correo, si no el nombre de Google,
+ * y sin sesión no se muestra nada en vez de un saludo inventado.
+ */
+function SaludoSesion() {
+  const admin = useSesion();
+  const huesped = useSesionHuesped();
+
+  useEffect(() => {
+    void admin.comprobar();
+    void huesped.comprobar();
+    // Solo al montar la app: las sesiones cambian con login/logout, que recargan o navegan.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (admin.haySesion === true && admin.email.length > 0) {
+    return (
+      <span className="cabecera__saludo" title="Sesión del panel">
+        Hola, {admin.email}
+      </span>
+    );
+  }
+  if (admin.haySesion !== true && huesped.haySesion === true && huesped.nombre.length > 0) {
+    return <span className="cabecera__saludo">Hola, {huesped.nombre}</span>;
+  }
+  return null;
 }
 
 /**
@@ -78,6 +108,7 @@ export function App() {
             <NavLink to="/mis-reservas">Mis reservas</NavLink>
             <NavLink to="/admin/reservas">Panel</NavLink>
           </nav>
+          <SaludoSesion />
         </div>
       </header>
 

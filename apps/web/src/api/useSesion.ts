@@ -7,13 +7,22 @@ import { urlApi } from './cliente';
  */
 export function useSesion() {
   const [haySesion, setHaySesion] = useState<boolean | null>(null);
+  const [email, setEmail] = useState('');
 
   async function comprobar() {
     try {
-      const respuesta = await fetch(urlApi('/api/admin/reservas?limit=1'), { credentials: 'same-origin' });
-      setHaySesion(respuesta.ok);
+      const r = await fetch(urlApi('/api/admin/sesion'), { credentials: 'same-origin' });
+      if (!r.ok) {
+        setHaySesion(false);
+        setEmail('');
+        return;
+      }
+      const cuerpo = (await r.json()) as { email?: string };
+      setEmail(cuerpo.email ?? '');
+      setHaySesion(true);
     } catch {
       setHaySesion(false);
+      setEmail('');
     }
   }
 
@@ -23,6 +32,7 @@ export function useSesion() {
 
   return {
     haySesion,
+    email,
     comprobar,
     async entrar(email: string, clave: string): Promise<'autenticado' | 'cambio_requerido'> {
       const r = await fetch(urlApi('/api/admin/login'), {
@@ -37,7 +47,7 @@ export function useSesion() {
       const cuerpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(cuerpo.error ?? 'Credenciales inválidas');
       if (cuerpo.estado === 'cambio_requerido') return 'cambio_requerido';
-      setHaySesion(true);
+      await comprobar();
       return 'autenticado';
     },
     async cambiarClave(email: string, actual: string, nueva: string) {
