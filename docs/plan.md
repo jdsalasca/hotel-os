@@ -117,6 +117,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `VITE_API_BASE` con la URL del backend, lo que anula el rewrite de `/api` y deja el panel sin
   sesión por cuatro razones a la vez. Ahora la guía dice que no se define, y el cliente avisa si
   la base cruza orígenes. Evidencia: `docs/evidence/round-29/verificacion.md`.
+- [x] **Ronda 30 - Comprobación de la configuración de despliegue.** El flujo de Google se rompió
+  dos veces por añadir rutas al backend sin pasarlas por el proxy, y ni los tests ni las capturas lo
+  detectan: el backend respondía bien, faltaba el camino. `verificar-despliegue.mjs` mira rutas,
+  cabeceras y CSP en nginx y Vercel, sin Docker ni despliegue, y falla si falta una. Evidencia:
+  `docs/evidence/round-30/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

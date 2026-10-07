@@ -1,0 +1,93 @@
+// Comprobación de la configuración de despliegue. Corre sin desplegar nada y sin Docker.
+//
+// Existe porque el flujo de Google ya se rompió dos veces por lo mismo: se añadió una ruta al
+// backend (/oauth2/... y /login/oauth2/...) y el proxy seguía reescribiendo solo /api/*. El botón
+// daba 200 con el index.html del SPA y nadie se enteró hasta que se probó a mano. Ni las pruebas
+// del backend ni el guion de capturas lo detectan, porque el backend respondía bien: lo que
+// faltaba era el camino.
+//
+// La configuración de nginx se lee del Dockerfile, que es donde vive (va incrustada con un
+// heredoc), así que esto no necesita construir la imagen.
+//
+// Uso:  node tools/operacion/verificar-despliegue.mjs
+// Sale con 1 si algo no cuadra.
+
+import { readFileSync } from 'node:fs';
+
+const fallos = [];
+const comprobar = (ok, mensaje) => {
+  console.log(`${ok ? 'ok   ' : 'FALLA'} ${mensaje}`);
+  if (!ok) fallos.push(mensaje);
+};
+
+/** Lo que nginx tiene que reenviar al backend. Añadir una ruta aquí laObliga a proxearla. */
+const RUTAS = ['/api/', '/oauth2/', '/login/oauth2/'];
+const CABECERAS = ['Content-Security-Policy', 'X-Content-Type-Options', 'X-Frame-Options',
+  'Referrer-Policy', 'Permissions-Policy'];
+
+// 1. La configuración de nginx, tal cual está en el Dockerfile.
+let dockerfile = '';
+try {
+  dockerfile = readFileSync('apps/web/Dockerfile', 'utf8');
+} catch (e) {
+  comprobar(false, 'se encuentra apps/web/Dockerfile');
+}
+
+if (dockerfile) {
+  // Sin comentarios: el Dockerfile explica en uno por qué NO se usa unsafe-inline, y buscar la
+  // palabra en todo el texto daría un fallo falso.
+  const config = dockerfile
+    .split('\n')
+    .filter((linea) => !linea.trimStart().startsWith('#'))
+    .join('\n');
+
+  for (const ruta of RUTAS) {
+    comprobar(config.includes(`location ${ruta}`),
+      `el proxy reenvía ${ruta} al backend (si no, el SPA contesta con su index.html)`);
+  }
+  for (const cabecera of CABECERAS) {
+    comprobar(config.includes(cabecera), `nginx envía ${cabecera}`);
+  }
+  comprobar(!config.includes('unsafe-inline') && !config.includes('unsafe-eval'),
+    'la CSP no relaja la protección con unsafe-inline ni unsafe-eval');
+  comprobar(config.includes("'self'"), "la CSP deja pasar el propio origen (connect-src 'self')");
+}
+
+// 2. Vercel: sin los reescrituras, el frontend desplegado ahí no habla con el backend.
+let vercel = {};
+try {
+  vercel = JSON.parse(readFileSync('vercel.json', 'utf8'));
+  comprobar(true, 'vercel.json es JSON válido');
+} catch (e) {
+  comprobar(false, 'vercel.json es JSON válido');
+}
+
+if (vercel.rewrites) {
+  const destinos = vercel.rewrites.map((r) => r.destination);
+  for (const ruta of RUTAS) {
+    const prefijo = ruta === '/api/' ? '/api/:path*' : `${ruta.replace(/\/$/, '')}/:path*`;
+    comprobar(destinos.some((d) => d.includes(ruta)), `vercel.json reescribe ${prefijo}`);
+  }
+  comprobar(destinos.some((d) => d.includes('/index.html')),
+    'vercel.json tiene el fallback a index.html para las rutas de React Router');
+}
+
+if (vercel.headers) {
+  const texto = JSON.stringify(vercel.headers);
+  comprobar(texto.includes('Content-Security-Policy'), 'vercel.json envía la CSP');
+  comprobar(!texto.includes('unsafe-inline') && !texto.includes('unsafe-eval'),
+    'la CSP de Vercel tampoco relaja la protección');
+} else {
+  comprobar(false, 'vercel.json declara cabeceras');
+}
+
+// 3. El mismo origen, siempre: una base cruzada rompe el panel (ver round-29).
+const base = (process.env.VITE_API_BASE ?? '').trim();
+comprobar(base === '', 'VITE_API_BASE vacía: el panel depende de la reescritura, no de otro origen');
+
+console.log('');
+if (fallos.length > 0) {
+  console.error(`DESPLIEGUE: ${fallos.length} comprobación(es) sin cuadrar`);
+  process.exit(1);
+}
+console.log('despliegue: rutas de proxy, cabeceras y CSP coherentes entre nginx y Vercel');

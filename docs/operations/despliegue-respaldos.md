@@ -254,6 +254,21 @@ aplicó). El healthcheck lo detecta y lo dice:
 La recuperación es restaurar un respaldo, no "reinstalar". Por eso `HealthController` consulta el
 esquema real y no solo responde `ok`.
 
+## Comprobar el despliegue antes de tocar nada
+
+```bash
+node tools/operacion/verificar-despliegue.mjs
+```
+
+Mira lo que ninguna prueba del backend puede ver: que el proxy reenvía al backend las rutas de la
+API y las dos del flujo de Google (`/oauth2/` y `/login/oauth2/`), que las cinco cabeceras de
+seguridad están en nginx y en `vercel.json`, que la CSP no se relaja y que `VITE_API_BASE` está
+vacía.
+
+Ese camino importa porque ya se rompió dos veces: añadir una ruta al backend sin pasarla por el
+proxy deja el botón de Google devolviendo el `index.html` del SPA, con un 200 que parece correcto.
+La comprobación no necesita Docker ni desplegar.
+
 ## Copia de respaldos fuera de la VM
 
 El volumen vive en el disco de la VM. Si se pierde la VM o el disco, se pierden las reservas.
