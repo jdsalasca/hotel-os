@@ -2,6 +2,7 @@ package co.hotel.huespedes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -106,6 +107,57 @@ class HuespedGoogleTest {
     Integer id = jdbc.queryForObject("SELECT usuario_id FROM reservations WHERE codigo='H-ANON1'",
       (rs, n) -> (Integer) rs.getObject("usuario_id"));
     assertNull(id, "una reserva sin sesión no tiene usuario: la columna admite NULL a propósito");
+  }
+
+  @Test
+  @DisplayName("tras entrar con Google, la sesión guarda el contexto: si no, /api/yo daría 401")
+  void laSesionSobreviveAlRedireccion() throws Exception {
+    var manejador = new ManejadorHuespedOauth2(new UsuariosHuespedRepository(jdbc));
+    var req = new org.springframework.mock.web.MockHttpServletRequest();
+    req.getSession(true);
+    var res = new org.springframework.mock.web.MockHttpServletResponse();
+
+    manejador.onAuthenticationSuccess(req, res, ficha("sub-persis", "persis@example.com", "Persis"));
+
+    var sesion = (org.springframework.mock.web.MockHttpSession) req.getSession(false);
+    var guardado = sesion.getAttribute(
+      org.springframework.security.web.context.HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+    assertTrue(guardado != null,
+      "el manejador tiene que guardar el contexto en la sesión a mano: el redirect por sí solo no "
+        + "lo hace desde Spring Security 6, y /api/yo devolvería 401 al volver de Google");
+    try {
+      var contexto = (org.springframework.security.core.context.SecurityContext) guardado;
+      assertEquals("persis@example.com",
+        contexto.getAuthentication().getName(), "la sesión debe saber quién es el huésped");
+    } finally {
+      org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+  }
+
+  @Test
+  @DisplayName("nunca se redirige fuera del sitio: un `vuelve` ajeno es un redirect abierto")
+  void elVuelveNoPuedeSalirDelSitio() throws Exception {
+    var manejador = new ManejadorHuespedOauth2(new UsuariosHuespedRepository(jdbc));
+    assertEquals("/mis-reservas", destinoCon(manejador, null));
+    assertEquals("/mis-reservas", destinoCon(manejador, "https://sitio-falso.example/robo"));
+    assertEquals("/mis-reservas", destinoCon(manejador, "//sitio-falso.example/robo"));
+    assertEquals("/mis-reservas", destinoCon(manejador, "javascript:alert(1)"));
+    // Una ruta interna sí se respeta: es el caso legítimo de "vuelve a donde estabas".
+    assertEquals("/reserva", destinoCon(manejador, "/reserva"));
+  }
+
+  private String destinoCon(ManejadorHuespedOauth2 manejador, String vuelve) throws Exception {
+    var req = new org.springframework.mock.web.MockHttpServletRequest();
+    req.getSession(true);
+    if (vuelve != null) req.setParameter("vuelve", vuelve);
+    var res = new org.springframework.mock.web.MockHttpServletResponse();
+    try {
+      manejador.onAuthenticationSuccess(req, res,
+        ficha("sub-redir-" + String.valueOf(vuelve), "redir@example.com", "Redir"));
+    } finally {
+      org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+    return res.getRedirectedUrl();
   }
 
   @Test

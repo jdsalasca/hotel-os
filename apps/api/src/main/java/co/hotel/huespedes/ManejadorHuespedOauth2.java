@@ -26,6 +26,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class ManejadorHuespedOauth2 implements AuthenticationSuccessHandler {
   private static final Logger log = LoggerFactory.getLogger(ManejadorHuespedOauth2.class);
+  private final org.springframework.security.web.context.HttpSessionSecurityContextRepository repoSesion =
+    new org.springframework.security.web.context.HttpSessionSecurityContextRepository();
 
   private final UsuariosHuespedRepository usuarios;
 
@@ -56,7 +58,25 @@ public class ManejadorHuespedOauth2 implements AuthenticationSuccessHandler {
     var token = new OAuth2AuthenticationToken(renombrado,
       java.util.List.of(new SimpleGrantedAuthority("ROLE_HUESPED")), "google-huesped");
     SecurityContextHolder.getContext().setAuthentication(token);
+    // Guardar el contexto a mano es OBLIGATORIO, no opcional: el redirect no lo hace. Desde Spring
+    // Security 6 el contexto solo se persiste si alguien lo guarda, y sin esto el huésped vuelve de
+    // Google a una página que responde 401 en /api/yo. El panel no suffers eso porque su manejador
+    // delega en SavedRequestAwareAuthenticationSuccessHandler, que sí lo guarda.
+    repoSesion.saveContext(SecurityContextHolder.getContext(), req, res);
     log.info("huésped {} entró con Google (usuario {})", email, id);
-    res.sendRedirect(req.getParameter("vuelve") != null ? req.getParameter("vuelve") : "/mis-reservas");
+    res.sendRedirect(destinoSeguro(req));
+  }
+
+  /**
+   * A dónde vuelve el huésped después de entrar. Solo rutas internas: aceptar un `vuelve` tal cual
+   * sería un redirect abierto, con el que un atacante lleva al usuario a su sitio justo después de
+   * autenticarse de verdad en el hotel.
+   */
+  private String destinoSeguro(HttpServletRequest req) {
+    String vuelve = req.getParameter("vuelve");
+    if (vuelve == null || !vuelve.startsWith("/") || vuelve.startsWith("//")) {
+      return "/mis-reservas";
+    }
+    return vuelve;
   }
 }

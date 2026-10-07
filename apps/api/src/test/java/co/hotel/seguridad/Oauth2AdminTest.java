@@ -100,6 +100,26 @@ class Oauth2AdminTest {
   }
 
   @Test
+  @DisplayName("quien entra con Google también queda con sesión guardada")
+  void laSesionDelAdminSobrevive() throws Exception {
+    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"));
+    var req = new MockHttpServletRequest();
+    req.getSession(true);
+    var respuesta = new MockHttpServletResponse();
+
+    manejador.onAuthenticationSuccess(req, respuesta, ficha("google-admin", "jefa@hotel.test"));
+
+    try {
+      var guardado = ((org.springframework.mock.web.MockHttpSession) req.getSession(false)).getAttribute(
+        org.springframework.security.web.context.HttpSessionSecurityContextRepository
+          .SPRING_SECURITY_CONTEXT_KEY);
+      assertTrue(guardado != null, "el panel también necesita la sesión guardada para no perder acceso");
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
+  }
+
+  @Test
   @DisplayName("un correo fuera de la allowlist no entra aunque Google lo autentique")
   void correoFueraDeAllowlistNoEntra() throws Exception {
     var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"));

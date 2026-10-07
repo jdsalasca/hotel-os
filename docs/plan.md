@@ -93,6 +93,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   usó la ronda 20), manejador `google-huesped`, `/api/yo`, `/api/mis-reservas`, logout propio y la
   página Mis reservas con botón Google en la navegación. La reserva anónima sigue intacta.
   Evidencia: `docs/evidence/round-23/verificacion.md`.
+- [x] **Ronda 24 - El login con Google estaba roto.** Desde Spring Security 6 el contexto no se
+  guarda solo: el redirect no persistía la sesión y `/api/yo` daba 401 al volver de Google, en los
+  dos caminos (panel y huésped). Y la vuelta del huésped aceptaba un `vuelve` de otro dominio, que
+  es un redirect abierto. Evidencia: `docs/evidence/round-24/verificacion.md`.
 - [ ] **Siguiente: endurecer el borde.** Revisar qué endpoints públicos siguen sin cobertura (rate
   limit, CSP) y qué queda del plan de indicadores. Sin ítems externos bloqueados.
 
@@ -108,7 +112,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | 5 | Las OTAs muestran su estado real | `BOOKING/DESPEGAR/AIRBNB = NO_CONFIGURADO` | ✅ |
 | 6 | Los indicadores no inventan datos | `tieneResultado=False` con motivo concreto | ✅ |
 | 7 | `compose up --build` funciona en dev y prod | Ambos `config` validan con exit 0 | ✅ |
-| 8 | Pruebas verdes | `Tests run: 194, Failures: 0, Errors: 0` | ✅ |
+| 8 | Pruebas verdes | `Tests run: 197, Failures: 0, Errors: 0` | ✅ |
 | 9 | Sin secretos en el repositorio | Escaneo del diff antes de cada commit | ✅ |
 
 ### Escalado medido de SQLite
@@ -121,7 +125,7 @@ el backend no puede ir en Vercel (filesystem efímero) y sí en una VM o servici
 
 ## Estado real 2026-10-06
 - Java 25.0.4.1, Docker 29.8.2, Maven Wrapper 3.9.11 funcionando. `distributionUrl` corregido.
-- **194 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
+- **197 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
   faltaban: todo React era `any` implícito y nadie lo notaba porque `vite build` no comprueba tipos).
 - 34 capturas verificadas por guion, sin errores de consola ni de API.
 - **Node.js sigue ausente en el host**: el frontend se construye y verifica en `node:22-alpine`,

@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Component;
 import co.hotel.config.HotelProperties;
 
@@ -35,6 +36,8 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
   private final Set<String> permitidos;
   private final AuthenticationSuccessHandler continuacion =
     new SavedRequestAwareAuthenticationSuccessHandler();
+  private final HttpSessionSecurityContextRepository repoSesion =
+    new HttpSessionSecurityContextRepository();
 
   @Autowired
   public ManejadorAdminOauth2(HotelProperties props) {
@@ -63,6 +66,8 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
     var conRol = new OAuth2AuthenticationToken(conNombre,
       List.of(new SimpleGrantedAuthority("ROLE_ADMIN")), token.getAuthorizedClientRegistrationId());
     SecurityContextHolder.getContext().setAuthentication(conRol);
+    // El redirect no guarda el contexto: hay que hacerlo a mano, igual que en el huésped.
+    repoSesion.saveContext(SecurityContextHolder.getContext(), req, res);
     log.info("entrada al panel con Google: {}", email);
     continuacion.onAuthenticationSuccess(req, res, conRol);
   }

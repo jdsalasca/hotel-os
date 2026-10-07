@@ -11,6 +11,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 
 /**
  * Cadena de seguridad del panel.
@@ -27,6 +28,9 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 @EnableWebSecurity
 public class SecurityConfig {
 
+  private final HttpSessionSecurityContextRepository repoSesion =
+    new HttpSessionSecurityContextRepository();
+
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http,
                                            ObjectProvider<ClientRegistrationRepository> registros,
@@ -39,6 +43,10 @@ public class SecurityConfig {
 
     http.csrf(c -> c.csrfTokenRepository(csrfCookie).csrfTokenRequestHandler(atributoCsrf))
       .sessionManagement(s -> s.sessionFixation().changeSessionId())
+      // Por defecto Spring Security 6 guarda el contexto en un atributo de la petición, no en la
+      // sesión. Con login de Google eso rompe el flujo entero: se vuelve de Google a otra petición,
+      // no hay contexto y /api/yo responde 401. Se fija el repositorio de sesión a propósito.
+      .securityContext(s -> s.securityContextRepository(repoSesion))
       .authorizeHttpRequests(a -> a
         // Spring reenvía los errores de validación a /error. Si ese reenvío queda denegado, un
         // mal parámetro responde 403 y parece un fallo de sesión en lugar de un 400 con mensaje.
