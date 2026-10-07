@@ -27,16 +27,22 @@ public class IndicadoresService {
 
   public List<DefinicionIndicador> definiciones() { return repo.definiciones(); }
 
-  /** Calcula y persiste el resultado de un indicador en el periodo. */
+  /**
+   * Calcula un indicador. NO persiste: `indicator_results` no la consulta nadie, así que guardar
+   * aquí era trabajo que se perdía en cada lectura del informe.
+   *
+   * Antes persistía, y eso rompía el sentido de un GET: `/api/admin/indicadores` y su CSV son
+   * lecturas, y el navegador prefetchea enlaces. Abrir el panel escribía doce filas sin que nadie
+   * las hubiera pedido. Si algún día hace falta un histórico de indicadores, que sea por una tarea
+   * programada que lo escriba a propósito, no de paso por una pantalla.
+   */
   public ResultadoIndicador calcular(String clave, String periodo) {
     DefinicionIndicador definicion = definicion(clave);
-    ResultadoIndicador resultado = switch (definicion.fase()) {
+    return switch (definicion.fase()) {
       case 1 -> calcularFase1(definicion, periodo);
       case 2 -> calcularFase2(definicion, periodo);
       default -> calcularFase3(definicion, periodo);
     };
-    repo.guardarResultado(clave, periodo, resultado.valor(), resultado.motivoFaltante());
-    return resultado;
   }
 
   private ResultadoIndicador calcularFase1(DefinicionIndicador d, String periodo) {

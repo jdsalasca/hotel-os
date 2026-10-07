@@ -21,13 +21,6 @@ public class IndicadoresRepository {
         rs.getString("responsable")));
   }
 
-  public void guardarResultado(String clave, String periodo, Double valor, String faltante) {
-    jdbc.update("INSERT INTO indicator_results(clave,periodo,resultado,datos_faltantes,generado_en) "
-        + "VALUES(?,?,?,?,datetime('now')) ON CONFLICT(clave,periodo) DO UPDATE SET "
-        + "resultado=excluded.resultado, datos_faltantes=excluded.datos_faltantes, generado_en=datetime('now')",
-      clave, periodo, valor, faltante);
-  }
-
   /** Habitaciones activas cargadas. */
   public long habitacionesActivas() {
     return jdbc.queryForObject("SELECT COUNT(*) FROM rooms WHERE estado='ACTIVA'", Long.class);
