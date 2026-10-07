@@ -102,6 +102,20 @@ public class ReservaRepository {
     }
   }
 
+  /** Lo que la reserva pidió: habitación, fechas y huéspedes. Para comparar reintentos. */
+  public record ContenidoReserva(long roomId, LocalDate llegada, LocalDate salida, int huespedes) {}
+
+  public Optional<ContenidoReserva> contenidoPorCodigo(String codigo) {
+    var filas = jdbc.query(
+      "SELECT ri.room_id, r.llegada, r.salida, r.huespedes FROM reservations r "
+        + "JOIN reservation_items ri ON ri.reservation_id = r.id WHERE r.codigo = ?",
+      (rs, n) -> new ContenidoReserva(rs.getLong("room_id"),
+        LocalDate.parse(rs.getString("llegada")), LocalDate.parse(rs.getString("salida")),
+        rs.getInt("huespedes")),
+      codigo);
+    return filas.stream().findFirst();
+  }
+
   /** Habitación asignada a la reserva, con su tipo. Una reserva siempre tiene una sola línea. */
   public record HabitacionReserva(long roomId, String codigo, String nombre, String tipoNombre) {}
 

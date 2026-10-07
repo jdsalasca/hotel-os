@@ -171,6 +171,30 @@ class ReservaServiceTest {
       assertEquals(1, contar("reservations"));
     }
 
+    @Test void mismaClaveConFechasDistintasEsConflictoDefinido() {
+      // Reutilizar la clave con otro contenido hoy devuelve la reserva vieja en silencio: el
+      // huésped cree haber reservado las fechas nuevas y el hotel no se entera.
+      String key = UUID.randomUUID().toString();
+      svc.crear(new CrearReserva("ana@example.com", "Ana", LocalDate.parse("2026-12-01"),
+        LocalDate.parse("2026-12-03"), 2, Origen.WEB, key, 1));
+      var ex = assertThrows(ConflictoIdempotenciaException.class,
+        () -> svc.crear(new CrearReserva("ana@example.com", "Ana", LocalDate.parse("2026-12-10"),
+          LocalDate.parse("2026-12-12"), 2, Origen.WEB, key, 1)));
+      assertTrue(ex.getMessage().contains("clave"),
+        "el motivo debe hablar de la clave reutilizada: " + ex.getMessage());
+      assertEquals(1, contar("reservations"), "el intento incompatible no debe escribir nada");
+    }
+
+    @Test void mismaClaveEnOtraHabitacionEsConflictoDefinido() {
+      String key = UUID.randomUUID().toString();
+      svc.crear(new CrearReserva("ana@example.com", "Ana", LocalDate.parse("2026-12-01"),
+        LocalDate.parse("2026-12-03"), 2, Origen.WEB, key, 1));
+      assertThrows(ConflictoIdempotenciaException.class,
+        () -> svc.crear(new CrearReserva("ana@example.com", "Ana", LocalDate.parse("2026-12-01"),
+          LocalDate.parse("2026-12-03"), 2, Origen.WEB, key, 2)));
+      assertEquals(1, contar("reservations"));
+    }
+
     @Test
     @DisplayName("otra persona con la misma clave de idempotencia crea su propia reserva")
     void laIdempotenciaNoCruzaEntreClientes() {

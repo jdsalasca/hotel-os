@@ -122,6 +122,27 @@ class ReservaPublicaTest {
   }
 
   @Test
+  @DisplayName("reutilizar la clave con otras fechas por HTTP: 409 con motivo")
+  void claveReutilizadaConOtrasFechasEs409() throws Exception {
+    String clave = java.util.UUID.randomUUID().toString();
+    var base = cuerpo("clave@example.com", "2026-11-05", "2026-11-07", 2, 1L);
+    mvc.perform(post("/api/reservas").with(csrf())
+        .header("Idempotency-Key", clave)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(base)))
+      .andExpect(status().isCreated());
+
+    var otras = cuerpo("clave@example.com", "2026-11-10", "2026-11-12", 2, 1L);
+    var respuesta = mvc.perform(post("/api/reservas").with(csrf())
+        .header("Idempotency-Key", clave)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(otras)))
+      .andExpect(status().isConflict())
+      .andReturn().getResponse().getContentAsString();
+    assert JSON.readTree(respuesta).get("error").asText().contains("clave");
+  }
+
+  @Test
   @DisplayName("una habitación retirada no se puede reservar ni pidiéndola por id")
   void habitacionRetiradaNiPorId() throws Exception {
     jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('105',1,'FUERA_DE_SERVICIO')");

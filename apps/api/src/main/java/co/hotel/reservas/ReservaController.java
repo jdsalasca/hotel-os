@@ -91,6 +91,8 @@ public class ReservaController {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     } catch (DateTimeParseException e) {
       return ResponseEntity.badRequest().body(Map.of("error", "las fechas deben tener formato YYYY-MM-DD"));
+    } catch (ConflictoIdempotenciaException e) {
+      return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     } catch (SinDisponibilidadException e) {
       return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     }

@@ -42,7 +42,19 @@ public class ReservaService {
       // La idempotencia solo aplica al mismo huésped: otra persona que comparta la clave es una
       // reserva distinta, no un reintento. Sin el correo, se le devolvía la reserva ajena entera.
       var existente = repo.codigoPorClave(clave, datos.email());
-      if (existente.isPresent()) return existente.get();
+      if (existente.isPresent()) {
+        // Y solo al mismo contenido: repetir la clave con otras fechas u otra habitación no es un
+        // reintento, es otra reserva. Devolver la vieja en silencio haría creer al huésped que lo
+        // nuevo quedó reservado.
+        var previo = repo.contenidoPorCodigo(existente.get())
+          .orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+        if (previo.roomId() != datos.roomId() || !previo.llegada().equals(datos.llegada())
+            || !previo.salida().equals(datos.salida()) || previo.huespedes() != datos.huespedes()) {
+          throw new ConflictoIdempotenciaException(
+            "esa clave de idempotencia ya creó otra reserva: repite la petición original o usa una clave nueva");
+        }
+        return existente.get();
+      }
 
       if (repo.hayReservaSolapada(datos.roomId(), datos.llegada(), datos.salida())
           || repo.hayBloqueoSolapado(datos.roomId(), datos.llegada(), datos.salida())) {
