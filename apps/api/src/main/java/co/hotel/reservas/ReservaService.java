@@ -118,6 +118,41 @@ public class ReservaService {
     });
   }
 
+  /**
+   * Reasigna la reserva a otra habitación: útil cuando la asignada tiene un problema o el
+   * huésped pide cambiarse. Solo reservas vigentes, habitación libre y vendible en esas fechas,
+   * precio recalculado con la nueva y todo en la misma transacción con su rastro.
+   */
+  public Reserva reasignar(String codigo, long nuevoRoomId, String actor) {
+    return tx.enTransaccion(estado -> {
+      var actual = repo.porCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+      if (!actual.estado().vigente()) {
+        throw new ExcepcionDeEstado("solo se reasigna una reserva vigente");
+      }
+      long id = repo.idPorCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+      long roomActual = repo.roomIdDe(id).orElseThrow(() -> new DatosInvalidosException("reserva sin habitación"));
+      if (roomActual == nuevoRoomId) return actual;
+      String codigoNuevo = repo.codigoHabitacion(nuevoRoomId).orElse(null);
+      if (codigoNuevo == null) throw new DatosInvalidosException("habitación no encontrada");
+      if (repo.hayReservaSolapada(nuevoRoomId, actual.llegada(), actual.salida())
+          || repo.hayBloqueoSolapado(nuevoRoomId, actual.llegada(), actual.salida())) {
+        throw new SinDisponibilidadException("la habitación " + codigoNuevo + " no está libre para esas fechas");
+      }
+      var precio = inventario.precioDe(nuevoRoomId, actual.llegada(), actual.salida(), actual.huespedes());
+      if (precio.isEmpty()) {
+        throw new SinDisponibilidadException(
+          "la habitación " + codigoNuevo + " no está a la venta para esas fechas y huéspedes");
+      }
+      var acordado = precio.get();
+      String codigoViejo = repo.codigoHabitacion(roomActual).orElse("?");
+      repo.reasignarHabitacion(id, nuevoRoomId, actual.llegada(), actual.salida());
+      repo.actualizarPrecio(codigo, acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
+      auditoria.movimiento(id, actual.estado().name(),
+        "habitación " + codigoViejo + " → " + codigoNuevo, actor);
+      return repo.porCodigo(codigo).orElseThrow();
+    });
+  }
+
   public Optional<Reserva> buscar(String codigo) { return repo.porCodigo(codigo); }
 
   /** Identificador interno, para consultar el historial. */

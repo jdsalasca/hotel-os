@@ -14,12 +14,23 @@ public class AuditoriaRepository {
   public AuditoriaRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
   public void registrarEstado(long reservationId, String estadoAnterior, String estadoNuevo, String actor) {
-    jdbc.update("INSERT INTO reservation_history(reservation_id,estado_ant,estado_nuevo,actor,en) VALUES(?,?,?,?,?)",
-      reservationId, estadoAnterior, estadoNuevo, actor, LocalDateTime.now().toString());
+    registrar(reservationId, estadoAnterior, estadoNuevo, null, actor);
+  }
+
+  /** Movimiento con detalle libre ("habitación 101 → 102"): el estado no cambió, el qué sí. */
+  public void registrarMovimiento(long reservationId, String estadoActual, String detalle, String actor) {
+    registrar(reservationId, estadoActual, estadoActual, detalle, actor);
+  }
+
+  private void registrar(long reservationId, String estadoAnterior, String estadoNuevo, String detalle,
+      String actor) {
+    jdbc.update("INSERT INTO reservation_history(reservation_id,estado_ant,estado_nuevo,detalle,actor,en)"
+        + " VALUES(?,?,?,?,?,?)",
+      reservationId, estadoAnterior, estadoNuevo, detalle, actor, LocalDateTime.now().toString());
   }
 
   public List<Map<String, Object>> historialDe(long reservationId) {
-    return jdbc.queryForList("SELECT estado_ant,estado_nuevo,actor,en FROM reservation_history "
+    return jdbc.queryForList("SELECT estado_ant,estado_nuevo,detalle,actor,en FROM reservation_history "
       + "WHERE reservation_id=? ORDER BY id", reservationId);
   }
 }

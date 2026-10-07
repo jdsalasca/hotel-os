@@ -15,4 +15,9 @@ public class AuditoriaService {
   public void cambioEstado(long reservationId, String estadoAnterior, String estadoNuevo, String actor) {
     repo.registrarEstado(reservationId, estadoAnterior, estadoNuevo, actor);
   }
+
+  /** Movimiento que no cambia el estado (reasignar habitación): el qué va en el detalle. */
+  public void movimiento(long reservationId, String estadoActual, String detalle, String actor) {
+    repo.registrarMovimiento(reservationId, estadoActual, detalle, actor);
+  }
 }

@@ -190,6 +190,37 @@ public class ReservaRepository {
     jdbc.update("UPDATE reservations SET estado=? WHERE codigo=?", estado.name(), codigo);
   }
 
+  /** Habitación asignada hoy a la reserva. */
+  public Optional<Long> roomIdDe(long reservaId) {
+    try {
+      return Optional.ofNullable(jdbc.queryForObject(
+        "SELECT room_id FROM reservation_items WHERE reservation_id=?", Long.class, reservaId));
+    } catch (EmptyResultDataAccessException e) {
+      return Optional.empty();
+    }
+  }
+
+  public Optional<String> codigoHabitacion(long roomId) {
+    try {
+      return Optional.ofNullable(jdbc.queryForObject("SELECT codigo FROM rooms WHERE id=?",
+        String.class, roomId));
+    } catch (EmptyResultDataAccessException e) {
+      return Optional.empty();
+    }
+  }
+
+  /** Mueve la línea de la reserva a otra habitación, con sus mismas fechas. */
+  public void reasignarHabitacion(long reservaId, long roomId, LocalDate llegada, LocalDate salida) {
+    jdbc.update("UPDATE reservation_items SET room_id=?, desde=?, hasta=? WHERE reservation_id=?",
+      roomId, llegada.toString(), salida.toString(), reservaId);
+  }
+
+  /** El precio se recalcula con la habitación nueva: la reserva no hereda importes ajenos. */
+  public void actualizarPrecio(String codigo, Long totalCents, String moneda, Long ratePlanId) {
+    jdbc.update("UPDATE reservations SET total_cents=?, moneda=?, rate_plan_id=? WHERE codigo=?",
+      totalCents, moneda, ratePlanId, codigo);
+  }
+
   private Reserva mapear(ResultSet rs) throws SQLException {
     // SQLite no convierte NULL con getObject(columna, Long.class): hay que leer y preguntar
     // enseguida, porque wasNull() siempre habla de la última lectura.

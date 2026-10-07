@@ -25,8 +25,10 @@ type Reserva = {
 type Detalle = {
   reserva: Reserva & { totalCents: number | null; moneda: string | null; plan: string | null };
   habitacion: { codigo: string; nombre: string; tipo: string } | null;
-  historial: { estado_ant: string | null; estado_nuevo: string; actor: string; en: string }[];
+  historial: { estado_ant: string | null; estado_nuevo: string; actor: string; en: string; detalle?: string | null }[];
 };
+
+type Habitacion = { id: number; codigo: string; nombre: string };
 
 const ESTADOS: { valor: Estado; texto: string }[] = [
   { valor: 'CONFIRMADA', texto: 'Confirmar' },
@@ -61,6 +63,8 @@ export function PaginaAdminReservas() {
   const sesion = useSesion();
   const [reservas, setReservas] = useState<Reserva[] | null>(null);
   const [detalle, setDetalle] = useState<Detalle | null>(null);
+  const [habitaciones, setHabitaciones] = useState<Habitacion[] | null>(null);
+  const [nuevaHabitacion, setNuevaHabitacion] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [texto, setTexto] = useState('');
@@ -89,9 +93,27 @@ export function PaginaAdminReservas() {
     setError(null);
     try {
       // El comprobante trae lo mismo que el detalle más habitación y total acordado.
-      setDetalle(await api.get<Detalle>(`/api/admin/reservas/${codigo}/comprobante`));
+      const [detalleAbierto, habs] = await Promise.all([
+        api.get<Detalle>(`/api/admin/reservas/${codigo}/comprobante`),
+        habitaciones ?? api.get<Habitacion[]>('/api/admin/habitaciones'),
+      ]);
+      setDetalle(detalleAbierto);
+      setHabitaciones(habs);
+      setNuevaHabitacion('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo abrir la reserva');
+    }
+  }
+
+  async function reasignar(codigo: string) {
+    if (!nuevaHabitacion) return;
+    setError(null);
+    try {
+      await api.post(`/api/admin/reservas/${codigo}/habitacion`, { roomId: Number(nuevaHabitacion) });
+      await cargar();
+      await abrir(codigo);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo reasignar la habitación');
     }
   }
 
@@ -239,10 +261,37 @@ export function PaginaAdminReservas() {
               {detalle.historial.map((h, i) => (
                 <li key={i} className="campo__ayuda">
                   {h.estado_ant ? `${h.estado_ant} → ` : 'creada como '}
-                  <strong>{h.estado_nuevo}</strong> por {h.actor} el {h.en.slice(0, 16).replace('T', ' ')}
+                  <strong>{h.estado_nuevo}</strong>
+                  {h.detalle ? ` · ${h.detalle}` : null} por {h.actor} el {h.en.slice(0, 16).replace('T', ' ')}
                 </li>
               ))}
             </ol>
+            {(detalle.reserva.estado === 'PENDIENTE' || detalle.reserva.estado === 'CONFIRMADA') && habitaciones ? (
+              <form
+                className="campos"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void reasignar(detalle.reserva.codigo);
+                }}
+              >
+                <div className="campo">
+                  <label className="campo__etiqueta" htmlFor="reasignar-hab">Cambiar a la habitación</label>
+                  <select
+                    id="reasignar-hab"
+                    value={nuevaHabitacion}
+                    onChange={(e) => setNuevaHabitacion(e.target.value)}
+                  >
+                    <option value="">Selecciona…</option>
+                    {habitaciones.map((h) => (
+                      <option key={h.id} value={h.id}>{h.codigo}</option>
+                    ))}
+                  </select>
+                </div>
+                <button className="boton boton--secundario boton--chico" type="submit" disabled={!nuevaHabitacion}>
+                  Reasignar
+                </button>
+              </form>
+            ) : null}
             <button className="boton boton--secundario boton--chico" onClick={() => setDetalle(null)}>
               Cerrar detalle
             </button>

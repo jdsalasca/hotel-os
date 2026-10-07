@@ -36,6 +36,28 @@ public class AdminReservasController {
    */
   public record CambioEstadoReq(String estado) {}
 
+  public record ReasignarReq(Long roomId) {}
+
+  /**
+   * Reasigna la reserva a otra habitación libre y vendible, recalculando el precio. 404 si no
+   * existe la reserva o la habitación; 409 si la reserva no está vigente o la habitación no
+   * está libre o a la venta.
+   */
+  @PostMapping("/api/admin/reservas/{codigo}/habitacion")
+  public ResponseEntity<?> reasignar(@PathVariable String codigo, @RequestBody ReasignarReq req) {
+    if (req.roomId() == null) {
+      return ResponseEntity.badRequest().body(Map.of("error", "roomId requerido"));
+    }
+    try {
+      Reserva reasignada = svc.reasignar(codigo, req.roomId(), ActorActual.correo());
+      return ResponseEntity.ok(fila(reasignada));
+    } catch (ExcepcionDeEstado | SinDisponibilidadException e) {
+      return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+    }
+  }
+
   @GetMapping("/api/admin/reservas")
   public ResponseEntity<?> listar(@RequestParam(defaultValue = "50") int limite,
                                   @RequestParam(required = false) String q,

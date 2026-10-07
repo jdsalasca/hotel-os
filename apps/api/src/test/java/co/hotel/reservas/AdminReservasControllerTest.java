@@ -352,6 +352,67 @@ class AdminReservasControllerTest {
   }
 
   @Test
+  @DisplayName("reasignar mueve la reserva a otra habitación libre y deja rastro")
+  void reasignarMueveLaReserva() throws Exception {
+    var origen = habitacionTarifada("G" + System.nanoTime() % 100000);
+    var destino = habitacionTarifada("H" + System.nanoTime() % 100000);
+    String codigo = crearReservaEn("mueve@example.com", "2026-11-01", "2026-11-03", origen.room());
+    String codigoDestino = codigoHabitacion(destino.room());
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/habitacion").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("roomId", destino.room()))))
+      .andExpect(status().isOk());
+
+    var detalle = mvc.perform(get("/api/admin/reservas/" + codigo + "/comprobante").with(ADMIN))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    assertEquals(codigoDestino, JSON.readTree(detalle).get("habitacion").get("codigo").asText(),
+      "la reserva ahora cuelga de la habitación destino");
+    var historial = mvc.perform(get("/api/admin/reservas/" + codigo).with(ADMIN))
+      .andReturn().getResponse().getContentAsString();
+    assertTrue(historial.contains("habitación"), "el movimiento queda en el historial: " + historial);
+  }
+
+  private String codigoHabitacion(long roomId) throws Exception {
+    String cuerpo = mvc.perform(get("/api/admin/habitaciones").with(ADMIN))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    for (var h : JSON.readTree(cuerpo)) {
+      if (h.get("id").asLong() == roomId) return h.get("codigo").asText();
+    }
+    throw new IllegalStateException("habitación sin código: " + roomId);
+  }
+
+  @Test
+  @DisplayName("reasignar a una habitación ocupada es un 409 sin mover nada")
+  void reasignarAHabitacionOcupadaEs409() throws Exception {
+    var origen = habitacionTarifada("I" + System.nanoTime() % 100000);
+    var destino = habitacionTarifada("J" + System.nanoTime() % 100000);
+    String codigo = crearReservaEn("ocupa@example.com", "2026-11-01", "2026-11-03", origen.room());
+    crearReservaEn("vecina@example.com", "2026-11-01", "2026-11-03", destino.room());
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/habitacion").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("roomId", destino.room()))))
+      .andExpect(status().isConflict());
+  }
+
+  @Test
+  @DisplayName("reasignar una reserva cancelada es un 409")
+  void reasignarCanceladaEs409() throws Exception {
+    var origen = habitacionTarifada("K" + System.nanoTime() % 100000);
+    var destino = habitacionTarifada("L" + System.nanoTime() % 100000);
+    String codigo = crearReservaEn("cerrada@example.com", "2026-11-01", "2026-11-03", origen.room());
+    cambiarEstado(codigo, "CANCELADA");
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/habitacion").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("roomId", destino.room()))))
+      .andExpect(status().isConflict());
+  }
+
+  @Test
   @DisplayName("el panel recibe del servidor los estados alcanzables, no los deduce")
   void elPanelRecibeLasTransicionesValidas() throws Exception {
     String cancelada = crearReserva("siguientes1@example.com", "2026-12-17", "2026-12-19");

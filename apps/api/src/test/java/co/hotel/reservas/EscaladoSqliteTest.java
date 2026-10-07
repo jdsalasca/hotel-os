@@ -60,7 +60,7 @@ class EscaladoSqliteTest {
       CREATE TABLE reservation_items(id INTEGER PRIMARY KEY AUTOINCREMENT, reservation_id INTEGER NOT NULL,
         room_id INTEGER NOT NULL, desde TEXT NOT NULL, hasta TEXT NOT NULL);
       CREATE TABLE reservation_history(id INTEGER PRIMARY KEY AUTOINCREMENT, reservation_id INTEGER NOT NULL,
-        estado_ant TEXT, estado_nuevo TEXT NOT NULL, actor TEXT NOT NULL, en TEXT NOT NULL);
+        estado_ant TEXT, estado_nuevo TEXT NOT NULL, detalle TEXT, actor TEXT NOT NULL, en TEXT NOT NULL);
       CREATE TABLE blocks(id INTEGER PRIMARY KEY AUTOINCREMENT, room_id INTEGER, desde TEXT NOT NULL,
         hasta TEXT NOT NULL, motivo TEXT NOT NULL DEFAULT '');
       INSERT INTO rooms(codigo,estado,nombre) VALUES('101','ACTIVA','Habitación 101');
