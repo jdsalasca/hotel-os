@@ -10,11 +10,16 @@ export function Cargando({ texto = 'Cargando' }: { texto?: string }) {
   );
 }
 
-export function MensajeError({ texto }: { texto: string }) {
+/**
+ * `titulo` es opcional a propósito. Sin él, el mensaje del servidor ES el aviso y va en negrita:
+ * muchos ya son un titular completo, y anteponerle "No se pudo completar la operación." produce
+ * dos frases pegadas sin espacio. Pasa `titulo` solo cuando de verdad quieras dos niveles.
+ */
+export function MensajeError({ texto, titulo }: { texto: string; titulo?: string }) {
   return (
     <div className="aviso aviso--error" role="alert">
-      <strong>No se pudo completar la operación.</strong>
-      <span>{texto}</span>
+      <strong>{titulo ?? texto}</strong>
+      {titulo ? <span>{texto}</span> : null}
     </div>
   );
 }

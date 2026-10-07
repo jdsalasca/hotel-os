@@ -12,3 +12,5 @@ node_modules/
 dist/
 .vercel/
 backups/
+# Salida local de las herramientas de navegador (snapshots, logs de consola): nunca al repo.
+.playwright-mcp/

@@ -22,6 +22,12 @@ server {
   index index.html;
   client_max_body_size 64k;
 
+  # nginx resuelve un nombrehost de proxy_pass UNA vez, al arrancar. Si después se recrea solo el
+  # contenedor de la API, esta toma una IP nueva y el web sigue apuntando a la vieja: 504 hasta que
+  # se reinicie el web. Con `resolver` y una variable, nginx vuelve a resolver cada 10s.
+  resolver 127.0.0.11 valid=10s ipv6=off;
+  set $api http://api:8080;
+
   # El nginx.conf de la imagen tiene gzip comentado. El bundle de Vite son cientos de KB de JS/CSS
   # sin comprimir; sin esto cada carga de página los baja íntegros. No comprime lo que ya va
   # comprimido (imágenes, fuentes), por eso gzip_types no incluye image/*.
@@ -32,7 +38,8 @@ server {
   gzip_types text/plain text/css application/javascript application/json image/svg+xml;
 
   location /api/ {
-    proxy_pass http://api:8080;
+    # $request_uri conserva la ruta y la query tal cual vinieron; sin él, el prefijo /api se pierde.
+    proxy_pass $api$request_uri;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -1,5 +1,7 @@
 package co.hotel.reservas;
 
+import co.hotel.seguridad.LimiteReservas;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
@@ -12,11 +14,14 @@ public class ReservaController {
   private final ReservaService svc;
   private final RoomSelector rooms;
   private final ComprobanteService comprobantes;
+  private final LimiteReservas limite;
 
-  public ReservaController(ReservaService svc, RoomSelector rooms, ComprobanteService comprobantes) {
+  public ReservaController(ReservaService svc, RoomSelector rooms, ComprobanteService comprobantes,
+                           LimiteReservas limite) {
     this.svc = svc;
     this.rooms = rooms;
     this.comprobantes = comprobantes;
+    this.limite = limite;
   }
 
   /** Contrato de entrada del flujo público. El cliente envía ISO-8601 (YYYY-MM-DD). */
@@ -34,7 +39,15 @@ public class ReservaController {
 
   @PostMapping("/api/reservas")
   public ResponseEntity<?> crear(@RequestBody CrearReq req,
-                                 @RequestHeader(value = "Idempotency-Key", required = false) String claveCabecera) {
+                                 @RequestHeader(value = "Idempotency-Key", required = false) String claveCabecera,
+                                 HttpServletRequest peticion) {
+    // El límite va antes de tocar la base: si no, un bucle llenaría la tabla de descartes.
+    // getRemoteAddr() ya es la IP del visitante porque server.forward-headers-strategy=framework
+    // reescribe la petición cuando hay proxy delante.
+    if (!limite.permitir(peticion.getRemoteAddr())) {
+      return ResponseEntity.status(429).body(Map.of("error",
+        "demasiadas reservas seguidas desde esta conexión. Inténtalo en unos minutos."));
+    }
     String clave = (claveCabecera != null && !claveCabecera.isBlank()) ? claveCabecera : req.idempotencia();
     try {
       LocalDate llegada = LocalDate.parse(req.llegada());
