@@ -130,6 +130,34 @@ public class InventarioAdminController {
     });
   }
 
+  /** Bloqueos vigentes con su motivo, para gestionarlos desde el panel. */
+  @GetMapping("/api/admin/bloqueos")
+  public List<Map<String, Object>> listarBloqueos() {
+    return inventario.bloqueosVigentes().stream().map(b -> {
+      Map<String, Object> fila = new java.util.LinkedHashMap<>();
+      fila.put("id", b.id());
+      fila.put("habitacion", b.habitacion() == null ? "Todo el hotel" : b.habitacion());
+      fila.put("desde", b.desde().toString());
+      fila.put("hasta", b.hasta().toString());
+      fila.put("motivo", b.motivo());
+      return fila;
+    }).toList();
+  }
+
+  /**
+   * Retira un bloqueo: la habitación vuelve a la venta. Es POST y no DELETE para que quede en la
+   * auditoría del panel como el resto de escrituras. Lo inexistente es 404, no un 200 silencioso.
+   */
+  @PostMapping("/api/admin/bloqueos/{id}/retirar")
+  public ResponseEntity<?> retirarBloqueo(@PathVariable long id) {
+    try {
+      inventario.retirarBloqueo(id);
+      return ResponseEntity.ok(Map.of("estado", "bloqueo retirado"));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+    }
+  }
+
   private PlanTarifario plan(long id) {
     return tarifas.planPorId(id);
   }

@@ -9,6 +9,8 @@ type Habitacion = { id: number; codigo: string; roomTypeId: number; nombre: stri
 type Tipo = { id: number; codigo: string; nombre: string; capacidadMax: number };
 type Plan = { id: number; codigo: string; nombre: string; moneda: string; descuentoPct: number };
 type Noche = { fecha: string; precioCents: number; minEstancia: number | null; maxEstancia: number | null; cerrado: boolean };
+
+type Bloqueo = { id: number; habitacion: string; desde: string; hasta: string; motivo: string };
 /** Fila del calendario: una habitación con una entrada por noche del mes. */
 type CalendarioDia = {
   id: number;
@@ -52,6 +54,7 @@ export function PaginaAdminInventario() {
   const [habitaciones, setHabitaciones] = useState<Habitacion[] | null>(null);
   const [tipos, setTipos] = useState<Tipo[] | null>(null);
   const [calendario, setCalendario] = useState<CalendarioDia[] | null>(null);
+  const [bloqueos, setBloqueos] = useState<Bloqueo[] | null>(null);
   const [planes, setPlanes] = useState<Plan[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -73,18 +76,21 @@ export function PaginaAdminInventario() {
     setError(null);
     try {
       const [desde, hasta] = rangoMes(mes);
-      const [habs, tiposCargados, planesCargados, calendarioCargado] = await Promise.all([
+      const [habs, tiposCargados, planesCargados, calendarioCargado, bloqueosCargados] = await Promise.all([
         api.get<Habitacion[]>('/api/admin/habitaciones'),
         api.get<Tipo[]>('/api/admin/tipos'),
         api.get<Plan[]>('/api/admin/planes'),
         api.get<CalendarioDia[]>(`/api/admin/calendario?desde=${desde}&hasta=${hasta}`),
+        api.get<Bloqueo[]>('/api/admin/bloqueos'),
       ]);
       setHabitaciones(habs);
       setTipos(tiposCargados);
       setPlanes(planesCargados);
       setCalendario(calendarioCargado);
+      setBloqueos(bloqueosCargados);
     } catch (e) {
       setCalendario(null);
+      setBloqueos(null);
       setError(e instanceof Error ? e.message : 'No se pudo cargar el inventario');
     } finally {
       setCargando(false);
@@ -419,6 +425,7 @@ export function PaginaAdminInventario() {
             </div>
             <button className="boton boton--primario" type="submit">Aplicar bloqueo</button>
           </form>
+
           <form
             className="tarjeta pila"
             onSubmit={(e) => {
@@ -485,6 +492,48 @@ export function PaginaAdminInventario() {
               </ul>
             </div>
           ) : null}
+        </div>
+
+        <div className="tarjeta pila mt-e6">
+          <h2 className="t-lg mb-0">Bloqueos vigentes</h2>
+          {!bloqueos || bloqueos.length === 0 ? (
+            <p className="campo__ayuda sin-margen">Sin bloqueos vigentes: todo el inventario está a la venta.</p>
+          ) : (
+            <div className="tabla-envoltura">
+              <table className="tabla">
+                <caption>Bloqueos que aún cubren noches futuras</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Habitación</th>
+                    <th scope="col">Desde</th>
+                    <th scope="col">Hasta</th>
+                    <th scope="col">Motivo</th>
+                    <th scope="col">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bloqueos.map((b) => (
+                    <tr key={b.id}>
+                      <td data-label="Habitación">{b.habitacion}</td>
+                      <td className="cifra" data-label="Desde">{fechaCorta(b.desde)}</td>
+                      <td className="cifra" data-label="Hasta">{fechaCorta(b.hasta)}</td>
+                      <td data-label="Motivo">{b.motivo || '—'}</td>
+                      <td data-label="Acciones">
+                        <button
+                          className="boton boton--secundario boton--chico"
+                          type="button"
+                          onClick={() => void accion(() => api.post(`/api/admin/bloqueos/${b.id}/retirar`))}
+                          aria-label={`Retirar el bloqueo de ${b.habitacion} (${b.motivo || 'sin motivo'})`}
+                        >
+                          Retirar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <h2 className="t-xl mt-e6">Precios por noche</h2>

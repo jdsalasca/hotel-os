@@ -89,6 +89,36 @@ public class InventarioRepository {
   /** Un bloqueo. `roomId` nulo es un bloqueo del hotel entero. */
   public record OcupacionBloqueo(Long roomId, LocalDate desde, LocalDate hasta, String motivo) {}
 
+  /** Un bloqueo con su id y el código de habitación, para gestionarlo desde el panel. */
+  public record BloqueoVista(long id, Long roomId, String habitacion, LocalDate desde, LocalDate hasta,
+                             String motivo) {}
+
+  public boolean existeBloqueo(long id) {
+    Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM blocks WHERE id=?", Integer.class, id);
+    return n != null && n > 0;
+  }
+
+  public void eliminarBloqueo(long id) {
+    jdbc.update("DELETE FROM blocks WHERE id=?", id);
+  }
+
+  /**
+   * Bloqueos que aún cubren alguna noche futura, los más próximos primero. Los ya terminados no
+   * salen: el panel es para gestionar, no para archivar.
+   */
+  public List<BloqueoVista> bloqueosVigentes() {
+    return jdbc.query(
+      "SELECT b.id, b.room_id, r.codigo AS habitacion, b.desde, b.hasta, b.motivo FROM blocks b "
+        + "LEFT JOIN rooms r ON r.id = b.room_id "
+        + "WHERE date('now') < b.hasta ORDER BY b.desde, b.id",
+      (rs, n) -> {
+        long roomId = rs.getLong("room_id");
+        return new BloqueoVista(rs.getLong("id"), rs.wasNull() ? null : roomId,
+          rs.getString("habitacion"), LocalDate.parse(rs.getString("desde")),
+          LocalDate.parse(rs.getString("hasta")), rs.getString("motivo"));
+      });
+  }
+
   public List<OcupacionBloqueo> bloqueosDe(LocalDate desde, LocalDate hasta) {
     return jdbc.query(
       "SELECT room_id, desde, hasta, motivo FROM blocks "

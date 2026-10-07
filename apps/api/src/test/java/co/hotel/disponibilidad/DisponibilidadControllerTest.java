@@ -165,6 +165,66 @@ class DisponibilidadControllerTest {
   }
 
   @Test
+  @DisplayName("el hotel retira un bloqueo y la habitación vuelve a la oferta")
+  void retirarBloqueoDevuelveALaOferta() throws Exception {
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "DOBLE_R", "nombre", "Habitación doble", "capacidadMax", 2))).get("id").asLong();
+    long habitacionId = JSON.readTree(admin("/api/admin/habitaciones",
+      Map.of("codigo", "801", "roomTypeId", tipoId, "nombre", "Habitación 801"))).get("id").asLong();
+    long planId = JSON.readTree(admin("/api/admin/planes",
+      Map.of("codigo", "PES_R", "nombre", "Plan pesos", "moneda", "COP"))).get("id").asLong();
+    for (String fecha : new String[] { "2027-03-01", "2027-03-02" }) {
+      mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(JSON.writeValueAsString(Map.of("ratePlanId", planId, "roomTypeId", tipoId,
+            "fecha", fecha, "precioCents", 150_000))))
+        .andExpect(status().isCreated());
+    }
+    long bloqueoId = JSON.readTree(mvc.perform(post("/api/admin/bloqueos").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("roomId", habitacionId, "desde", "2027-03-01",
+          "hasta", "2027-03-05", "motivo", "Mantenimiento"))))
+      .andExpect(status().isCreated())
+      .andReturn().getResponse().getContentAsString()).get("bloqueoId").asLong();
+
+    mvc.perform(get("/api/disponibilidad")
+        .param("llegada", "2027-03-01").param("salida", "2027-03-03").param("huespedes", "2"))
+      .andExpect(jsonPath("$.ofertas[?(@.habitacion.codigo=='801')]").doesNotExist());
+
+    mvc.perform(post("/api/admin/bloqueos/" + bloqueoId + "/retirar").with(ADMIN).with(csrf()))
+      .andExpect(status().isOk());
+
+    mvc.perform(get("/api/disponibilidad")
+        .param("llegada", "2027-03-01").param("salida", "2027-03-03").param("huespedes", "2"))
+      .andExpect(jsonPath("$.ofertas[?(@.habitacion.codigo=='801')]").exists());
+  }
+
+  @Test
+  @DisplayName("retirar un bloqueo que no existe es un 404, no un 200 silencioso")
+  void retirarBloqueoInexistenteEs404() throws Exception {
+    mvc.perform(post("/api/admin/bloqueos/999999/retirar").with(ADMIN).with(csrf()))
+      .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("el panel lista los bloqueos vigentes con su motivo")
+  void listaBloqueosVigentes() throws Exception {
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "DOBLE_L", "nombre", "Habitación doble", "capacidadMax", 2))).get("id").asLong();
+    long habitacionId = JSON.readTree(admin("/api/admin/habitaciones",
+      Map.of("codigo", "802", "roomTypeId", tipoId, "nombre", "Habitación 802"))).get("id").asLong();
+
+    mvc.perform(post("/api/admin/bloqueos").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("roomId", habitacionId, "desde", "2027-04-01",
+          "hasta", "2027-04-05", "motivo", "Mantenimiento"))))
+      .andExpect(status().isCreated());
+
+    mvc.perform(get("/api/admin/bloqueos").with(ADMIN))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[?(@.motivo=='Mantenimiento')].habitacion").value("802"));
+  }
+  @Test
   @DisplayName("el hotel puede bloquear una habitación por mantenimiento y desaparece de la oferta")
   void bloqueoPorMantenimientoSacaDeLaOferta() throws Exception {
     long tipoId = JSON.readTree(admin("/api/admin/tipos",

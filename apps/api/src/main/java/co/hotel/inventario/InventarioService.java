@@ -70,6 +70,21 @@ public class InventarioService {
 
   public List<Habitacion> listarHabitaciones() { return inventario.habitaciones(); }
 
+  /** Bloqueos vigentes para gestionarlos desde el panel. */
+  public List<InventarioRepository.BloqueoVista> bloqueosVigentes() {
+    return inventario.bloqueosVigentes();
+  }
+
+  /**
+   * Retira un bloqueo: la habitación vuelve a la venta. Se borra la fila y el rastro queda en la
+   * auditoría de acciones del panel (método, ruta y actor), que es donde el hotel mira qué se tocó.
+   */
+  public void retirarBloqueo(long bloqueoId) {
+    if (!inventario.existeBloqueo(bloqueoId))
+      throw new DatosInvalidosException("bloqueo no encontrado");
+    inventario.eliminarBloqueo(bloqueoId);
+  }
+
   public List<RoomType> listarTipos() { return inventario.tipos(); }
 
   public List<Habitacion> disponibles(LocalDate desde, LocalDate hasta) {
