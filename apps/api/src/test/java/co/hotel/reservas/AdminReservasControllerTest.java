@@ -156,4 +156,94 @@ class AdminReservasControllerTest {
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.error").exists());
   }
+
+  /** Habitación con tarifa completa para probar el comprobante con precio real. */
+  private record Escenario(long room, long tipo, long plan) {}
+
+  private Escenario habitacionTarifada(String sufijo) throws Exception {
+    long tipo = JSON.readTree(mvc.perform(post("/api/admin/tipos").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("codigo", "V" + sufijo, "nombre", "Voucher " + sufijo, "capacidadMax", 2))))
+      .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asLong();
+    long habitacion = JSON.readTree(mvc.perform(post("/api/admin/habitaciones").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("codigo", "V" + sufijo, "roomTypeId", tipo, "nombre", "Habitación " + sufijo))))
+      .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asLong();
+    long plan = JSON.readTree(mvc.perform(post("/api/admin/planes").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("codigo", "VP" + sufijo, "nombre", "Plan " + sufijo, "moneda", "COP"))))
+      .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asLong();
+    for (String dia : new String[] {"2026-11-01", "2026-11-02"}) {
+      mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(json(Map.of("ratePlanId", plan, "roomTypeId", tipo, "fecha", dia, "precioCents", 150_000))))
+        .andExpect(status().isCreated());
+    }
+    return new Escenario(habitacion, tipo, plan);
+  }
+
+  private String crearReservaEn(String email, String llegada, String salida, long roomId) throws Exception {
+    String cuerpo = mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("email", email, "llegada", llegada, "salida", salida,
+          "huespedes", 2, "roomId", roomId))))
+      .andExpect(status().isCreated())
+      .andReturn().getResponse().getContentAsString();
+    return JSON.readTree(cuerpo).get("codigo").asText();
+  }
+
+  @Test
+  @DisplayName("el comprobante público muestra habitación, total acordado e identidad del hotel")
+  void comprobantePublicoConPrecio() throws Exception {
+    var escenario = habitacionTarifada("A" + System.nanoTime() % 100000);
+    String codigo = crearReservaEn("vale@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "vale@example.com"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.reserva.codigo").value(codigo))
+      .andExpect(jsonPath("$.reserva.totalCents").value(300000))
+      .andExpect(jsonPath("$.reserva.moneda").value("COP"))
+      .andExpect(jsonPath("$.habitacion.codigo").exists())
+      .andExpect(jsonPath("$.historial").isArray());
+  }
+
+  @Test
+  @DisplayName("el comprobante público exige el correo de la reserva")
+  void comprobantePublicoExigeCorreo() throws Exception {
+    var escenario = habitacionTarifada("B" + System.nanoTime() % 100000);
+    String codigo = crearReservaEn("vale@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "otro@example.com"))
+      .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("el comprobante congela el precio: si la tarifa cambia después, el total no se mueve")
+  void comprobanteCongelaElPrecioAcordado() throws Exception {
+    var escenario = habitacionTarifada("C" + System.nanoTime() % 100000);
+    String codigo = crearReservaEn("vale@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    // El hotel sube el precio de la segunda noche DESPUÉS de la reserva: 150.000 -> 200.000.
+    mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("ratePlanId", escenario.plan(), "roomTypeId", escenario.tipo(),
+          "fecha", "2026-11-02", "precioCents", 200_000))))
+      .andExpect(status().isCreated());
+
+    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "vale@example.com"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.reserva.totalCents").value(300000));
+  }
+
+  @Test
+  @DisplayName("el panel ve el comprobante sin necesidad del correo")
+  void comprobanteAdminSinCorreo() throws Exception {
+    var escenario = habitacionTarifada("D" + System.nanoTime() % 100000);
+    String codigo = crearReservaEn("vale@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    mvc.perform(get("/api/admin/reservas/" + codigo + "/comprobante").with(ADMIN))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.reserva.totalCents").value(300000))
+      .andExpect(jsonPath("$.habitacion.codigo").exists());
+  }
 }

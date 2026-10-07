@@ -1,6 +1,7 @@
 package co.hotel.reservas;
 
 import co.hotel.auditoria.AuditoriaService;
+import co.hotel.inventario.InventarioService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -22,11 +23,14 @@ public class ReservaService {
   private final ReservaRepository repo;
   private final SqliteTransactionExecutor tx;
   private final AuditoriaService auditoria;
+  private final InventarioService inventario;
 
-  public ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria) {
+  public ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
+                        InventarioService inventario) {
     this.repo = repo;
     this.tx = tx;
     this.auditoria = auditoria;
+    this.inventario = inventario;
   }
 
   public String crear(CrearReserva datos) {
@@ -43,8 +47,14 @@ public class ReservaService {
         throw new SinDisponibilidadException("no hay disponibilidad para esas fechas");
       }
 
+      // El precio se congela con el inventario vigente en la transacción: si el hotel cambia las
+      // tarifas después, el comprobante sigue mostrando lo acordado. Sin tarifa, NULL.
+      var precio = inventario.precioDe(datos.roomId(), datos.llegada(), datos.salida(), datos.huespedes());
       String codigo = generarCodigo();
-      long id = repo.insertar(codigo, datos, clave);
+      long id = repo.insertar(codigo, datos, clave,
+        precio.map(InventarioService.PrecioAcordado::totalCents).orElse(null),
+        precio.map(InventarioService.PrecioAcordado::moneda).orElse(null),
+        precio.map(InventarioService.PrecioAcordado::ratePlanId).orElse(null));
       repo.insertarLinea(id, datos.roomId(), datos.llegada(), datos.salida());
       auditoria.cambioEstado(id, null, EstadoReserva.PENDIENTE.name(), datos.origen().name());
       return codigo;

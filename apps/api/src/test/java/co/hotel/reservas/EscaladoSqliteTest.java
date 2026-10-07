@@ -47,7 +47,14 @@ class EscaladoSqliteTest {
       CREATE TABLE reservations(id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL,
         email TEXT NOT NULL, nombre TEXT NOT NULL DEFAULT '', llegada TEXT NOT NULL, salida TEXT NOT NULL,
         huespedes INTEGER NOT NULL, estado TEXT NOT NULL, origen TEXT NOT NULL,
-        idempotencia TEXT UNIQUE NOT NULL, creado_en TEXT NOT NULL DEFAULT '');
+        idempotencia TEXT UNIQUE NOT NULL, creado_en TEXT NOT NULL DEFAULT '',
+        total_cents INTEGER, moneda TEXT, rate_plan_id INTEGER);
+      CREATE TABLE rate_plans(id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL,
+        nombre TEXT NOT NULL, moneda TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1);
+      CREATE TABLE rates(id INTEGER PRIMARY KEY AUTOINCREMENT, rate_plan_id INTEGER NOT NULL,
+        room_type_id INTEGER NOT NULL, fecha TEXT NOT NULL, precio_cents INTEGER NOT NULL,
+        min_estancia INTEGER, max_estancia INTEGER, cerrado INTEGER NOT NULL DEFAULT 0,
+        UNIQUE(rate_plan_id,room_type_id,fecha));
       CREATE TABLE reservation_items(id INTEGER PRIMARY KEY AUTOINCREMENT, reservation_id INTEGER NOT NULL,
         room_id INTEGER NOT NULL, desde TEXT NOT NULL, hasta TEXT NOT NULL);
       CREATE TABLE reservation_history(id INTEGER PRIMARY KEY AUTOINCREMENT, reservation_id INTEGER NOT NULL,
@@ -69,8 +76,11 @@ class EscaladoSqliteTest {
 
   private ReservaService servicio(DataSource ds) {
     JdbcTemplate jdbc = new JdbcTemplate(ds);
-    return new ReservaService(new ReservaRepository(jdbc), new SqliteTransactionExecutor(ds),
-      new AuditoriaService(new AuditoriaRepository(jdbc)));
+    var tx = new SqliteTransactionExecutor(ds);
+    var inventario = new co.hotel.inventario.InventarioService(new co.hotel.inventario.InventarioRepository(jdbc),
+      new co.hotel.inventario.TarifaRepository(jdbc), tx);
+    return new ReservaService(new ReservaRepository(jdbc), tx,
+      new AuditoriaService(new AuditoriaRepository(jdbc)), inventario);
   }
 
   @Test

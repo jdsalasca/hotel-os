@@ -11,10 +11,12 @@ import org.springframework.web.bind.annotation.*;
 public class ReservaController {
   private final ReservaService svc;
   private final RoomSelector rooms;
+  private final ComprobanteService comprobantes;
 
-  public ReservaController(ReservaService svc, RoomSelector rooms) {
+  public ReservaController(ReservaService svc, RoomSelector rooms, ComprobanteService comprobantes) {
     this.svc = svc;
     this.rooms = rooms;
+    this.comprobantes = comprobantes;
   }
 
   /** Contrato de entrada del flujo público. El cliente envía ISO-8601 (YYYY-MM-DD). */
@@ -61,5 +63,16 @@ public class ReservaController {
       return ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada"));
     }
     return ResponseEntity.ok(ReservaResp.de(reserva.get(), null));
+  }
+
+  /**
+   * Comprobante público: lo acordado, la habitación, el hotel y el historial. La misma compuerta
+   * que la consulta (código + correo): nadie imprime reservas ajenas adivinando el código.
+   */
+  @GetMapping("/api/reservas/{codigo}/comprobante")
+  public ResponseEntity<?> comprobante(@PathVariable String codigo, @RequestParam String email) {
+    return comprobantes.comprobante(codigo, email)
+      .map(ResponseEntity::ok)
+      .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada")));
   }
 }

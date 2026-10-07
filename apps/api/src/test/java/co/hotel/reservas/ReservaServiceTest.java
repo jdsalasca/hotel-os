@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import co.hotel.auditoria.AuditoriaRepository;
 import co.hotel.auditoria.AuditoriaService;
+import co.hotel.inventario.InventarioRepository;
+import co.hotel.inventario.InventarioService;
+import co.hotel.inventario.TarifaRepository;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -29,12 +32,22 @@ class ReservaServiceTest {
         nombre TEXT NOT NULL, capacidad_max INTEGER NOT NULL);
       CREATE TABLE rooms(
         id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL,
-        room_type_id INTEGER REFERENCES room_types(id), estado TEXT NOT NULL DEFAULT 'ACTIVA');
+        room_type_id INTEGER REFERENCES room_types(id), estado TEXT NOT NULL DEFAULT 'ACTIVA',
+        nombre TEXT NOT NULL DEFAULT '');
       CREATE TABLE reservations(
         id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL, email TEXT NOT NULL,
         nombre TEXT NOT NULL DEFAULT '', llegada TEXT NOT NULL, salida TEXT NOT NULL,
         huespedes INTEGER NOT NULL, estado TEXT NOT NULL, origen TEXT NOT NULL,
-        idempotencia TEXT UNIQUE NOT NULL, creado_en TEXT NOT NULL DEFAULT '');
+        idempotencia TEXT UNIQUE NOT NULL, creado_en TEXT NOT NULL DEFAULT '',
+        total_cents INTEGER, moneda TEXT, rate_plan_id INTEGER);
+      CREATE TABLE rate_plans(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL,
+        nombre TEXT NOT NULL, moneda TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1);
+      CREATE TABLE rates(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, rate_plan_id INTEGER NOT NULL,
+        room_type_id INTEGER NOT NULL, fecha TEXT NOT NULL, precio_cents INTEGER NOT NULL,
+        min_estancia INTEGER, max_estancia INTEGER, cerrado INTEGER NOT NULL DEFAULT 0,
+        UNIQUE(rate_plan_id,room_type_id,fecha));
       CREATE TABLE reservation_items(
         id INTEGER PRIMARY KEY AUTOINCREMENT, reservation_id INTEGER NOT NULL,
         room_id INTEGER NOT NULL, desde TEXT NOT NULL, hasta TEXT NOT NULL);
@@ -65,7 +78,10 @@ class ReservaServiceTest {
     }
     this.jdbc = new JdbcTemplate(dataSource);
     this.auditoria = new AuditoriaService(new AuditoriaRepository(jdbc));
-    this.svc = new ReservaService(new ReservaRepository(jdbc), new SqliteTransactionExecutor(dataSource), auditoria);
+    var inventario = new InventarioService(new InventarioRepository(jdbc), new TarifaRepository(jdbc),
+      new SqliteTransactionExecutor(dataSource));
+    this.svc = new ReservaService(new ReservaRepository(jdbc), new SqliteTransactionExecutor(dataSource),
+      auditoria, inventario);
   }
 
   private String crear(String email, String llegada, String salida, long roomId) {
@@ -189,6 +205,45 @@ class ReservaServiceTest {
     @Test void elCorreoNoDistingueMayusculas() {
       String codigo = crear("ana@example.com", "2026-11-01", "2026-11-05", 1);
       assertNotNull(svc.consultar(codigo, "ANA@EXAMPLE.COM"));
+    }
+  }
+
+  @Nested
+  @DisplayName("precio acordado al reservar")
+  class PrecioAcordado {
+
+    /** Habitación con tarifa completa: dos noches a 150.000 COP en el plan PES. */
+    private long habitacionTarifada() {
+      jdbc.update("INSERT INTO room_types(codigo,nombre,capacidad_max) VALUES('DOBLE','Doble',2)");
+      long tipo = jdbc.queryForObject("SELECT id FROM room_types WHERE codigo='DOBLE'", Long.class);
+      jdbc.update("INSERT INTO rate_plans(codigo,nombre,moneda,activo) VALUES('PES','Plan pesos','COP',1)");
+      long plan = jdbc.queryForObject("SELECT id FROM rate_plans WHERE codigo='PES'", Long.class);
+      jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('201',?,'ACTIVA')", tipo);
+      long room = jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='201'", Long.class);
+      jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,cerrado) VALUES(?,?,?,150000,0)",
+        plan, tipo, "2026-11-01");
+      jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,cerrado) VALUES(?,?,?,150000,0)",
+        plan, tipo, "2026-11-02");
+      return room;
+    }
+
+    @Test void guardaElTotalLaMonedaYElPlan() {
+      long room = habitacionTarifada();
+      String codigo = crear("ana@example.com", "2026-11-01", "2026-11-03", room);
+
+      var fila = jdbc.queryForMap("SELECT total_cents, moneda, rate_plan_id FROM reservations WHERE codigo=?", codigo);
+      assertEquals(300000L, ((Number) fila.get("total_cents")).longValue(), "2 noches a 150.000");
+      assertEquals("COP", fila.get("moneda"));
+      assertNotNull(fila.get("rate_plan_id"), "el plan acordado queda registrado");
+    }
+
+    @Test void sinTarifaGuardaNuloEnVezDeInventarUnPrecio() {
+      String codigo = crear("ana@example.com", "2026-11-01", "2026-11-03", 1);
+
+      var fila = jdbc.queryForMap("SELECT total_cents, moneda, rate_plan_id FROM reservations WHERE codigo=?", codigo);
+      assertNull(fila.get("total_cents"), "sin tarifa no hay total que guardar");
+      assertNull(fila.get("moneda"));
+      assertNull(fila.get("rate_plan_id"));
     }
   }
 

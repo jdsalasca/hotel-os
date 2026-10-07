@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
-import { fechaCorta } from '../api/formato';
+import { fechaCorta, monto } from '../api/formato';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
 
@@ -18,7 +18,11 @@ type Reserva = {
   creadoEn: string;
 };
 
-type Detalle = { reserva: Reserva; historial: { estado_ant: string | null; estado_nuevo: string; actor: string; en: string }[] };
+type Detalle = {
+  reserva: Reserva & { totalCents: number | null; moneda: string | null; plan: string | null };
+  habitacion: { codigo: string; nombre: string; tipo: string } | null;
+  historial: { estado_ant: string | null; estado_nuevo: string; actor: string; en: string }[];
+};
 
 const ESTADOS: { valor: string; texto: string }[] = [
   { valor: 'CONFIRMADA', texto: 'Confirmar' },
@@ -52,7 +56,8 @@ export function PaginaAdminReservas() {
   async function abrir(codigo: string) {
     setError(null);
     try {
-      setDetalle(await api.get<Detalle>(`/api/admin/reservas/${codigo}`));
+      // El comprobante trae lo mismo que el detalle más habitación y total acordado.
+      setDetalle(await api.get<Detalle>(`/api/admin/reservas/${codigo}/comprobante`));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo abrir la reserva');
     }
@@ -151,6 +156,16 @@ export function PaginaAdminReservas() {
             <p className="sin-margen">
               {detalle.reserva.nombre || detalle.reserva.email} · {fechaCorta(detalle.reserva.llegada)} →{' '}
               {fechaCorta(detalle.reserva.salida)}
+            </p>
+            <p className="sin-margen">
+              {detalle.habitacion ? (
+                <>Habitación {detalle.habitacion.codigo}{detalle.habitacion.tipo ? ` · ${detalle.habitacion.tipo}` : ''} · </>
+              ) : null}
+              {detalle.reserva.totalCents !== null && detalle.reserva.moneda ? (
+                <>Total acordado: {monto(detalle.reserva.totalCents, detalle.reserva.moneda)}</>
+              ) : (
+                'Sin precio acordado: se reservó sin tarifa configurada'
+              )}
             </p>
             <h3 className="t-base mb-0">Historial</h3>
             <ol className="pila gap-e1 lista-marcada">

@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ReservaRepository {
   private static final String CAMPOS =
-      "codigo,email,nombre,llegada,salida,huespedes,estado,origen,creado_en";
+      "codigo,email,nombre,llegada,salida,huespedes,estado,origen,creado_en,total_cents,moneda,rate_plan_id";
 
   private final JdbcTemplate jdbc;
 
@@ -28,11 +28,13 @@ public class ReservaRepository {
     }
   }
 
-  public long insertar(String codigo, CrearReserva datos, String claveIdempotencia) {
+  public long insertar(String codigo, CrearReserva datos, String claveIdempotencia,
+      Long totalCents, String moneda, Long ratePlanId) {
     jdbc.update("INSERT INTO reservations(codigo,email,nombre,llegada,salida,huespedes,estado,origen,"
-        + "idempotencia,creado_en) VALUES(?,?,?,?,?,?,?,?,?,datetime('now'))",
+        + "idempotencia,creado_en,total_cents,moneda,rate_plan_id) VALUES(?,?,?,?,?,?,?,?,?,datetime('now'),?,?,?)",
       codigo, datos.email(), datos.nombre(), datos.llegada().toString(), datos.salida().toString(),
-      datos.huespedes(), EstadoReserva.PENDIENTE.name(), datos.origen().name(), claveIdempotencia);
+      datos.huespedes(), EstadoReserva.PENDIENTE.name(), datos.origen().name(), claveIdempotencia,
+      totalCents, moneda, ratePlanId);
     return jdbc.queryForObject("SELECT id FROM reservations WHERE codigo=?", Long.class, codigo);
   }
 
@@ -89,6 +91,17 @@ public class ReservaRepository {
     }
   }
 
+  /** Habitación asignada a la reserva, con su tipo. Una reserva siempre tiene una sola línea. */
+  public record HabitacionReserva(long roomId, String codigo, String nombre, String tipoNombre) {}
+
+  public Optional<HabitacionReserva> habitacionDe(long reservaId) {
+    return jdbc.query("SELECT r.id, r.codigo, r.nombre, t.nombre AS tipo FROM reservation_items ri "
+        + "JOIN rooms r ON r.id = ri.room_id LEFT JOIN room_types t ON t.id = r.room_type_id "
+        + "WHERE ri.reservation_id = ?",
+      (rs, n) -> new HabitacionReserva(rs.getLong("id"), rs.getString("codigo"),
+        rs.getString("nombre"), rs.getString("tipo")), reservaId).stream().findFirst();
+  }
+
   public List<Reserva> listar(int limite) {
     return jdbc.query("SELECT " + CAMPOS + " FROM reservations ORDER BY id DESC LIMIT ?",
       (rs, numFila) -> mapear(rs), Math.min(limite, 200));
@@ -99,6 +112,12 @@ public class ReservaRepository {
   }
 
   private Reserva mapear(ResultSet rs) throws SQLException {
+    // SQLite no convierte NULL con getObject(columna, Long.class): hay que leer y preguntar
+    // enseguida, porque wasNull() siempre habla de la última lectura.
+    long total = rs.getLong("total_cents");
+    boolean sinTotal = rs.wasNull();
+    long plan = rs.getLong("rate_plan_id");
+    boolean sinPlan = rs.wasNull();
     return new Reserva(
       rs.getString("codigo"),
       rs.getString("email"),
@@ -108,6 +127,9 @@ public class ReservaRepository {
       rs.getInt("huespedes"),
       EstadoReserva.valueOf(rs.getString("estado")),
       Origen.valueOf(rs.getString("origen")),
-      rs.getString("creado_en"));
+      rs.getString("creado_en"),
+      sinTotal ? null : total,
+      rs.getString("moneda"),
+      sinPlan ? null : plan);
   }
 }

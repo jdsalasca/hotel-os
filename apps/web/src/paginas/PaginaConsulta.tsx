@@ -1,37 +1,47 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
-import { fechaCorta } from '../api/formato';
+import { fechaCorta, monto } from '../api/formato';
 import { Aviso, Etiqueta } from '../componentes/Estado';
 
-type Reserva = {
-  codigo: string;
-  email: string;
-  nombre: string;
-  llegada: string;
-  salida: string;
-  huespedes: number;
-  estado: string;
-  origen: string;
+type Comprobante = {
+  reserva: {
+    codigo: string;
+    email: string;
+    nombre: string;
+    llegada: string;
+    salida: string;
+    noches: number;
+    huespedes: number;
+    estado: string;
+    origen: string;
+    totalCents: number | null;
+    moneda: string | null;
+    plan: string | null;
+  };
+  habitacion: { codigo: string; nombre: string; tipo: string } | null;
+  hotel: Record<string, string>;
+  historial: { estado_ant: string | null; estado_nuevo: string; actor: string; en: string }[];
 };
 
 /** Paso 6 del flujo público: consultar una reserva con código y correo. */
 export function PaginaConsulta() {
   const [codigo, setCodigo] = useState('');
   const [email, setEmail] = useState('');
-  const [reserva, setReserva] = useState<Reserva | null>(null);
+  const [comprobante, setComprobante] = useState<Comprobante | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
 
   async function consultar(evento: React.FormEvent) {
     evento.preventDefault();
     setError(null);
-    setReserva(null);
+    setComprobante(null);
     setBuscando(true);
     try {
       const consulta = new URLSearchParams({ email });
-      const r = await api.get<Reserva>(`/api/reservas/${codigo.trim()}?${consulta}`);
-      setReserva(r);
+      // El comprobante trae lo mismo que la consulta más habitación, total e historial.
+      const r = await api.get<Comprobante>(`/api/reservas/${codigo.trim()}/comprobante?${consulta}`);
+      setComprobante(r);
     } catch {
       setError('No encontramos una reserva con ese código y ese correo.');
     } finally {
@@ -79,19 +89,62 @@ export function PaginaConsulta() {
           </div>
         </form>
 
-        {reserva ? (
-          <div className="tarjeta pila mt-e6">
+        {comprobante ? (
+          <div className="tarjeta pila mt-e6 comprobante">
             <div className="pila gap-e2">
-              <h2 className="sin-margen">{reserva.codigo}</h2>
-              <Etiqueta tono={reserva.estado === 'CONFIRMADA' ? 'exito' : 'neutra'}>
-                {reserva.estado === 'PENDIENTE' ? 'Pendiente de confirmación' : reserva.estado}
+              <p className="campo__ayuda sin-margen">
+                {comprobante.hotel.nombre?.trim() ? comprobante.hotel.nombre : 'Comprobante de reserva'}
+              </p>
+              <h2 className="sin-margen">{comprobante.reserva.codigo}</h2>
+              <Etiqueta tono={comprobante.reserva.estado === 'CONFIRMADA' ? 'exito' : 'neutra'}>
+                {comprobante.reserva.estado === 'PENDIENTE' ? 'Pendiente de confirmación' : comprobante.reserva.estado}
               </Etiqueta>
             </div>
-            <p className="cifra sin-margen">
-              {fechaCorta(reserva.llegada)} → {fechaCorta(reserva.salida)} · {reserva.huespedes}{' '}
-              {reserva.huespedes === 1 ? 'huésped' : 'huéspedes'}
-            </p>
-            <p className="campo__ayuda sin-margen">Reserva creada desde {reserva.origen}</p>
+            <dl className="pila gap-e1">
+              <div>
+                <dt className="campo__etiqueta">Huésped</dt>
+                <dd className="sin-margen">{comprobante.reserva.nombre || comprobante.reserva.email}</dd>
+              </div>
+              {comprobante.habitacion ? (
+                <div>
+                  <dt className="campo__etiqueta">Habitación</dt>
+                  <dd className="sin-margen">
+                    {comprobante.habitacion.codigo}
+                    {comprobante.habitacion.tipo ? ` · ${comprobante.habitacion.tipo}` : ''}
+                  </dd>
+                </div>
+              ) : null}
+              <div>
+                <dt className="campo__etiqueta">Fechas</dt>
+                <dd className="cifra sin-margen">
+                  {fechaCorta(comprobante.reserva.llegada)} → {fechaCorta(comprobante.reserva.salida)} ({comprobante.reserva.noches}{' '}
+                  {comprobante.reserva.noches === 1 ? 'noche' : 'noches'})
+                </dd>
+              </div>
+              <div>
+                <dt className="campo__etiqueta">Total acordado</dt>
+                <dd className="sin-margen">
+                  {comprobante.reserva.totalCents !== null && comprobante.reserva.moneda ? (
+                    <span className="cifra">
+                      {monto(comprobante.reserva.totalCents, comprobante.reserva.moneda)}
+                      {comprobante.reserva.plan ? ` · ${comprobante.reserva.plan}` : ''}
+                    </span>
+                  ) : (
+                    'Pendiente de tarifar: el hotel aún no había fijado el precio al reservar.'
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="campo__etiqueta">Estado</dt>
+                <dd className="sin-margen">
+                  Reserva creada desde {comprobante.reserva.origen} · {comprobante.historial.length}{' '}
+                  {comprobante.historial.length === 1 ? 'movimiento registrado' : 'movimientos registrados'}
+                </dd>
+              </div>
+            </dl>
+            <button className="boton boton--secundario boton--chico no-estirar no-imprimir" type="button" onClick={() => window.print()}>
+              Imprimir comprobante
+            </button>
           </div>
         ) : null}
 

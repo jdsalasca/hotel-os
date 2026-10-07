@@ -106,14 +106,31 @@ for (const [nombre, opciones] of [
   await esperar(pagina, '.codigo-reserva', `${nombre}-04-confirmacion`);
   await guardar(pagina, `${nombre}-04-confirmacion`);
 
+  // 2b. Comprobante: se consulta con el código recién creado para verificar el total acordado.
+  const codigo = (await pagina.locator('.codigo-reserva').first().innerText()).trim();
+  await pagina.goto(`${BASE}/consulta`);
+  await pagina.fill('#codigo', codigo);
+  await pagina.fill('#email-consulta', 'huesped.demo@example.com');
+  await pagina.click('button[type=submit]');
+  await esperar(pagina, '.comprobante', `${nombre}-04b-comprobante`);
+  await guardarRegion(pagina, `${nombre}-04b-comprobante`, '.comprobante');
+
   // 3. Panel: login y reservas
   await pagina.goto(`${BASE}/admin/entrar`);
   await guardar(pagina, `${nombre}-05-login`);
 
   await iniciarSesion(pagina);
   await pagina.goto(`${BASE}/admin/reservas`);
-  await esperar(pagina, '.tabla, .vacio', "${nombre}-06-panel");
+  await esperar(pagina, '.tabla, .vacio', `${nombre}-06-panel`);
   await guardar(pagina, `${nombre}-06-panel-reservas`);
+
+  // El detalle del panel usa el comprobante: habitación y total acordado visibles.
+  const detalles = pagina.locator('button:text-is("Ver detalle")');
+  if ((await detalles.count()) > 0) {
+    await detalles.first().click();
+    await esperar(pagina, '#titulo-detalle', `${nombre}-06b-detalle`);
+    await guardarRegion(pagina, `${nombre}-06b-detalle`, 'aside');
+  }
 
   // 4. Inventario
   await pagina.goto(`${BASE}/admin/inventario`);

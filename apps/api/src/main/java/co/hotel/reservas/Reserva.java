@@ -5,11 +5,13 @@ import java.time.LocalDateTime;
 
 /** Reserva persistida. `estado` e `origen` ya llegan resueltos desde el dominio. */
 public record Reserva(String codigo, String email, String nombre, LocalDate llegada, LocalDate salida,
-                      int huespedes, EstadoReserva estado, Origen origen, String creadoEn) {
+                      int huespedes, EstadoReserva estado, Origen origen, String creadoEn,
+                      Long totalCents, String moneda, Long ratePlanId) {
 
   public long noches() { return java.time.temporal.ChronoUnit.DAYS.between(llegada, salida); }
 
   public Reserva cambiarEstado(EstadoReserva nuevo) {
-    return new Reserva(codigo, email, nombre, llegada, salida, huespedes, nuevo, origen, creadoEn);
+    return new Reserva(codigo, email, nombre, llegada, salida, huespedes, nuevo, origen, creadoEn,
+      totalCents, moneda, ratePlanId);
   }
 }

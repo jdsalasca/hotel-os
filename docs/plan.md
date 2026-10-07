@@ -58,6 +58,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 14 - Identidad operativa del hotel.** Nombre, contacto y horarios administrables y
   visibles en la web pública, sin exponer claves internas. Evidencia:
   `docs/evidence/round-14/verificacion.md`.
+- [x] **Ronda 15 - Precio acordado y comprobante.** La reserva congela total, moneda y plan; el
+  huésped y el panel ven el comprobante con habitación e historial. Evidencia:
+  `docs/evidence/round-15/verificacion.md`.
 
 ## Criterios de aceptación, verificados con ejecución real
 
@@ -70,7 +73,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | 5 | Las OTAs muestran su estado real | `BOOKING/DESPEGAR/AIRBNB = NO_CONFIGURADO` | ✅ |
 | 6 | Los indicadores no inventan datos | `tieneResultado=False` con motivo concreto | ✅ |
 | 7 | `compose up --build` funciona en dev y prod | Ambos `config` validan con exit 0 | ✅ |
-| 8 | Pruebas verdes | `Tests run: 164, Failures: 0, Errors: 0` | ✅ |
+| 8 | Pruebas verdes | `Tests run: 170, Failures: 0, Errors: 0` | ✅ |
 | 9 | Sin secretos en el repositorio | Escaneo del diff antes de cada commit | ✅ |
 
 ### Escalado medido de SQLite
@@ -83,9 +86,9 @@ el backend no puede ir en Vercel (filesystem efímero) y sí en una VM o servici
 
 ## Estado real 2026-10-06
 - Java 25.0.4.1, Docker 29.8.2, Maven Wrapper 3.9.11 funcionando. `distributionUrl` corregido.
-- **164/164 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
+- **170/170 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
   faltaban: todo React era `any` implícito y nadie lo notaba porque `vite build` no comprueba tipos).
-- 26 capturas verificadas por guion, sin errores de consola ni de API.
+- 30 capturas verificadas por guion, sin errores de consola ni de API.
 - **Node.js sigue ausente en el host**: el frontend se construye y verifica en `node:22-alpine`,
   que es el mismo toolchain que usa Vercel.
 - **Sin credenciales OTA** (esperado): ver `docs/integrations/ota-estado.md` con el bloqueo exacto
@@ -101,5 +104,5 @@ el backend no puede ir en Vercel (filesystem efímero) y sí en una VM o servici
 2. Credenciales y aprobación de partner de Booking.com, Despegar y Airbnb.
 3. Conciliación y recepción real de reservas y cancelaciones de las OTAs. Los mapeos locales ya
    pueden declararse, pero la importación sigue bloqueada por credenciales y aprobación de socio.
-4. Comprobantes de reserva/recibos y auditoría de acciones administrativas.
+4. Auditoría de acciones administrativas más allá del historial de reservas.
 5. Copia de respaldos externa configurada y probada una vez.

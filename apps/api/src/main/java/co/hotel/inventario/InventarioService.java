@@ -150,6 +150,28 @@ public class InventarioService {
   }
 
   /**
+   * Precio acordado para una habitación y un periodo: el total, la moneda y el plan que lo
+   * respalda. Es lo que se congela en la reserva para que el comprobante no dependa de lo que el
+   * hotel tarifó después.
+   */
+  public record PrecioAcordado(long totalCents, String moneda, long ratePlanId) {}
+
+  /**
+   * Precio de una habitación concreta con las mismas reglas de la oferta pública: activa,
+   * capacidad suficiente y tarifa completa en el primer plan que la tenga. Vacío si no hay tarifa:
+   * quien llama guarda NULL en vez de inventar un importe.
+   */
+  public java.util.Optional<PrecioAcordado> precioDe(long roomId, LocalDate desde, LocalDate hasta,
+      int huespedes) {
+    return inventario.habitacionPorId(roomId)
+      .filter(h -> h.estado() == EstadoHabitacion.ACTIVA)
+      .flatMap(h -> inventario.tipoPorId(h.roomTypeId())
+        .filter(t -> t.capacidadMax() >= huespedes)
+        .flatMap(t -> java.util.Optional.ofNullable(calcularPrecio(t, desde, hasta))
+          .map(p -> new PrecioAcordado(p.totalCents(), p.moneda(), p.planId()))));
+  }
+
+  /**
    * Habitaciones libres cuyo precio se puede totalizar. Quedan fuera las que no alcanzan la
    * capacidad pedida, las que tienen una noche cerrada o sin tarifa, y las que incumplen una
    * restricción de estancia.
@@ -191,7 +213,7 @@ public class InventarioService {
         if (noche.maxEstancia() != null && noches > noche.maxEstancia()) { completa = false; break; }
         total += noche.precioCents();
       }
-      if (completa) return new PrecioTotalizado(total, plan.moneda(), (int) noches);
+      if (completa) return new PrecioTotalizado(total, plan.moneda(), (int) noches, plan.id());
     }
     return null;
   }
@@ -202,5 +224,5 @@ public class InventarioService {
   }
 
   /** Total del periodo solo si todas las noches tienen tarifa válida. */
-  private record PrecioTotalizado(long totalCents, String moneda, int noches) {}
+  private record PrecioTotalizado(long totalCents, String moneda, int noches, long planId) {}
 }

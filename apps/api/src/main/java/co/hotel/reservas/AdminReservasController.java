@@ -19,10 +19,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminReservasController {
   private final ReservaService svc;
   private final AuditoriaRepository auditoria;
+  private final ComprobanteService comprobantes;
 
-  public AdminReservasController(ReservaService svc, AuditoriaRepository auditoria) {
+  public AdminReservasController(ReservaService svc, AuditoriaRepository auditoria,
+                                 ComprobanteService comprobantes) {
     this.svc = svc;
     this.auditoria = auditoria;
+    this.comprobantes = comprobantes;
   }
 
   public record CambioEstadoReq(String estado, String actor) {}
@@ -39,6 +42,14 @@ public class AdminReservasController {
     return ResponseEntity.ok(Map.of(
       "reserva", fila(reserva.get()),
       "historial", auditoria.historialDe(svc.idDe(codigo))));
+  }
+
+  /** Comprobante para el panel: no pide el correo porque la sesión ya es del hotel. */
+  @GetMapping("/api/admin/reservas/{codigo}/comprobante")
+  public ResponseEntity<?> comprobante(@PathVariable String codigo) {
+    return comprobantes.comprobante(codigo, null)
+      .map(ResponseEntity::ok)
+      .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada")));
   }
 
   @PostMapping("/api/admin/reservas/{codigo}/estado")

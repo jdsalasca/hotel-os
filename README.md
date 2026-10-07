@@ -4,7 +4,7 @@ Monolito modular en un solo repositorio: web pública en español para huéspede
 administrativo para el personal del hotel, con inventario centralizado, canales de venta,
 indicadores y despliegue en una sola instancia con disco persistente.
 
-> **Estado real:** el código está implementado y verificado con **164 pruebas** de backend,
+> **Estado real:** el código está implementado y verificado con **170 pruebas** de backend,
 > `tsc --noEmit` limpio en el frontend y ejecución real en Docker. Las integraciones con
 > Booking.com, Despegar y Airbnb están **implementadas pero sin conexión validada**: faltan
 > credenciales de partner. Los tres canales aparecen `NO_CONFIGURADO` con el bloqueo exacto, que es
@@ -58,7 +58,7 @@ Para el envío de correo con Google (OAuth 2.0 + Gmail API), el paso a paso est�
 ## Pruebas y verificación
 
 ```bash
-cd apps/api && ./mvnw.cmd test          # 164 pruebas
+cd apps/api && ./mvnw.cmd test          # 170 pruebas
 ```
 
 Capturas de verificación (móvil y escritorio, con Playwright en Docker):
@@ -67,7 +67,7 @@ Capturas de verificación (móvil y escritorio, con Playwright en Docker):
 docker compose -f compose.yaml -f compose.capturas.yaml up --build --abort-on-container-exit capturas
 ```
 
-Las capturas quedan en `docs/screenshots/` (26 en total). El guion **falla** si hay un error de consola o una
+Las capturas quedan en `docs/screenshots/` (30 en total). El guion **falla** si hay un error de consola o una
 respuesta de API ≥ 400, para que una captura nunca documente una pantalla rota.
 
 ## Despliegue
