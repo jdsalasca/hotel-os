@@ -49,12 +49,15 @@ server {
 
   # El baile OAuth2 vive en el backend, no en /api: la ida a Google y la vuelta con el código.
   # Sin estas dos rutas, el botón "Entrar con Google" caería en el index.html del SPA (200 vacío).
+  # Ojo con el proto: detrás del túnel, el borde siempre es HTTPS, pero nginx solo ve el HTTP
+  # interno. Si se reenvía $scheme, Spring construye la redirect_uri en http y Google la rechaza
+  # (redirect_uri_mismatch). Por eso aquí va https fijo; en /api/ no importa porque no redirige.
   location /oauth2/ {
     proxy_pass $api$request_uri;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto https;
   }
 
   location /login/oauth2/ {
@@ -62,7 +65,7 @@ server {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto https;
   }
 
   # React Router necesita este fallback: sin él, /admin/reservas da 404 al recargar.
