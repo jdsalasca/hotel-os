@@ -45,6 +45,7 @@ class IndicadoresServiceTest {
   void limpiar() {
     jdbc.update("DELETE FROM reservations");
     jdbc.update("DELETE FROM reservation_items");
+    jdbc.update("DELETE FROM blocks");
     jdbc.update("DELETE FROM rooms");
     jdbc.update("DELETE FROM adoption_activities");
     jdbc.update("DELETE FROM ota_syncs");
@@ -78,6 +79,47 @@ class IndicadoresServiceTest {
       var resultado = indicadores.calcular("f3_ocupacion", periodo);
       assertTrue(resultado.tieneResultado());
       assertEquals(5.0, resultado.valor(), 0.01, "3/60 × 100");
+    }
+
+    @Test void ocupacionCuentaSoloLaInterseccionConElPeriodo() {
+      long h = crearHabitacion("101");
+      // 9 noches en total pero solo 2 caen en noviembre: la ocupación de noviembre es 2/30.
+      crearReserva("H-1", h, "2026-10-25", "2026-11-03", "CONFIRMADA", "WEB");
+
+      var resultado = indicadores.calcular("f3_ocupacion", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(6.67, resultado.valor(), 0.01, "2 noches de noviembre, no 9");
+      assertEquals(2, resultado.numerador());
+      assertEquals(30, resultado.denominador());
+    }
+
+    @Test void bloqueoRestaNochesVendiblesDelDenominador() {
+      long h = crearHabitacion("101");
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(?, '2026-11-10', '2026-11-13', 'Mantenimiento')", h);
+
+      var resultado = indicadores.calcular("f3_ocupacion", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(27, resultado.denominador(), "30 noches menos 3 bloqueadas");
+    }
+
+    @Test void bloqueoDeTodoElHotelRestaTodasLasHabitaciones() {
+      crearHabitacion("101");
+      crearHabitacion("102");
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(NULL, '2026-11-01', '2026-11-06', 'Cierre total')");
+
+      var resultado = indicadores.calcular("f3_ocupacion", periodo);
+      assertEquals(50, resultado.denominador(), "2 habitaciones × 30 menos 2 × 5 noches cerradas");
+    }
+
+    @Test void sobreventaSinRegistroEsDatoFaltanteNoCero() {
+      crearHabitacion("101");
+
+      var resultado = indicadores.calcular("f3_sobreventa", periodo);
+      assertFalse(resultado.tieneResultado(), "cero fijo finge que se midió y dio cero");
+      assertNull(resultado.valor());
+      assertTrue(resultado.motivoFaltante().contains("incidente")
+        || resultado.motivoFaltante().contains("registro"),
+        "el motivo debe decir que no hay registro: " + resultado.motivoFaltante());
     }
 
     @Test void sinReservasLaOcupacionEsCeroRealNoFaltante() {

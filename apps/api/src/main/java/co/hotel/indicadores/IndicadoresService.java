@@ -121,8 +121,9 @@ public class IndicadoresService {
         long exitosas = repo.sincronizacionesExitosas(desde, hasta);
         yield ResultadoIndicador.medido(d, periodo, porcentaje(exitosas, intentadas), exitosas, intentadas, null);
       }
-      case "f3_sobreventa" -> ResultadoIndicador.medido(d, periodo, 0.0, 0L, null,
-        "conteo de incidentes detectados por el control transaccional de disponibilidad");
+      case "f3_sobreventa" -> ResultadoIndicador.faltante(d, periodo,
+        "sin registro de incidentes: el control transaccional rechaza la sobreventa antes de que "
+          + "ocurra, así que un cero afirmaría una medición que nadie hizo");
       case "f3_reservas_por_canal" -> {
         long total = repo.reservasCreadas(desde, hasta);
         if (total == 0) yield ResultadoIndicador.faltante(d, periodo, "no hay reservas en el periodo");

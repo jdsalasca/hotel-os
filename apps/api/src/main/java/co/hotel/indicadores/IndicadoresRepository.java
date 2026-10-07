@@ -26,20 +26,48 @@ public class IndicadoresRepository {
     return jdbc.queryForObject("SELECT COUNT(*) FROM rooms WHERE estado='ACTIVA'", Long.class);
   }
 
-  /** Noches de habitación ocupadas en el periodo: cada línea de reserva aporta su duración. */
+  /**
+   * Noches de habitación ocupadas en el periodo: solo la intersección de cada estancia con el
+   * periodo. Sumar la estancia entera hinchaba el mes con noches de fuera: una reserva de 9 noches
+   * con 2 en noviembre aportaba 9 a noviembre.
+   */
   public long nochesOcupadas(String desde, String hasta) {
-    Long n = jdbc.queryForObject("SELECT COALESCE(SUM(julianday(ri.hasta) - julianday(ri.desde)), 0) "
+    Long n = jdbc.queryForObject("SELECT COALESCE(CAST(SUM(julianday(MIN(ri.hasta, ?)) "
+        + "- julianday(MAX(ri.desde, ?))) AS INTEGER), 0) "
         + "FROM reservation_items ri JOIN reservations r ON r.id = ri.reservation_id "
         + "WHERE r.estado IN ('PENDIENTE','CONFIRMADA') AND ri.desde < ? AND ? < ri.hasta",
-      Long.class, hasta, desde);
+      Long.class, hasta, desde, hasta, desde);
     return n == null ? 0L : n;
   }
 
-  /** Noches disponibles para la venta: habitaciones activas por noche del periodo. */
+  /**
+   * Noches bloqueadas en el periodo, en noches de habitación: un bloqueo de una habitación resta
+   * sus noches; uno de todo el hotel (`room_id` nulo) resta las de cada habitación activa. Solo
+   * cuentan bloqueos de habitaciones activas: lo retirado ya salió del inventario por otro lado.
+   *
+   * Aproximación declarada: si un bloqueo del hotel y uno de habitación cubren la misma noche,
+   * esa noche resta dos veces. El hotel no cierra dos veces lo mismo, así que en la práctica no
+   * ocurre; si ocurriera, el denominador saldría conservador, nunca inflado.
+   */
+  public long nochesBloqueadas(String desde, String hasta) {
+    Long n = jdbc.queryForObject("SELECT COALESCE(CAST(SUM((julianday(MIN(b.hasta, ?)) "
+        + "- julianday(MAX(b.desde, ?))) * CASE WHEN b.room_id IS NULL "
+        + "THEN (SELECT COUNT(*) FROM rooms WHERE estado='ACTIVA') ELSE 1 END) AS INTEGER), 0) "
+        + "FROM blocks b WHERE b.desde < ? AND ? < b.hasta "
+        + "AND (b.room_id IS NULL OR b.room_id IN (SELECT id FROM rooms WHERE estado='ACTIVA'))",
+      Long.class, hasta, desde, hasta, desde);
+    return n == null ? 0L : n;
+  }
+
+  /**
+   * Noches disponibles para la venta: habitaciones activas por noche del periodo, menos las
+   * bloqueadas. Un hotel cerrado por mantenimiento no tiene nada vendible, aunque tenga
+   * habitaciones dadas de alta.
+   */
   public long nochesDisponibles(String desde, String hasta) {
     long dias = java.time.temporal.ChronoUnit.DAYS.between(
       java.time.LocalDate.parse(desde), java.time.LocalDate.parse(hasta));
-    return dias * habitacionesActivas();
+    return Math.max(0, dias * habitacionesActivas() - nochesBloqueadas(desde, hasta));
   }
 
   public long reservasCreadas(String desde, String hasta) {
