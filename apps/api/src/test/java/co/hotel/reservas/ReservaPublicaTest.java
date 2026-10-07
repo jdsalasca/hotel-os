@@ -1,6 +1,8 @@
 package co.hotel.reservas;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -139,7 +141,39 @@ class ReservaPublicaTest {
         .content(JSON.writeValueAsString(otras)))
       .andExpect(status().isConflict())
       .andReturn().getResponse().getContentAsString();
-    assert JSON.readTree(respuesta).get("error").asText().contains("clave");
+    assertTrue(JSON.readTree(respuesta).get("error").asText().contains("clave"));
+  }
+
+  @Test
+  @DisplayName("si el precio cambió desde la búsqueda, el alta lo dice con el nuevo importe")
+  void precioCambiadoDesdeLaBusquedaEs409ConElNuevo() throws Exception {
+    // La búsqueda ofreció 300.000 por el 5-7 de noviembre; el hotel mueve la tarifa a 400.000
+    // antes de confirmar. Reservar con el importe viejo no puede colar el nuevo en silencio.
+    jdbc.update("UPDATE rates SET precio_cents=200000 WHERE fecha IN ('2026-11-20','2026-11-21')");
+    int antes = jdbc.queryForObject("SELECT COUNT(*) FROM reservations", Integer.class);
+    var vieja = cuerpo("precio@example.com", "2026-11-20", "2026-11-22", 2, 1L);
+    vieja.put("totalEsperadoCents", 300000);
+    vieja.put("monedaEsperada", "COP");
+    var respuesta = mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(vieja)))
+      .andExpect(status().isConflict())
+      .andReturn().getResponse().getContentAsString();
+    assertEquals(400000L, JSON.readTree(respuesta).get("nuevoTotalCents").asLong());
+    assertEquals("COP", JSON.readTree(respuesta).get("nuevaMoneda").asText());
+    assertEquals(antes, jdbc.queryForObject("SELECT COUNT(*) FROM reservations", Integer.class),
+      "el intento con precio viejo no debe escribir nada");
+  }
+
+  @Test
+  @DisplayName("con el importe vigente confirmado, el alta pasa")
+  void precioVigenteConfirmadoPasa() throws Exception {
+    // Fechas que ningún otro test toca: la tarifa sigue siendo la sembrada (150.000/noche).
+    var cuerpo = cuerpo("precio-ok@example.com", "2026-11-23", "2026-11-25", 2, 1L);
+    cuerpo.put("totalEsperadoCents", 300000);
+    cuerpo.put("monedaEsperada", "COP");
+    String codigo = reservar(cuerpo);
+    assertNotNull(codigo);
   }
 
   @Test

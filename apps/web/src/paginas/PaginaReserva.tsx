@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api/cliente';
+import { ErrorApi, api } from '../api/cliente';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { fechaCorta, monto } from '../api/formato';
 import { Aviso, HuecoImagen, MensajeError } from '../componentes/Estado';
@@ -40,6 +40,9 @@ export function PaginaReserva() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reserva, setReserva] = useState<RespuestaReserva | null>(null);
+  // Si la tarifa se movió entre la búsqueda y la confirmación, aquí queda el importe vigente
+  // para que el huésped lo confirme de nuevo con conocimiento, no en silencio.
+  const [precioNuevo, setPrecioNuevo] = useState<{ totalCents: number; moneda: string } | null>(null);
 
   if (!enCurso) {
     return (
@@ -61,6 +64,9 @@ export function PaginaReserva() {
   // podría ejecutarse antes de que el estado cambie). Se fija aquí y se usa `eleccion` en todas
   // partes: además evita leer un estado que React ya pudo limpiar.
   const eleccion = enCurso;
+  // Lo que el huésped acepta pagar: lo visto en la búsqueda, o el vigente tras un cambio de
+  // tarifa que ya se le mostró. Nunca se envía un importe que no haya visto.
+  const esperado = precioNuevo ?? { totalCents: eleccion.totalCents, moneda: eleccion.moneda };
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -75,11 +81,19 @@ export function PaginaReserva() {
         huespedes: eleccion.huespedes,
         roomId: eleccion.habitacion.id,
         idempotencia: eleccion.clave,
+        totalEsperadoCents: esperado.totalCents,
+        monedaEsperada: esperado.moneda,
       });
       setReserva(r);
       sessionStorage.removeItem('reserva-en-curso');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo registrar la reserva');
+      const cambio = cambioDePrecio(e);
+      if (cambio) {
+        setPrecioNuevo(cambio);
+      } else {
+        setPrecioNuevo(null);
+        setError(e instanceof Error ? e.message : 'No se pudo registrar la reserva');
+      }
     } finally {
       setEnviando(false);
     }
@@ -157,7 +171,7 @@ export function PaginaReserva() {
         <section className="seccion">
           <h1 className="seccion__titulo">Confirma tu reserva</h1>
           <p className="seccion__intro">
-            Solo pedimos lo necesario para atenderte. NoPedimos datos de tarjeta: el hotel aún no
+            Solo pedimos lo necesario para atenderte. No pedimos datos de tarjeta: el hotel aún no
             ha configurado un medio de pago.
           </p>
 
@@ -192,6 +206,15 @@ export function PaginaReserva() {
               </div>
 
               {error ? <MensajeError texto={error} /> : null}
+              {precioNuevo ? (
+                <Aviso tono="aviso" titulo="El precio cambió desde tu búsqueda">
+                  <p>
+                    Viste {monto(eleccion.totalCents, eleccion.moneda)} y ahora el total es{' '}
+                    {monto(precioNuevo.totalCents, precioNuevo.moneda)}. Si estás de acuerdo,
+                    pulsa «Confirmar solicitud de reserva» de nuevo.
+                  </p>
+                </Aviso>
+              ) : null}
 
               <button className="boton boton--primario" type="submit" disabled={enviando}>
                 {enviando ? 'Enviando…' : 'Confirmar solicitud de reserva'}
@@ -218,7 +241,7 @@ export function PaginaReserva() {
               {eleccion.noches} {eleccion.noches === 1 ? 'noche' : 'noches'}
             </p>
             <p className="precio">
-              {monto(eleccion.totalCents, eleccion.moneda)}
+              {monto(esperado.totalCents, esperado.moneda)}
               <span className="precio__detalle">total del periodo</span>
             </p>
             <Link className="boton boton--fantasma boton--chico" to="/">
@@ -229,6 +252,14 @@ export function PaginaReserva() {
       </div>
     </main>
   );
+}
+
+/** Extrae el importe vigente de un 409 por cambio de precio; null para cualquier otro error. */
+function cambioDePrecio(e: unknown): { totalCents: number; moneda: string } | null {
+  if (!(e instanceof ErrorApi) || e.estado !== 409) return null;
+  const d = e.datos as { nuevoTotalCents?: unknown; nuevaMoneda?: unknown } | null;
+  if (!d || typeof d.nuevoTotalCents !== 'number' || typeof d.nuevaMoneda !== 'string') return null;
+  return { totalCents: d.nuevoTotalCents, moneda: d.nuevaMoneda };
 }
 
 function leerEnCurso(): EnCurso | null {

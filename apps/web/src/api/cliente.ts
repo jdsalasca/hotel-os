@@ -44,6 +44,8 @@ export class ErrorApi extends Error {
   constructor(
     readonly estado: number,
     mensaje: string,
+    /** Cuerpo del error tal cual lo mandó la API (p. ej. el nuevo importe en un 409). */
+    readonly datos: unknown = null,
   ) {
     super(mensaje);
     this.name = 'ErrorApi';
@@ -73,7 +75,7 @@ async function peticion<T>(ruta: string, opciones: RequestInit = {}): Promise<T>
   const cuerpo = texto ? JSON.parse(texto) : null;
 
   if (!respuesta.ok) {
-    throw new ErrorApi(respuesta.status, cuerpo?.error ?? cuerpo?.mensaje ?? 'Error inesperado');
+    throw new ErrorApi(respuesta.status, cuerpo?.error ?? cuerpo?.mensaje ?? 'Error inesperado', cuerpo);
   }
   return cuerpo as T;
 }

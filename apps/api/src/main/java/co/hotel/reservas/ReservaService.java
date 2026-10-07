@@ -34,6 +34,16 @@ public class ReservaService {
   }
 
   public String crear(CrearReserva datos) {
+    return crear(datos, null, null);
+  }
+
+  /**
+   * Alta con precio esperado: lo que el huésped vio en la búsqueda. Si la tarifa se movió entre
+   * la búsqueda y la confirmación, no se cuela el precio nuevo en silencio: se rechaza con el
+   * importe vigente para que lo confirme de nuevo. La comparación va en la misma transacción que
+   * el alta, porque entre comprobar y escribir la tarifa podría volver a moverse.
+   */
+  public String crear(CrearReserva datos, Long totalEsperadoCents, String monedaEsperada) {
     validar(datos);
     String clave = (datos.claveIdempotencia() == null || datos.claveIdempotencia().isBlank())
         ? UUID.randomUUID().toString() : datos.claveIdempotencia();
@@ -70,11 +80,15 @@ public class ReservaService {
         throw new SinDisponibilidadException(
           "la habitación no está a la venta para esas fechas y huéspedes");
       }
+      var acordado = precio.get();
+      if (totalEsperadoCents != null
+          && (totalEsperadoCents.longValue() != acordado.totalCents()
+            || (monedaEsperada != null && !monedaEsperada.equalsIgnoreCase(acordado.moneda())))) {
+        throw new PrecioCambiadoException(acordado.totalCents(), acordado.moneda());
+      }
       String codigo = generarCodigo();
       long id = repo.insertar(codigo, datos, clave,
-        precio.map(InventarioService.PrecioAcordado::totalCents).orElse(null),
-        precio.map(InventarioService.PrecioAcordado::moneda).orElse(null),
-        precio.map(InventarioService.PrecioAcordado::ratePlanId).orElse(null));
+        acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
       repo.insertarLinea(id, datos.roomId(), datos.llegada(), datos.salida());
       auditoria.cambioEstado(id, null, EstadoReserva.PENDIENTE.name(), datos.origen().name());
       return codigo;
