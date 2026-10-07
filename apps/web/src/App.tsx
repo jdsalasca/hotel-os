@@ -14,6 +14,8 @@ import { PaginaAdminHoy } from './paginas/PaginaAdminHoy';
 import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
 import { PaginaAdminAuditoria } from './paginas/PaginaAdminAuditoria';
 import { PaginaMisReservas } from './paginas/PaginaMisReservas';
+import { PaginaPrivacidad } from './paginas/PaginaPrivacidad';
+import { PaginaTerminos } from './paginas/PaginaTerminos';
 
 function texto(valor?: string): string {
   return valor?.trim() ?? '';
@@ -85,6 +87,8 @@ export function App() {
         <Route path="/reserva" element={<PaginaReserva />} />
         <Route path="/consulta" element={<PaginaConsulta />} />
         <Route path="/mis-reservas" element={<PaginaMisReservas />} />
+        <Route path="/privacidad" element={<PaginaPrivacidad />} />
+        <Route path="/terminos" element={<PaginaTerminos />} />
 
         {/* Panel administrativo: cada pantalla comprueba la sesión por su cuenta */}
         <Route path="/admin/entrar" element={<PaginaLoginAdmin />} />
@@ -113,6 +117,10 @@ export function App() {
             <NavLink to="/admin/indicadores">Indicadores</NavLink>
             <NavLink to="/admin/auditoria">Actividad</NavLink>
             {enPanel ? <CierreSesionPanel /> : null}
+          </nav>
+          <nav className="nav" aria-label="Información legal">
+            <NavLink to="/privacidad">Privacidad</NavLink>
+            <NavLink to="/terminos">Términos</NavLink>
           </nav>
         </div>
       </footer>
