@@ -17,27 +17,37 @@ COPY src ./src
 RUN mvn -B -q package -DskipTests
 
 # --- Ejecución ---
-# Alpine en vez de jammy: mismo JRE, ~150 MB menos en disco. Verificado que esta imagen corre como
-# uid=0, así que el volumen de SQLite sigue naciendo con propietario root y el comentario de abajo
-# sigue siendo cierto. Comprobado además que trae `sh`, `wget` y `java`.
+# Alpine en vez de jammy: mismo JRE, ~150 MB menos en disco. Comprobado además que trae `sh`,
+# `wget` y `java`.
 FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /app
 
 # curl solo para el healthcheck; wget viene en la imagen base. En Alpine se instala con apk.
 # Los tres compose (dev, producción y túnel) usan curl en su healthcheck.
-RUN apk add --no-cache curl
+#
+# El usuario se crea aquí y `/data` nace con su propietario. Docker copia la propiedad del
+# directorio de la imagen al volumen nombrado la primera vez que lo monta, así que un volumen
+# NUEVO ya queda escribible sin ningún paso extra. Antes esto no se podía hacer: `/data` solo
+# existía en el volumen, que nacía de root, y el proceso acababa corriendo como root.
+RUN apk add --no-cache curl \
+  && addgroup -S hotel \
+  && adduser -S -G hotel -h /app hotel \
+  && mkdir -p /data \
+  && chown hotel:hotel /data
 
 COPY --from=construccion /build/target/hotel-api-*.jar app.jar
 
-# El proceso corre como root dentro del contenedor. Es la forma habitual en contenedores de un
-# solo proceso, y evita el fallo real que se vio al intentar bajar el privilegio: el volumen
-# nombrado nace con propietario root y, si el proceso corre como otro usuario, SQLite no puede
-# abrir el archivo (SQLITE_CANTOPEN). El aislamiento lo da el contenedor, no el usuario del proceso.
+# Sin privilegios. Un servidor público no debería ejecutar el backend como uid 0.
 #
-# Lo que SÍ se hace: el proceso no tiene shell interactiva, no monta el socket de Docker y solo
-# ve los volúmenes declarados en compose. El disco persistente del host no se ve desde dentro.
+# Para un volumen YA existente (creado por una imagen anterior, que corría como root) hay que
+# cambiarle el propietario una vez, o SQLite no podrá abrir el archivo:
+#   docker run --rm -v hotel-os_hotel-data:/data alpine chown -R hotel:hotel /data
+# Ese volumen tendrá que llamarse `hotel` porque el usuario existe en la imagen; si no, con el
+# uid numérico sirve igual. Ver docs/operations/despliegue-respaldos.md.
 ENV JDBC_URL=jdbc:sqlite:/data/hotel.sqlite3
+
+USER hotel
 
 EXPOSE 8080
 

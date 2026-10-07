@@ -97,6 +97,39 @@ curl -X POST https://tu-dominio.com/api/admin/init \
 `ADMIN_INIT_TOKEN`. Es intencionado: es mejor un despliegue que no arranca que uno que arranca sin
 secrets.
 
+## El backend corre sin privilegios: volumen nuevo y volumen heredado
+
+La imagen crea el usuario `hotel` (uid 100, gid 101) y `/data` ya con su propietario. Docker copia
+esa propiedad al volumen nombrado la primera vez que lo monta, así que **un despliegue desde cero no
+necesita ningún paso extra**.
+
+Si vienes de una versión anterior, el volumen ya existe y era de root. Entonces el arranque falla,
+y ahora lo dice con el comando exacto en vez de un `SQLITE_READONLY_DIRECTORY` sin contexto:
+
+```text
+no se puede escribir en /data, así que SQLite no abrirá la base.
+Si el volumen lo creó una imagen anterior que corría como root, hay que corregir el
+propietario una vez antes de arrancar:
+  docker run --rm -v NOMBRE_VOLUMEN:/data alpine chown -R 100:101 /data
+```
+
+O sea, antes del `docker compose up`:
+
+```bash
+# El nombre del volumen en compose.production.yaml. Cámbialo si el tuyo es otro.
+docker run --rm -v hotel-os_hotel-data:/data alpine chown -R 100:101 /data
+docker compose -f compose.production.yaml up -d --build
+```
+
+Comprobación de que quedó bien:
+
+```bash
+docker compose -f compose.production.yaml exec api id -u    # debe imprimir 100, nunca 0
+```
+
+**Haz el respaldo antes.** El `chown` no toca el contenido, pero no perdona un disco lleno ni un
+volumen equivocado: `docker volume ls` primero, y `tools/operacion/respaldar.sh` antes.
+
 ## HTTPS
 
 Caddy obtiene y renueva el certificado Let's Encrypt automáticamente. Solo hay que:

@@ -65,6 +65,23 @@ public final class SqliteDataSources {
     } catch (IOException e) {
       throw new IllegalStateException("no se pudo crear el directorio " + padre + ": " + e.getMessage(), e);
     }
+    exigirEscritura(padre);
+  }
+
+  /**
+   * El proceso corre sin privilegios desde la ronda 19. Un volumen creado por una imagen anterior
+   * (que corría como root) deja entonces de poder abrirse, y SQLite responde
+   * SQLITE_READONLY_DIRECTORY dentro de un stack trace de Spring que no dice nada útil. Se comprueba
+   * aquí, donde el mensaje todavía puede ser accionable.
+   */
+  private static void exigirEscritura(Path padre) {
+    if (Files.isWritable(padre)) return;
+    throw new IllegalStateException(
+      "no se puede escribir en " + padre + ", así que SQLite no abrirá la base.\n"
+        + "Si el volumen lo creó una imagen anterior que corría como root, hay que corregir el\n"
+        + "propietario una vez antes de arrancar:\n"
+        + "  docker run --rm -v NOMBRE_VOLUMEN:/data alpine chown -R 100:101 /data\n"
+        + "Los números son los del usuario `hotel` de la imagen. Ver docs/operations/despliegue-respaldos.md.");
   }
 
   /** Configuración equivalente sobre una conexión ya abierta (herramientas y diagnóstico). */
