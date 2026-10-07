@@ -143,6 +143,22 @@ class ReservaPublicaTest {
   }
 
   @Test
+  @DisplayName("sin fechas: 400 con motivo, no un 500 por un nulo")
+  void sinFechasEs400() throws Exception {
+    var sinLlegada = cuerpo("sin@example.com", "2026-11-05", "2026-11-07", 2, 1L);
+    sinLlegada.remove("llegada");
+    mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(sinLlegada)))
+      .andExpect(status().isBadRequest());
+
+    mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{}"))
+      .andExpect(status().isBadRequest());
+  }
+
+  @Test
   @DisplayName("una habitación retirada no se puede reservar ni pidiéndola por id")
   void habitacionRetiradaNiPorId() throws Exception {
     jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('105',1,'FUERA_DE_SERVICIO')");

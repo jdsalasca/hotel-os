@@ -58,6 +58,11 @@ public class ReservaController {
     }
     String clave = (claveCabecera != null && !claveCabecera.isBlank()) ? claveCabecera : req.idempotencia();
     try {
+      // Las fechas son obligatorias y LocalDate.parse(null) revienta con NPE: un cuerpo sin
+      // fechas debe ser un 400 con motivo, no un 500.
+      if (req.llegada() == null || req.salida() == null) {
+        return ResponseEntity.badRequest().body(Map.of("error", "fechas requeridas"));
+      }
       LocalDate llegada = LocalDate.parse(req.llegada());
       LocalDate salida = LocalDate.parse(req.salida());
       int h = req.huespedes() == null ? 0 : req.huespedes();
