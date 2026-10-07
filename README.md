@@ -4,7 +4,7 @@ Monolito modular en un solo repositorio: web pública en español para huéspede
 administrativo para el personal del hotel, con inventario centralizado, canales de venta,
 indicadores y despliegue en una sola instancia con disco persistente.
 
-> **Estado real:** el código está implementado y verificado con **277 pruebas** de backend,
+> **Estado real:** el código está implementado y verificado con **280 pruebas** de backend,
 > `tsc --noEmit` limpio en el frontend y ejecución real en Docker. Las integraciones con
 > Booking.com, Despegar y Airbnb están **implementadas pero sin conexión validada**: faltan
 > credenciales de partner. Los tres canales aparecen `NO_CONFIGURADO` con el bloqueo exacto, que es

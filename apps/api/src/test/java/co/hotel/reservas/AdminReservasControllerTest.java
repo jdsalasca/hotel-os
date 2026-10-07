@@ -412,6 +412,70 @@ class AdminReservasControllerTest {
       .andExpect(status().isConflict());
   }
 
+  private void tarifarNoches(Escenario escenario, String... fechas) throws Exception {
+    for (String fecha : fechas) {
+      mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(json(Map.of("ratePlanId", escenario.plan(), "roomTypeId", escenario.tipo(),
+            "fecha", fecha, "precioCents", 150_000))))
+        .andExpect(status().isCreated());
+    }
+  }
+
+  @Test
+  @DisplayName("cambiar las fechas mueve la reserva y recalcula el precio con rastro")
+  void cambiarFechasMueveLaReserva() throws Exception {
+    var escenario = habitacionTarifada("M" + System.nanoTime() % 100000);
+    tarifarNoches(escenario, "2026-11-10", "2026-11-11");
+    String codigo = crearReservaEn("mueve@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/fechas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("llegada", "2026-11-10", "salida", "2026-11-12"))))
+      .andExpect(status().isOk());
+
+    var comprobante = mvc.perform(get("/api/admin/reservas/" + codigo + "/comprobante").with(ADMIN))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    assertEquals("2026-11-10", JSON.readTree(comprobante).get("reserva").get("llegada").asText());
+    var historial = mvc.perform(get("/api/admin/reservas/" + codigo).with(ADMIN))
+      .andReturn().getResponse().getContentAsString();
+    assertTrue(historial.contains("fechas"), "el movimiento queda en el historial: " + historial);
+  }
+
+  @Test
+  @DisplayName("cambiar a fechas ocupadas es un 409 sin mover nada")
+  void cambiarAFechasOcupadasEs409() throws Exception {
+    var escenario = habitacionTarifada("N" + System.nanoTime() % 100000);
+    tarifarNoches(escenario, "2026-11-10", "2026-11-11");
+    String codigo = crearReservaEn("primera@example.com", "2026-11-01", "2026-11-03", escenario.room());
+    crearReservaEn("vecina@example.com", "2026-11-10", "2026-11-12", escenario.room());
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/fechas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("llegada", "2026-11-10", "salida", "2026-11-12"))))
+      .andExpect(status().isConflict());
+
+    var comprobante = mvc.perform(get("/api/admin/reservas/" + codigo + "/comprobante").with(ADMIN))
+      .andReturn().getResponse().getContentAsString();
+    assertEquals("2026-11-01", JSON.readTree(comprobante).get("reserva").get("llegada").asText(),
+      "el intento fallido no mueve las fechas");
+  }
+
+  @Test
+  @DisplayName("cambiar las fechas de una cancelada es un 409")
+  void cambiarFechasDeCanceladaEs409() throws Exception {
+    var escenario = habitacionTarifada("O" + System.nanoTime() % 100000);
+    tarifarNoches(escenario, "2026-11-10", "2026-11-11");
+    String codigo = crearReservaEn("cerrada@example.com", "2026-11-01", "2026-11-03", escenario.room());
+    cambiarEstado(codigo, "CANCELADA");
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/fechas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("llegada", "2026-11-10", "salida", "2026-11-12"))))
+      .andExpect(status().isConflict());
+  }
+
   @Test
   @DisplayName("el panel recibe del servidor los estados alcanzables, no los deduce")
   void elPanelRecibeLasTransicionesValidas() throws Exception {

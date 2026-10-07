@@ -64,6 +64,16 @@ public class ReservaRepository {
     return n != null && n > 0;
   }
 
+  /** Lo mismo pero sin contar la propia reserva: al mover fechas, ella siempre se solapa consigo. */
+  public boolean hayReservaSolapadaExcepto(long roomId, LocalDate desde, LocalDate hasta, long reservaId) {
+    Integer n = jdbc.queryForObject(
+      "SELECT COUNT(*) FROM reservation_items ri JOIN reservations r ON r.id = ri.reservation_id "
+        + "WHERE ri.room_id = ? AND ri.reservation_id <> ? AND r.estado IN ('PENDIENTE','CONFIRMADA') "
+        + "AND ri.desde < ? AND ? < ri.hasta",
+      Integer.class, roomId, reservaId, hasta.toString(), desde.toString());
+    return n != null && n > 0;
+  }
+
   public boolean hayBloqueoSolapado(long roomId, LocalDate desde, LocalDate hasta) {
     Integer n = jdbc.queryForObject(
       "SELECT COUNT(*) FROM blocks WHERE (room_id = ? OR room_id IS NULL) "
@@ -213,6 +223,14 @@ public class ReservaRepository {
   public void reasignarHabitacion(long reservaId, long roomId, LocalDate llegada, LocalDate salida) {
     jdbc.update("UPDATE reservation_items SET room_id=?, desde=?, hasta=? WHERE reservation_id=?",
       roomId, llegada.toString(), salida.toString(), reservaId);
+  }
+
+  /** Mueve las fechas de la reserva, en cabecera y en línea. */
+  public void actualizarFechas(long reservaId, String codigo, LocalDate llegada, LocalDate salida) {
+    jdbc.update("UPDATE reservations SET llegada=?, salida=? WHERE id=?",
+      llegada.toString(), salida.toString(), reservaId);
+    jdbc.update("UPDATE reservation_items SET desde=?, hasta=? WHERE reservation_id=?",
+      llegada.toString(), salida.toString(), reservaId);
   }
 
   /** El precio se recalcula con la habitación nueva: la reserva no hereda importes ajenos. */

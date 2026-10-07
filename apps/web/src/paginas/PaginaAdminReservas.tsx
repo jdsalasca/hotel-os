@@ -65,6 +65,7 @@ export function PaginaAdminReservas() {
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [habitaciones, setHabitaciones] = useState<Habitacion[] | null>(null);
   const [nuevaHabitacion, setNuevaHabitacion] = useState('');
+  const [nuevasFechas, setNuevasFechas] = useState({ llegada: '', salida: '' });
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [texto, setTexto] = useState('');
@@ -100,6 +101,7 @@ export function PaginaAdminReservas() {
       setDetalle(detalleAbierto);
       setHabitaciones(habs);
       setNuevaHabitacion('');
+      setNuevasFechas({ llegada: '', salida: '' });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo abrir la reserva');
     }
@@ -114,6 +116,18 @@ export function PaginaAdminReservas() {
       await abrir(codigo);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo reasignar la habitación');
+    }
+  }
+
+  async function cambiarFechas(codigo: string) {
+    if (!nuevasFechas.llegada || !nuevasFechas.salida) return;
+    setError(null);
+    try {
+      await api.post(`/api/admin/reservas/${codigo}/fechas`, nuevasFechas);
+      await cargar();
+      await abrir(codigo);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudieron cambiar las fechas');
     }
   }
 
@@ -289,6 +303,44 @@ export function PaginaAdminReservas() {
                 </div>
                 <button className="boton boton--secundario boton--chico" type="submit" disabled={!nuevaHabitacion}>
                   Reasignar
+                </button>
+              </form>
+            ) : null}
+            {(detalle.reserva.estado === 'PENDIENTE' || detalle.reserva.estado === 'CONFIRMADA') ? (
+              <form
+                className="campos"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void cambiarFechas(detalle.reserva.codigo);
+                }}
+              >
+                <div className="campo">
+                  <label className="campo__etiqueta" htmlFor="mover-llegada">Nueva llegada</label>
+                  <input
+                    id="mover-llegada"
+                    type="date"
+                    required
+                    value={nuevasFechas.llegada}
+                    onChange={(e) => setNuevasFechas({ ...nuevasFechas, llegada: e.target.value })}
+                  />
+                </div>
+                <div className="campo">
+                  <label className="campo__etiqueta" htmlFor="mover-salida">Nueva salida</label>
+                  <input
+                    id="mover-salida"
+                    type="date"
+                    required
+                    min={nuevasFechas.llegada || undefined}
+                    value={nuevasFechas.salida}
+                    onChange={(e) => setNuevasFechas({ ...nuevasFechas, salida: e.target.value })}
+                  />
+                </div>
+                <button
+                  className="boton boton--secundario boton--chico"
+                  type="submit"
+                  disabled={!nuevasFechas.llegada || !nuevasFechas.salida}
+                >
+                  Cambiar fechas
                 </button>
               </form>
             ) : null}

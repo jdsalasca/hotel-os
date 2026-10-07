@@ -153,6 +153,41 @@ public class ReservaService {
     });
   }
 
+  /**
+   * Cambia las fechas de la reserva: solo vigentes, sin pisar a otra reserva ni a un bloqueo, con
+   * tarifa completa en las nuevas (se recalcula el precio) y todo en la misma transacción con su
+   * rastro. La propia reserva no cuenta como solape.
+   */
+  public Reserva cambiarFechas(String codigo, java.time.LocalDate llegada, java.time.LocalDate salida,
+      String actor) {
+    if (llegada == null || salida == null || !llegada.isBefore(salida)) {
+      throw new DatosInvalidosException("la salida debe ser posterior a la llegada");
+    }
+    return tx.enTransaccion(estado -> {
+      var actual = repo.porCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+      if (!actual.estado().vigente()) {
+        throw new ExcepcionDeEstado("solo se cambian las fechas de una reserva vigente");
+      }
+      long id = repo.idPorCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+      long roomId = repo.roomIdDe(id).orElseThrow(() -> new DatosInvalidosException("reserva sin habitación"));
+      if (repo.hayReservaSolapadaExcepto(roomId, llegada, salida, id)
+          || repo.hayBloqueoSolapado(roomId, llegada, salida)) {
+        throw new SinDisponibilidadException("esas fechas no están libres para esa habitación");
+      }
+      var precio = inventario.precioDe(roomId, llegada, salida, actual.huespedes());
+      if (precio.isEmpty()) {
+        throw new SinDisponibilidadException(
+          "esas fechas no están a la venta para esa habitación y huéspedes");
+      }
+      var acordado = precio.get();
+      repo.actualizarFechas(id, codigo, llegada, salida);
+      repo.actualizarPrecio(codigo, acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
+      auditoria.movimiento(id, actual.estado().name(),
+        "fechas " + actual.llegada() + " → " + actual.salida() + " a " + llegada + " → " + salida, actor);
+      return repo.porCodigo(codigo).orElseThrow();
+    });
+  }
+
   public Optional<Reserva> buscar(String codigo) { return repo.porCodigo(codigo); }
 
   /** Identificador interno, para consultar el historial. */
