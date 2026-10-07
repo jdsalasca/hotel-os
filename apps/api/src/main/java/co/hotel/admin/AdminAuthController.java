@@ -7,6 +7,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,11 +29,15 @@ public class AdminAuthController {
 
   private final AuthenticationManager autenticacion;
   private final LoginThrottle throttle;
+  private final LoginThrottle throttleIp;
   private final HttpSessionSecurityContextRepository repoSesion = new HttpSessionSecurityContextRepository();
 
-  public AdminAuthController(AuthenticationManager autenticacion, LoginThrottle throttle) {
+  public AdminAuthController(AuthenticationManager autenticacion,
+                             @Qualifier("throttlePorCuenta") LoginThrottle throttle,
+                             @Qualifier("throttlePorIp") LoginThrottle throttleIp) {
     this.autenticacion = autenticacion;
     this.throttle = throttle;
+    this.throttleIp = throttleIp;
   }
 
   public record LoginReq(String email, String password) {}
@@ -41,8 +46,10 @@ public class AdminAuthController {
   public ResponseEntity<?> login(@RequestBody LoginReq req, HttpServletRequest peticion,
                                  HttpServletResponse respuesta) {
     String email = req.email() == null ? "" : req.email().trim().toLowerCase();
+    // Dos topes, no uno. Por `correo|IP` frena el ataque a una cuenta; por IP sola frena el
+    // credential stuffing, que cambia de correo en cada intento y no lo nota.
     String clave = email + "|" + peticion.getRemoteAddr();
-    if (!throttle.permitir(clave))
+    if (!throttle.permitir(clave) || !throttleIp.permitir(peticion.getRemoteAddr()))
       return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
         .body(Map.of("error", "demasiados intentos fallidos. Espera 15 minutos."));
 
@@ -53,10 +60,12 @@ public class AdminAuthController {
       repoSesion.saveContext(SecurityContextHolder.getContext(), peticion, respuesta);
       peticion.getSession(true);
       throttle.exito(clave);
+      throttleIp.exito(peticion.getRemoteAddr());
       log.info("inicio de sesión administrativo correcto");
       return ResponseEntity.ok(Map.of("estado", "autenticado", "rol", auth.getAuthorities()));
     } catch (AuthenticationException e) {
       throttle.fallo(clave);
+      throttleIp.fallo(peticion.getRemoteAddr());
       log.warn("inicio de sesión fallido para {}", email);
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
         .body(Map.of("error", "credenciales inválidas"));

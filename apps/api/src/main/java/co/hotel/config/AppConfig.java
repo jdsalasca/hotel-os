@@ -2,6 +2,7 @@ package co.hotel.config;
 
 import co.hotel.ota.HttpClienteOta;
 import co.hotel.reservas.SqliteDataSources;
+import co.hotel.seguridad.LoginThrottle;
 import java.time.Duration;
 import javax.sql.DataSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -51,12 +52,23 @@ public class AppConfig {
     return PasswordEncoderFactories.createDelegatingPasswordEncoder();
   }
 
-  @Bean
-  public AuthenticationManager authenticationManager(DataSource ds, PasswordEncoder encoder) {
-    DaoAuthenticationProvider provider = new DaoAuthenticationProvider(usuarios(ds));
+@Bean
+  public AuthenticationManager authenticationManager(JdbcTemplate jdbc, PasswordEncoder encoder) {
+    DaoAuthenticationProvider provider = new DaoAuthenticationProvider(usuarios(jdbc.getDataSource()));
     provider.setPasswordEncoder(encoder);
     return new ProviderManager(provider);
   }
+
+  /**
+   * Dos contadores de intentos, porque protegen cosas distintas: por `correo|IP` frena el ataque a
+   * una cuenta y por IP sola frena el credential stuffing, que cambia de correo en cada intento y
+   * no toca ninguno de los anteriores. Con un solo bean no se pueden tener las dos cosas.
+   */
+  @Bean
+  public LoginThrottle throttlePorCuenta() { return new LoginThrottle(); }
+
+  @Bean
+  public LoginThrottle throttlePorIp() { return new LoginThrottle(); }
 
   private JdbcUserDetailsManager usuarios(DataSource ds) {
     JdbcUserDetailsManager manager = new JdbcUserDetailsManager(ds);

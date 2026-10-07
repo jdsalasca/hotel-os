@@ -4,16 +4,21 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.stereotype.Component;
 
 /**
  * Límite de intentos de autenticación. Vive en memoria porque el despliegue es de instancia única
  * con SQLite: no hay segundo proceso donde repartir el contador. Si algún día se escala, este
  * contador debe pasar a la base de datos; está anotado para que no se pierda.
+ *
+ * Se usan dos instancias, una por criterio: `correo|IP` y `IP` sola. El primero frena el ataque a
+ * una cuenta; el segundo frena el credential stuffing, que cambia de correo en cada intento.
+ *
+ * La clase ya no es un `@Component`: se registran a mano en AppConfig, porque un solo bean no
+ * puede ser las dos cosas.
  */
-@Component
 public class LoginThrottle {
-  private static final int MAX_INTENTOS = 5;
+  /** Público para que las pruebas fijen el número de intentos sin duplicarlo. */
+  public static final int MAX_INTENTOS = 5;
   private static final Duration VENTANA = Duration.ofMinutes(15);
 
   private final Map<String, Intentos> porClave = new ConcurrentHashMap<>();
