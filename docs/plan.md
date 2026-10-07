@@ -233,8 +233,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 61 - Mis reservas con estado de pago.** `abonado_cents`/`pendiente_cents` por fila
   (anulado excluido), columnas Abonado/Pendiente y badge PAGADA. Evidencia:
   `docs/evidence/round-61/verificacion.md`.
-- [ ] **Ronda 62 - Habitaciones fáciles para el hotelero.** Alta guiada + checkboxes donde hoy hay
-  campo abierto (servicios, monedas). En curso: catálogo V13, panel con checkboxes y select.
+- [x] **Ronda 62 - Habitaciones fáciles para el hotelero.** Catálogo cerrado de 10 servicios
+  (V13), checkboxes por tipo que reemplazan, moneda en select ISO y pastillas en las ofertas.
+  Evidencia: `docs/evidence/round-62/verificacion.md`.
 - [ ] **Ronda 63 - GPS, distancias y mapa.** Ubicación del hotel, cercanía a sitios y panel de
   lugares/experiencias.
 - [ ] **Ronda 64 - Chat huésped ↔ hotel.** Conversación por reserva con bandeja en el panel.
