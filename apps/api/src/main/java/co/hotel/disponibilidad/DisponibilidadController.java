@@ -103,4 +103,49 @@ public class DisponibilidadController {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "dias", List.of()));
     }
   }
+
+  /**
+   * Detalle de una oferta: habitación, tipo, plan y precio noche por noche.
+   *
+   * Es lo que la tarjeta de la búsqueda resume en una línea. Si la habitación no está a la venta
+   * para esas fechas, 404 con motivo en vez de un desglose vacío.
+   */
+  @GetMapping("/api/disponibilidad/detalle")
+  public ResponseEntity<?> detalle(@RequestParam Long roomId, @RequestParam String llegada,
+                                   @RequestParam String salida,
+                                   @RequestParam(defaultValue = "2") int huespedes,
+                                   HttpServletRequest peticion) {
+    if (!lecturas.permitir(peticion.getRemoteAddr())) {
+      return ResponseEntity.status(429).body(Map.of("error",
+        "demasiadas consultas desde esta conexión. Espera un minuto e inténtalo de nuevo."));
+    }
+    final java.time.LocalDate desde;
+    final java.time.LocalDate hasta;
+    try {
+      desde = java.time.LocalDate.parse(llegada);
+      hasta = java.time.LocalDate.parse(salida);
+    } catch (java.time.format.DateTimeParseException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "las fechas deben tener formato YYYY-MM-DD"));
+    }
+    if (!desde.isBefore(hasta)) {
+      return ResponseEntity.badRequest().body(Map.of("error", "la salida debe ser posterior a la llegada"));
+    }
+    try {
+      return inventario.detalleOferta(roomId, desde, hasta, huespedes)
+        .map(d -> ResponseEntity.ok((Object) Map.of(
+          "habitacion", Map.of("id", d.habitacion().id(), "codigo", d.habitacion().codigo(),
+            "nombre", d.habitacion().nombre()),
+          "tipo", Map.of("id", d.tipo().id(), "codigo", d.tipo().codigo(),
+            "nombre", d.tipo().nombre(), "capacidadMax", d.tipo().capacidadMax()),
+          "plan", Map.of("codigo", d.plan().codigo(), "nombre", d.plan().nombre()),
+          "noches", d.noches().stream()
+            .map(n -> Map.of("fecha", n.fecha().toString(), "precioCents", n.precioCents())).toList(),
+          "totalCents", d.totalCents(),
+          "moneda", d.moneda())))
+        .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error",
+          "esa habitación no está a la venta para esas fechas y huéspedes")));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
 }

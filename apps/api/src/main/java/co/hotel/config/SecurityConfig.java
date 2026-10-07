@@ -53,7 +53,8 @@ public class SecurityConfig {
         // mal parámetro responde 403 y parece un fallo de sesión en lugar de un 400 con mensaje.
         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
         .requestMatchers("/api/health", "/api/hotel", "/api/reservas", "/api/reservas/**",
-          "/api/disponibilidad", "/api/disponibilidad/calendario").permitAll()
+          "/api/disponibilidad", "/api/disponibilidad/calendario",
+          "/api/disponibilidad/detalle").permitAll()
         .requestMatchers("/api/admin/init", "/api/admin/login").permitAll()
         // Sin estas dos, el flujo de Google caería en el denyAll de abajo: la ida a Google y la
         // vuelta con el código son peticiones sin sesión por definición.

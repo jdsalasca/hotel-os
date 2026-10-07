@@ -34,6 +34,15 @@ type RespuestaCalendario = {
   error?: string;
 };
 
+type DetalleOferta = {
+  habitacion: { id: number; codigo: string; nombre: string };
+  tipo: { id: number; codigo: string; nombre: string; capacidadMax: number };
+  plan: { codigo: string; nombre: string };
+  noches: { fecha: string; precioCents: number }[];
+  totalCents: number;
+  moneda: string;
+};
+
 /** Suma días a un ISO YYYY-MM-DD sin pelear con la zona horaria. */
 function sumarIso(iso: string, dias: number): string {
   const d = new Date(iso + 'T12:00:00');
@@ -58,6 +67,9 @@ export function PaginaInicio() {
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [buscado, setBuscado] = useState(false);
+  const [detalles, setDetalles] = useState<Record<number, DetalleOferta>>({});
+  const [detalleCargando, setDetalleCargando] = useState<Record<number, boolean>>({});
+  const [detalleAbierto, setDetalleAbierto] = useState<Record<number, boolean>>({});
   const [mes, setMes] = useState(() => hoyIso().slice(0, 7));
   const [dias, setDias] = useState<DiaCalendario[]>([]);
   const [errorCal, setErrorCal] = useState<string | null>(null);
@@ -111,11 +123,33 @@ export function PaginaInicio() {
     await buscarCon(llegada, salida, huespedes);
   }
 
-  function elegir(oferta: Oferta) {
-    // Clave de idempotencia por intento: el respaldo cubre entornos sin secure context (HTTP local).
+  function elegir(oferta: Oferta) {    // Clave de idempotencia por intento: el respaldo cubre entornos sin secure context (HTTP local).
     const clave = nuevaClaveIdempotencia();
     sessionStorage.setItem('reserva-en-curso', JSON.stringify({ ...oferta, llegada, salida, huespedes, clave }));
     navegar('/reserva');
+  }
+
+  /** Desglose noche por noche de una oferta: el plan que la respalda y cada importe. */
+  async function verDetalle(oferta: Oferta) {
+    const id = oferta.habitacion.id;
+    if (detalleAbierto[id]) {
+      setDetalleAbierto({ ...detalleAbierto, [id]: false });
+      return;
+    }
+    setDetalleAbierto({ ...detalleAbierto, [id]: true });
+    if (detalles[id]) return;
+    setDetalleCargando({ ...detalleCargando, [id]: true });
+    try {
+      const consulta = new URLSearchParams({
+        roomId: String(id), llegada, salida, huespedes: String(huespedes),
+      });
+      const r = await api.get<DetalleOferta>(`/api/disponibilidad/detalle?${consulta}`);
+      setDetalles({ ...detalles, [id]: r });
+    } catch {
+      setDetalleAbierto({ ...detalleAbierto, [id]: false });
+    } finally {
+      setDetalleCargando({ ...detalleCargando, [id]: false });
+    }
   }
 
   /** Elegir un día del calendario busca esa noche directamente: lo elegido queda en el formulario. */
@@ -309,9 +343,13 @@ export function PaginaInicio() {
               Del {fechaCorta(llegada)} al {fechaCorta(salida)} para {huespedes}{' '}
               {huespedes === 1 ? 'huésped' : 'huéspedes'}.
             </p>
-            <div className="rejilla">
-              {ofertas.map((oferta) => (
-                <article className="tarjeta pila" key={oferta.habitacion.id}>
+              <div className="rejilla">
+                {ofertas.map((oferta) => {
+                  const id = oferta.habitacion.id;
+                  const abierto = !!detalleAbierto[id];
+                  const detalle = detalles[id];
+                  return (
+                  <article className="tarjeta pila" key={id}>
                   <HuecoImagen texto="Fotografía de la habitación" />
                   <h3>{oferta.tipo.nombre}</h3>
                   <p className="campo__ayuda">
@@ -325,6 +363,33 @@ export function PaginaInicio() {
                     </span>
                   </p>
                   <button
+                    className="boton boton--fantasma boton--chico"
+                    type="button"
+                    onClick={() => void verDetalle(oferta)}
+                    aria-expanded={abierto}
+                    aria-label={`Ver el precio noche por noche de ${oferta.tipo.nombre}`}
+                  >
+                    {abierto ? 'Ocultar detalle' : 'Ver detalle por noche'}
+                  </button>
+                  {detalleCargando[id] ? (
+                    <p className="cargando" role="status">Cargando el desglose…</p>
+                  ) : null}
+                  {abierto && detalle ? (
+                    <div className="desglose">
+                      <p className="campo__ayuda sin-margen">
+                        Plan {detalle.plan.nombre}
+                      </p>
+                      <dl className="desglose__noches">
+                        {detalle.noches.map((noche) => (
+                          <div key={noche.fecha} className="desglose__noche">
+                            <dt>{fechaCorta(noche.fecha)}</dt>
+                            <dd className="cifra">{monto(noche.precioCents, detalle.moneda)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  ) : null}
+                  <button
                     className="boton boton--primario boton--bloque"
                     onClick={() => elegir(oferta)}
                     aria-label={`Elegir ${oferta.tipo.nombre}`}
@@ -332,7 +397,8 @@ export function PaginaInicio() {
                     Elegir esta habitación
                   </button>
                 </article>
-              ))}
+                  );
+                })}
             </div>
           </section>
         ) : null}

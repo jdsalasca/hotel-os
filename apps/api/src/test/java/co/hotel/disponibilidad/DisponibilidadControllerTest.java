@@ -185,6 +185,52 @@ class DisponibilidadControllerTest {
   }
 
   @Test
+  @DisplayName("el detalle de una oferta desglosa el precio noche por noche con su plan")
+  void detalleOfertaDesglosaPorNoche() throws Exception {
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "DOBLE_D", "nombre", "Habitación doble", "capacidadMax", 2))).get("id").asLong();
+    long habitacionId = JSON.readTree(admin("/api/admin/habitaciones",
+      Map.of("codigo", "601", "roomTypeId", tipoId, "nombre", "Habitación 601"))).get("id").asLong();
+    long planId = JSON.readTree(admin("/api/admin/planes",
+      Map.of("codigo", "PES_D", "nombre", "Plan pesos", "moneda", "COP"))).get("id").asLong();
+    for (String[] noche : new String[][] { { "2026-12-10", "150000" }, { "2026-12-11", "180000" } }) {
+      mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(JSON.writeValueAsString(Map.of("ratePlanId", planId, "roomTypeId", tipoId,
+            "fecha", noche[0], "precioCents", Integer.parseInt(noche[1])))))
+        .andExpect(status().isCreated());
+    }
+
+    mvc.perform(get("/api/disponibilidad/detalle")
+        .param("roomId", String.valueOf(habitacionId))
+        .param("llegada", "2026-12-10").param("salida", "2026-12-12").param("huespedes", "2"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.habitacion.codigo").value("601"))
+      .andExpect(jsonPath("$.tipo.capacidadMax").value(2))
+      .andExpect(jsonPath("$.plan.codigo").value("PES_D"))
+      .andExpect(jsonPath("$.noches.length()").value(2))
+      .andExpect(jsonPath("$.noches[0].fecha").value("2026-12-10"))
+      .andExpect(jsonPath("$.noches[0].precioCents").value(150000))
+      .andExpect(jsonPath("$.noches[1].precioCents").value(180000))
+      .andExpect(jsonPath("$.totalCents").value(330000))
+      .andExpect(jsonPath("$.moneda").value("COP"));
+  }
+
+  @Test
+  @DisplayName("el detalle de una habitación sin tarifa es un 404, no un desglose vacío")
+  void detalleSinTarifaEs404() throws Exception {
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "SIMPLE_D", "nombre", "Habitación simple", "capacidadMax", 1))).get("id").asLong();
+    long habitacionId = JSON.readTree(admin("/api/admin/habitaciones",
+      Map.of("codigo", "602", "roomTypeId", tipoId, "nombre", "Habitación 602"))).get("id").asLong();
+
+    mvc.perform(get("/api/disponibilidad/detalle")
+        .param("roomId", String.valueOf(habitacionId))
+        .param("llegada", "2026-12-10").param("salida", "2026-12-12").param("huespedes", "1"))
+      .andExpect(status().isNotFound());
+  }
+
+  @Test
   @DisplayName("las APIs de administración exigen sesión")
   void lasApisDeAdminExigenSesion() throws Exception {
     mvc.perform(post("/api/admin/tipos").with(csrf()).contentType(MediaType.APPLICATION_JSON)

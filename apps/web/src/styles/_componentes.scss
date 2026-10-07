@@ -439,6 +439,27 @@
   }
 }
 
+// --- Desglose noche por noche de una oferta ---
+.desglose {
+  border-top: 1px solid $borde;
+  padding-top: $e-2;
+
+  &__noches {
+    margin: $e-1 0 0;
+  }
+
+  &__noche {
+    display: flex;
+    justify-content: space-between;
+    gap: $e-2;
+    padding-block: 2px;
+    font-size: $texto-sm;
+
+    dt { color: $tinta-suave; }
+    dd { margin: 0; }
+  }
+}
+
 // --- Cabecera de sección ---
 .seccion {
   padding-block: $e-6;

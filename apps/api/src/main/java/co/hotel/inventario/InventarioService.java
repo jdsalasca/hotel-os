@@ -218,27 +218,66 @@ public class InventarioService {
   }
 
   /**
-   * Suma las noches del periodo en el primer plan activo con tarifa completa.
-   * Devuelve null si ninguna noche está configurada, alguna está cerrada o incumple la estancia:
-   * la ausencia de precio es un dato, no un cero.
+   * Detalle de una oferta: habitación, tipo, plan que la respalda y precio noche por noche.
+   *
+   * Son las mismas reglas que la búsqueda y que el alta: si la habitación no está a la venta para
+   * esas fechas y huéspedes, no hay detalle. Tres sitios con tres verdades distintas sería peor
+   * que no tener detalle.
    */
-  private PrecioTotalizado calcularPrecio(RoomType tipo, LocalDate desde, LocalDate hasta) {
+  public record NochePrecio(LocalDate fecha, long precioCents) {}
+  public record DetalleOferta(Habitacion habitacion, RoomType tipo, PlanTarifario plan,
+                              List<NochePrecio> noches, long totalCents, String moneda) {}
+
+  public java.util.Optional<DetalleOferta> detalleOferta(long roomId, LocalDate desde, LocalDate hasta,
+      int huespedes) {
+    if (huespedes < 1) throw new DatosInvalidosException("número de huéspedes inválido");
+    var habitacion = inventario.habitacionPorId(roomId)
+      .filter(h -> h.estado() == EstadoHabitacion.ACTIVA);
+    var tipo = habitacion.flatMap(h -> inventario.tipoPorId(h.roomTypeId()))
+      .filter(t -> t.capacidadMax() >= huespedes);
+    if (tipo.isEmpty()) return java.util.Optional.empty();
+    return precioDetallado(tipo.get(), desde, hasta).map(p -> new DetalleOferta(
+      habitacion.orElseThrow(), tipo.get(), p.plan(), p.noches(), p.total(), p.plan().moneda()));
+  }
+
+  /** Plan con el que un tipo cubre el periodo, noche por noche con su precio. */
+  private record PrecioDetallado(PlanTarifario plan, List<NochePrecio> noches, long total) {}
+
+  /**
+   * Núcleo común de la oferta: primer plan activo con tarifa completa. Lo usan la búsqueda, el
+   * alta, el calendario y el detalle, para no tener cuatro versiones de la misma regla.
+   */
+  private java.util.Optional<PrecioDetallado> precioDetallado(RoomType tipo, LocalDate desde,
+      LocalDate hasta) {
     long noches = java.time.temporal.ChronoUnit.DAYS.between(desde, hasta);
     for (PlanTarifario plan : tarifas.planesActivos()) {
       var configuradas = tarifas.nochesDelPeriodo(plan.id(), tipo.id(), desde, hasta);
       if (configuradas.size() != noches) continue;
-
+      List<NochePrecio> detalle = new java.util.ArrayList<>();
       long total = 0;
       boolean completa = true;
       for (TarifaRepository.TarifaNoche noche : configuradas) {
         if (noche.cerrado()) { completa = false; break; }
         if (noche.minEstancia() != null && noches < noche.minEstancia()) { completa = false; break; }
         if (noche.maxEstancia() != null && noches > noche.maxEstancia()) { completa = false; break; }
+        detalle.add(new NochePrecio(noche.fecha(), noche.precioCents()));
         total += noche.precioCents();
       }
-      if (completa) return new PrecioTotalizado(total, plan.moneda(), (int) noches, plan.id());
+      if (completa) return java.util.Optional.of(new PrecioDetallado(plan, detalle, total));
     }
-    return null;
+    return java.util.Optional.empty();
+  }
+
+  /**
+   * Suma las noches del periodo en el primer plan activo con tarifa completa.
+   * Devuelve null si ninguna noche está configurada, alguna está cerrada o incumple la estancia:
+   * la ausencia de precio es un dato, no un cero.
+   */
+  private PrecioTotalizado calcularPrecio(RoomType tipo, LocalDate desde, LocalDate hasta) {
+    long noches = java.time.temporal.ChronoUnit.DAYS.between(desde, hasta);
+    return precioDetallado(tipo, desde, hasta)
+      .map(p -> new PrecioTotalizado(p.total(), p.plan().moneda(), (int) noches, p.plan().id()))
+      .orElse(null);
   }
 
   private void validarPeriodo(LocalDate desde, LocalDate hasta) {
