@@ -24,7 +24,11 @@ public class HuespedController {
     this.reservas = reservas;
   }
 
-  /** 401 si no hay sesión: es el contrato del frontend, que solo muestra el botón con usuario. */
+  /**
+   * 401 si no hay sesión (lo corta el filtro antes de llegar aquí). Con sesión pero sin fila
+   * de huésped —el personal del panel que aún no reserva— responde vacío, no 401: ya está
+   * dentro, solo que todavía no tiene nada.
+   */
   @GetMapping("/api/yo")
   public ResponseEntity<?> yo() {
     String email = currentEmail();
@@ -39,7 +43,7 @@ public class HuespedController {
   @GetMapping("/api/mis-reservas")
   public ResponseEntity<?> misReservas() {
     Long id = idActual();
-    if (id == null) return ResponseEntity.status(401).body(Map.of("error", "sin sesión"));
+    if (id == null) return ResponseEntity.ok(Map.of("reservas", java.util.List.of()));
     List<Map<String, Object>> lista = reservas.de(id);
     return ResponseEntity.ok(Map.of("reservas", lista));
   }

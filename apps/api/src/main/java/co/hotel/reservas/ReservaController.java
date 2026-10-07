@@ -89,9 +89,15 @@ public class ReservaController {
         req.ratePlanIdEsperado());
       // Si quien reserva tiene sesión de huésped, la reserva queda colgando de su cuenta para que
       // la vea en "Mis reservas". Si no, usuario_id queda NULL y sigue siendo consultable por
-      // código + correo: nadie pierde su reserva por no haber entrado con Google.
+      // código + correo: nadie pierde su reserva por no haber entrado con Google. El personal del
+      // panel reserva para sí mismo con su propio correo: ahí se le crea su identidad de huésped.
+      // Si reserva para otro correo (recepción), no se engancha a nadie.
       String correoSesion = co.hotel.huespedes.ActualCorreo.deSesion();
       Long idUsuario = correoSesion == null ? null : servicioHuespedes.idPorEmail(correoSesion);
+      if (idUsuario == null && correoSesion != null && esAdmin()
+        && correoSesion.equalsIgnoreCase(req.email())) {
+        idUsuario = servicioHuespedes.identidadPanelPara(correoSesion);
+      }
       if (idUsuario != null) servicioHuespedes.vincular(codigo, idUsuario);
       return ResponseEntity.status(201).body(ReservaResp.de(svc.buscar(codigo).orElseThrow(),
         "Reserva registrada. Queda pendiente de confirmación: el hotel aún no ha configurado pago ni "
@@ -109,6 +115,14 @@ public class ReservaController {
     } catch (SinDisponibilidadException e) {
       return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     }
+  }
+
+  /** El personal con sesión ADMIN reserva para sí mismo sin perder el panel. */
+  private static boolean esAdmin() {
+    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext()
+      .getAuthentication();
+    return auth != null && auth.getAuthorities().stream()
+      .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
   }
 
   /** Consulta segura: exige el correo con el que se reservó, y se topa por IP. */

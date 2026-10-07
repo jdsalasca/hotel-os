@@ -47,4 +47,17 @@ public class ReservaServiceHuesped {
     jdbc.update("UPDATE reservations SET usuario_id=? WHERE codigo=? AND usuario_id IS NULL",
       usuarioId, codigoReserva);
   }
+
+  /**
+   * Identidad de huésped para el personal del panel. El admin no está en `usuarios`: la primera
+   * vez que reserva para sí mismo se le crea la fila (sub "panel:...") y sus reservas aparecen
+   * en "Mis reservas" sin perder el panel. Si reserva para otro correo (recepción), no se
+   * llama a esto y la reserva queda consultable por código, como siempre.
+   */
+  public long identidadPanelPara(String emailAdmin) {
+    String normalizado = emailAdmin.trim().toLowerCase();
+    Long id = usuarios.idPorEmail(normalizado);
+    if (id != null) return id;
+    return usuarios.porSubOCrear("panel:" + normalizado, normalizado, "");
+  }
 }
