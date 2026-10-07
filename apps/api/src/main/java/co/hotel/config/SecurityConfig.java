@@ -74,8 +74,14 @@ public class SecurityConfig {
           respuesta.setContentType("application/json;charset=UTF-8");
           respuesta.getWriter().write("{\"estado\":\"sesion cerrada\"}");
         }))
-      .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) ->
-        res.sendError(401, "se requiere sesión administrativa")));
+      // Sin sesión la API responde 401 con JSON y motivo en español. Con sendError el cuerpo
+      // lo ponía Boot con su "error":"Unauthorized" en inglés, que es lo que el personal leía en
+      // cada pantalla al vencerle la sesión.
+      .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
+        res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        res.setContentType("application/json;charset=UTF-8");
+        res.getWriter().write("{\"error\":\"la sesión venció o no hay sesión: entra de nuevo\"}");
+      }));
     // El login con Google solo existe con Client ID: sin él no hay repositorio y la contraseña
     // queda como único método. ObjectProvider en vez de inyección directa para no tumbar el
     // arranque cuando Google no está configurado.

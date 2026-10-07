@@ -65,17 +65,39 @@ async function peticion<T>(ruta: string, opciones: RequestInit = {}): Promise<T>
   if (opciones.body) cabeceras.set('Content-Type', 'application/json');
   if (esEscritura) cabeceras.set('X-XSRF-TOKEN', leerTokenCsrf());
 
-  const respuesta = await fetch(urlApi(ruta), {
-    ...opciones,
-    headers: cabeceras,
-    credentials: 'same-origin',
-  });
+  let respuesta: Response;
+  try {
+    respuesta = await fetch(urlApi(ruta), {
+      ...opciones,
+      headers: cabeceras,
+      credentials: 'same-origin',
+    });
+  } catch {
+    // Sin red no hay estado ni cuerpo: el TypeError de fetch no le dice nada a nadie.
+    throw new ErrorApi(0, 'No hay conexión con el hotel. Revisa tu internet e inténtalo de nuevo.', null);
+  }
 
   const texto = await respuesta.text();
-  const cuerpo = texto ? JSON.parse(texto) : null;
+  let cuerpo: unknown = null;
+  if (texto) {
+    try {
+      cuerpo = JSON.parse(texto);
+    } catch {
+      // El proxy y el contenedor responden HTML en sus errores (502, 401 del entry point):
+      // antes reventaba con un SyntaxError ilegible en cada pantalla que lo mostrara.
+      cuerpo = null;
+    }
+  }
 
   if (!respuesta.ok) {
-    throw new ErrorApi(respuesta.status, cuerpo?.error ?? cuerpo?.mensaje ?? 'Error inesperado', cuerpo);
+    const error = (cuerpo as { error?: unknown; mensaje?: unknown } | null)?.error
+      ?? (cuerpo as { mensaje?: unknown } | null)?.mensaje;
+    const mensaje = typeof error === 'string' && error.length > 0
+      ? error
+      : respuesta.status === 401
+        ? 'La sesión venció. Entra de nuevo.'
+        : 'Error inesperado del hotel. Inténtalo de nuevo.';
+    throw new ErrorApi(respuesta.status, mensaje, cuerpo);
   }
   return cuerpo as T;
 }

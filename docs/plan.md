@@ -166,6 +166,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 41 - El plan viaja explícito de la búsqueda al alta.** La oferta trae el plan,
   la tarjeta lo muestra y la confirmación lo envía; si no es el vigente, el 409 dice con cuál sí
   sale. Evidencia: `docs/evidence/round-41/verificacion.md`.
+- [x] **Ronda 42 - Los errores del navegador hablan español.** Sin red, cuerpo no JSON y
+  sesión vencida mostraban `TypeError`, `SyntaxError` o el «Unauthorized» de Boot. Ahora hay
+  mensajes legibles y el 401 trae motivo en español desde el entry point. Evidencia:
+  `docs/evidence/round-42/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

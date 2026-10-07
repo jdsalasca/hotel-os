@@ -114,9 +114,14 @@ class OcupacionDiaTest {
   }
 
   @Test
-  @DisplayName("sin sesión no hay parte")
+  @DisplayName("sin sesión no hay parte, y el motivo viene en español para mostrarlo")
   void sinSesionEs401() throws Exception {
-    mvc.perform(get("/api/admin/ocupacion/dia").param("fecha", "2026-11-03"))
-      .andExpect(status().isUnauthorized());
+    var respuesta = mvc.perform(get("/api/admin/ocupacion/dia").param("fecha", "2026-11-03"))
+      .andExpect(status().isUnauthorized())
+      .andReturn().getResponse().getContentAsString();
+    // Boot ponía aquí su "error":"Unauthorized" en inglés: eso era lo que leía el personal.
+    org.junit.jupiter.api.Assertions.assertTrue(
+      JSON.readTree(respuesta).get("error").asText().contains("sesión"),
+      "el 401 debe traer motivo legible: " + respuesta);
   }
 }
