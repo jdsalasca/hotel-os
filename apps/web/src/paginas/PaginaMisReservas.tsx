@@ -28,6 +28,28 @@ export function PaginaMisReservas() {
   const sesion = useSesionHuesped();
   const [reservas, setReservas] = useState<Reserva[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmando, setConfirmando] = useState<string | null>(null);
+  const [cancelando, setCancelando] = useState<string | null>(null);
+
+  /** Cancelar en dos pasos por fila: el primero avisa, el segundo ejecuta con el correo de la sesión. */
+  async function cancelar(codigo: string) {
+    if (confirmando !== codigo) {
+      setConfirmando(codigo);
+      return;
+    }
+    setCancelando(codigo);
+    setError(null);
+    try {
+      await api.post(`/api/reservas/${codigo}/cancelar`, { email: sesion.email });
+      setReservas((previas) => previas?.map((r) => (r.codigo === codigo ? { ...r, estado: 'CANCELADA' } : r)) ?? null);
+      setConfirmando(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo cancelar la reserva');
+      setConfirmando(null);
+    } finally {
+      setCancelando(null);
+    }
+  }
 
   useEffect(() => {
     if (sesion.haySesion === false) return;
@@ -102,6 +124,7 @@ export function PaginaMisReservas() {
                 <th scope="col">Huéspedes</th>
                 <th scope="col">Total acordado</th>
                 <th scope="col">Estado</th>
+                <th scope="col">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -118,6 +141,21 @@ export function PaginaMisReservas() {
                     <Etiqueta tono={r.estado === 'CONFIRMADA' ? 'exito' : r.estado === 'CANCELADA' ? 'error' : 'aviso'}>
                       {r.estado}
                     </Etiqueta>
+                  </td>
+                  <td data-label="Acciones">
+                    {(r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') ? (
+                      <button
+                        className={`boton boton--chico ${confirmando === r.codigo ? 'boton--peligro' : 'boton--fantasma'}`}
+                        type="button"
+                        onClick={() => void cancelar(r.codigo)}
+                        disabled={cancelando !== null}
+                        aria-label={confirmando === r.codigo ? `Confirma cancelar la reserva ${r.codigo}` : `Cancelar la reserva ${r.codigo}`}
+                      >
+                        {cancelando === r.codigo ? 'Cancelando…' : confirmando === r.codigo ? 'Sí, cancelar' : 'Cancelar'}
+                      </button>
+                    ) : (
+                      <span className="campo__ayuda">Sin acciones</span>
+                    )}
                   </td>
                 </tr>
               ))}

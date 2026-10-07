@@ -197,6 +197,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 50 - El huésped cancela su reserva sin llamar al hotel.** Nuevo
   `POST /api/reservas/{codigo}/cancelar` con la compuerta de código + correo y botón en dos
   pasos en la consulta. Evidencia: `docs/evidence/round-50/verificacion.md`.
+- [x] **Ronda 51 - Cancelar también desde Mis reservas.** Columna de acciones con el mismo
+  flujo en dos pasos y el correo de la sesión; la fila se actualiza sin recargar. Evidencia:
+  `docs/evidence/round-51/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
