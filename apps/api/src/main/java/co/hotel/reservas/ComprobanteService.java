@@ -1,5 +1,6 @@
 package co.hotel.reservas;
 
+import co.hotel.pagos.PagosService;
 import co.hotel.auditoria.AuditoriaRepository;
 import co.hotel.hotel.HotelConfigService;
 import co.hotel.inventario.TarifaRepository;
@@ -21,14 +22,16 @@ public class ComprobanteService {
   private final TarifaRepository tarifas;
   private final HotelConfigService hotel;
   private final AuditoriaRepository auditoria;
+  private final PagosService pagos;
 
   public ComprobanteService(ReservaService reservas, ReservaRepository repo, TarifaRepository tarifas,
-                            HotelConfigService hotel, AuditoriaRepository auditoria) {
+                            HotelConfigService hotel, AuditoriaRepository auditoria, PagosService pagos) {
     this.reservas = reservas;
     this.repo = repo;
     this.tarifas = tarifas;
     this.hotel = hotel;
     this.auditoria = auditoria;
+    this.pagos = pagos;
   }
 
   /** Con correo: compuerta pública (código + correo, como la consulta). Sin correo: panel. */
@@ -60,6 +63,15 @@ public class ComprobanteService {
     reserva.put("totalCents", r.totalCents());
     reserva.put("moneda", r.moneda());
     reserva.put("plan", planNombre);
+    // Sin total acordado no hay saldo que calcular: el pendiente no puede salir de la nada.
+    if (r.totalCents() == null) {
+      reserva.put("abonadoCents", null);
+      reserva.put("pendienteCents", null);
+    } else {
+      var saldo = pagos.saldo(r.codigo());
+      reserva.put("abonadoCents", saldo.abonadoCents());
+      reserva.put("pendienteCents", saldo.pendienteCents());
+    }
 
     Map<String, Object> comprobante = new LinkedHashMap<>();
     comprobante.put("reserva", reserva);

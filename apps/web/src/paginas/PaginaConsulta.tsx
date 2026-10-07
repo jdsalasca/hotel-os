@@ -18,6 +18,8 @@ type Comprobante = {
     totalCents: number | null;
     moneda: string | null;
     plan: string | null;
+    abonadoCents: number | null;
+    pendienteCents: number | null;
   };
   habitacion: { codigo: string; nombre: string; tipo: string } | null;
   hotel: Record<string, string>;
@@ -161,6 +163,17 @@ export function PaginaConsulta() {
                   )}
                 </dd>
               </div>
+              {comprobante.reserva.abonadoCents !== null && comprobante.reserva.moneda ? (
+                <div>
+                  <dt className="campo__etiqueta">Cuenta</dt>
+                  <dd className="sin-margen">
+                    <span className="cifra">
+                      Abonado: {monto(comprobante.reserva.abonadoCents, comprobante.reserva.moneda)} ·{' '}
+                      Pendiente: {monto(comprobante.reserva.pendienteCents ?? 0, comprobante.reserva.moneda)}
+                    </span>
+                  </dd>
+                </div>
+              ) : null}
               <div>
                 <dt className="campo__etiqueta">Estado</dt>
                 <dd className="sin-margen">

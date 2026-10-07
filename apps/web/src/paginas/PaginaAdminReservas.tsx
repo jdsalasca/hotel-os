@@ -28,6 +28,16 @@ type Detalle = {
   historial: { estado_ant: string | null; estado_nuevo: string; actor: string; en: string; detalle?: string | null }[];
 };
 
+type MovimientoPago = {
+  id: number; monto_cents: number; moneda: string; concepto: string; actor: string;
+  creado_en: string; anulado_en: string | null; anulado_por: string | null;
+};
+
+type Saldo = {
+  totalCents: number; moneda: string; abonadoCents: number; pendienteCents: number;
+  movimientos: MovimientoPago[];
+};
+
 type Habitacion = { id: number; codigo: string; nombre: string };
 
 const ESTADOS: { valor: Estado; texto: string }[] = [
@@ -66,6 +76,8 @@ export function PaginaAdminReservas() {
   const [habitaciones, setHabitaciones] = useState<Habitacion[] | null>(null);
   const [nuevaHabitacion, setNuevaHabitacion] = useState('');
   const [nuevasFechas, setNuevasFechas] = useState({ llegada: '', salida: '' });
+  const [saldo, setSaldo] = useState<Saldo | null>(null);
+  const [abono, setAbono] = useState({ monto: '', concepto: '' });
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [texto, setTexto] = useState('');
@@ -102,6 +114,12 @@ export function PaginaAdminReservas() {
       setHabitaciones(habs);
       setNuevaHabitacion('');
       setNuevasFechas({ llegada: '', salida: '' });
+      setAbono({ monto: '', concepto: '' });
+      try {
+        setSaldo(await api.get<Saldo>(`/api/admin/reservas/${codigo}/saldo`));
+      } catch {
+        setSaldo(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo abrir la reserva');
     }
@@ -128,6 +146,31 @@ export function PaginaAdminReservas() {
       await abrir(codigo);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cambiar las fechas');
+    }
+  }
+
+  async function abonar(codigo: string, moneda: string) {
+    if (!abono.monto) return;
+    setError(null);
+    try {
+      await api.post(`/api/admin/reservas/${codigo}/abonos`, {
+        montoCents: Math.round(Number(abono.monto) * 100),
+        moneda,
+        concepto: abono.concepto,
+      });
+      await abrir(codigo);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo registrar el abono');
+    }
+  }
+
+  async function anularAbono(abonoId: number, codigo: string) {
+    setError(null);
+    try {
+      await api.post(`/api/admin/abonos/${abonoId}/anular`);
+      await abrir(codigo);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo anular el abono');
     }
   }
 
@@ -270,6 +313,76 @@ export function PaginaAdminReservas() {
                 'Sin precio acordado: se reservó sin tarifa configurada'
               )}
             </p>
+            <h3 className="t-base mb-0">Cuenta</h3>
+            {!saldo || !detalle.reserva.moneda ? (
+              <p className="campo__ayuda sin-margen">Sin movimientos registrados.</p>
+            ) : (
+              <>
+                <p className="sin-margen">
+                  <span className="cifra">
+                    Abonado: {monto(saldo.abonadoCents, detalle.reserva.moneda)} · Pendiente:{' '}
+                    {monto(saldo.pendienteCents, detalle.reserva.moneda)}
+                  </span>
+                </p>
+                {saldo.movimientos.length > 0 ? (
+                  <ul className="lista-marcada">
+                    {saldo.movimientos.map((m) => (
+                      <li key={m.id} className="campo__ayuda">
+                        {monto(m.monto_cents, m.moneda)}{m.concepto ? ` · ${m.concepto}` : ''} por{' '}
+                        {m.actor}
+                        {m.anulado_en ? (
+                          <> (anulado por {m.anulado_por})</>
+                        ) : (
+                          <>
+                            {' '}
+                            <button
+                              className="boton boton--fantasma boton--chico"
+                              type="button"
+                              onClick={() => void anularAbono(m.id, detalle.reserva.codigo)}
+                              aria-label={`Anular el abono de ${monto(m.monto_cents, m.moneda)}`}
+                            >
+                              Anular
+                            </button>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <form
+                  className="campos"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void abonar(detalle.reserva.codigo, detalle.reserva.moneda ?? '');
+                  }}
+                >
+                  <div className="campo">
+                    <label className="campo__etiqueta" htmlFor="abono-monto">Abono ({detalle.reserva.moneda})</label>
+                    <input
+                      id="abono-monto"
+                      type="number"
+                      min={0.01}
+                      step={0.01}
+                      required
+                      value={abono.monto}
+                      onChange={(e) => setAbono({ ...abono, monto: e.target.value })}
+                    />
+                  </div>
+                  <div className="campo">
+                    <label className="campo__etiqueta" htmlFor="abono-concepto">Concepto</label>
+                    <input
+                      id="abono-concepto"
+                      value={abono.concepto}
+                      onChange={(e) => setAbono({ ...abono, concepto: e.target.value })}
+                      placeholder="Anticipo"
+                    />
+                  </div>
+                  <button className="boton boton--secundario boton--chico" type="submit" disabled={!abono.monto}>
+                    Registrar abono
+                  </button>
+                </form>
+              </>
+            )}
             <h3 className="t-base mb-0">Historial</h3>
             <ol className="pila gap-e1 lista-marcada">
               {detalle.historial.map((h, i) => (

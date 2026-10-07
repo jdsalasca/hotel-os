@@ -66,7 +66,7 @@ class PagosAdminTest {
     if (jdbc.queryForObject("SELECT COUNT(*) FROM rooms", Integer.class) == 0) {
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('101','ACTIVA','Habitación 101')");
     }
-    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-10"));
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-16"));
   }
 
   private String reservar(String email, String llegada, String salida) throws Exception {
@@ -148,6 +148,22 @@ class PagosAdminTest {
         .contentType(MediaType.APPLICATION_JSON)
         .content(JSON.writeValueAsString(Map.of("montoCents", 0, "moneda", "COP"))))
       .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("el comprobante muestra lo abonado y lo pendiente")
+  void comprobanteMuestraSaldo() throws Exception {
+    String codigo = reservar("saldo@example.com", "2026-11-13", "2026-11-15");
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/abonos").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("montoCents", 120000, "moneda", "COP",
+          "concepto", "Anticipo"))))
+      .andExpect(status().isCreated());
+
+    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "saldo@example.com"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.reserva.abonadoCents").value(120000))
+      .andExpect(jsonPath("$.reserva.pendienteCents").value(180000));
   }
 
   @Test
