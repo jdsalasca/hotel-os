@@ -38,8 +38,9 @@ class ReservaServiceTest {
         id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL, email TEXT NOT NULL,
         nombre TEXT NOT NULL DEFAULT '', llegada TEXT NOT NULL, salida TEXT NOT NULL,
         huespedes INTEGER NOT NULL, estado TEXT NOT NULL, origen TEXT NOT NULL,
-        idempotencia TEXT UNIQUE NOT NULL, creado_en TEXT NOT NULL DEFAULT '',
-        total_cents INTEGER, moneda TEXT, rate_plan_id INTEGER);
+        idempotencia TEXT NOT NULL, creado_en TEXT NOT NULL DEFAULT '',
+        total_cents INTEGER, moneda TEXT, rate_plan_id INTEGER,
+        UNIQUE(idempotencia, email));
       CREATE TABLE rate_plans(
         id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL,
         nombre TEXT NOT NULL, moneda TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1);
@@ -160,6 +161,26 @@ class ReservaServiceTest {
       assertThrows(SinDisponibilidadException.class, () -> crear("otro@example.com", "2026-12-10", "2026-12-12", 1));
       assertEquals(c1, svc.buscar(c1).orElseThrow().codigo());
       assertEquals(1, contar("reservations"));
+    }
+
+    @Test
+    @DisplayName("otra persona con la misma clave de idempotencia crea su propia reserva")
+    void laIdempotenciaNoCruzaEntreClientes() {
+      // La clave identifica un INTENTO, no a una persona. Dos peticiones que comparten clave son dos
+      // reservas distintas: devolver la ajena filtraba nombre, correo y total de otro huésped por
+      // adivinar una clave. Cada uno además necesita una habitación libre, para que la segunda llegue
+      // a insertar en vez de recibir un 409.
+      String key = UUID.randomUUID().toString();
+      String deAna = svc.crear(new CrearReserva("ana@example.com", "Ana Perez", LocalDate.parse("2026-12-01"),
+        LocalDate.parse("2026-12-03"), 2, Origen.WEB, key, 1));
+
+      String deBruno = svc.crear(new CrearReserva("bruno@example.com", "Bruno Diaz", LocalDate.parse("2026-12-01"),
+        LocalDate.parse("2026-12-03"), 2, Origen.WEB, key, 2));
+
+      assertNotEquals(deAna, deBruno, "la segunda peticion no puede devolver la reserva de la primera");
+      assertEquals("Bruno Diaz", svc.buscar(deBruno).orElseThrow().nombre());
+      assertEquals("bruno@example.com", svc.buscar(deBruno).orElseThrow().email());
+      assertEquals(2, contar("reservations"));
     }
   }
 

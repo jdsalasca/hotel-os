@@ -39,7 +39,9 @@ public class ReservaService {
         ? UUID.randomUUID().toString() : datos.claveIdempotencia();
 
     return tx.enTransaccion(estado -> {
-      var existente = repo.codigoPorClave(clave);
+      // La idempotencia solo aplica al mismo huésped: otra persona que comparta la clave es una
+      // reserva distinta, no un reintento. Sin el correo, se le devolvía la reserva ajena entera.
+      var existente = repo.codigoPorClave(clave, datos.email());
       if (existente.isPresent()) return existente.get();
 
       if (repo.hayReservaSolapada(datos.roomId(), datos.llegada(), datos.salida())

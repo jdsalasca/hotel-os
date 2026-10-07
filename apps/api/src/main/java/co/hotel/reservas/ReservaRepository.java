@@ -19,10 +19,21 @@ public class ReservaRepository {
 
   public ReservaRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
-  public Optional<String> codigoPorClave(String clave) {
+  /**
+   * La reserva creada con una clave de idempotencia, si la pidió el mismo huésped.
+   *
+   * El correo va en la búsqueda a propósito. Buscar solo por la clave devolvía la reserva de
+   * quien la hubiera usado antes, con su nombre, correo y total, a cualquiera que shares la clave.
+   * La clave identifica un intento de reserva, no a una persona, así que la petición de otro
+   * es una reserva nueva.
+   *
+   * `lower()` porque el correo se compara sin distinguir mayúsculas en toda la aplicación.
+   */
+  public Optional<String> codigoPorClave(String clave, String email) {
     try {
       return Optional.ofNullable(jdbc.queryForObject(
-        "SELECT codigo FROM reservations WHERE idempotencia=?", String.class, clave));
+        "SELECT codigo FROM reservations WHERE idempotencia=? AND lower(email)=lower(?)",
+        String.class, clave, email));
     } catch (EmptyResultDataAccessException e) {
       return Optional.empty();
     }
