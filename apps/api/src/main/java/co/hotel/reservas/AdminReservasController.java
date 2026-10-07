@@ -37,8 +37,17 @@ public class AdminReservasController {
   public record CambioEstadoReq(String estado) {}
 
   @GetMapping("/api/admin/reservas")
-  public List<Map<String, Object>> listar(@RequestParam(defaultValue = "50") int limite) {
-    return svc.listar(limite).stream().map(AdminReservasController::fila).toList();
+  public ResponseEntity<?> listar(@RequestParam(defaultValue = "50") int limite,
+                                  @RequestParam(required = false) String q,
+                                  @RequestParam(required = false) String estado) {
+    final EstadoReserva filtro;
+    try {
+      filtro = estado == null || estado.isBlank() ? null : EstadoReserva.valueOf(estado.toUpperCase());
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "estado no válido: " + estado));
+    }
+    return ResponseEntity.ok(svc.listar(q, filtro, limite).stream()
+      .map(AdminReservasController::fila).toList());
   }
 
   @GetMapping("/api/admin/reservas/{codigo}")

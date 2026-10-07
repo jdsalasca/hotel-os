@@ -63,12 +63,17 @@ export function PaginaAdminReservas() {
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [texto, setTexto] = useState('');
+  const [estado, setEstado] = useState('');
 
-  async function cargar() {
+  async function cargar(textoFiltro = texto, estadoFiltro = estado) {
     setCargando(true);
     setError(null);
     try {
-      setReservas(await api.get<Reserva[]>('/api/admin/reservas?limit=100'));
+      const consulta = new URLSearchParams({ limit: '100' });
+      if (textoFiltro.trim() !== '') consulta.set('q', textoFiltro.trim());
+      if (estadoFiltro !== '') consulta.set('estado', estadoFiltro);
+      setReservas(await api.get<Reserva[]>(`/api/admin/reservas?${consulta}`));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cargar las reservas');
     } finally {
@@ -116,10 +121,41 @@ export function PaginaAdminReservas() {
         </div>
 
         {error ? <MensajeError texto={error} /> : null}
+
+        <form
+          className="filtros"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void cargar();
+          }}
+        >
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="filtro-texto">Buscar por código, correo o nombre</label>
+            <input
+              id="filtro-texto"
+              type="search"
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder="H-ABC, ana@…, nombre…"
+            />
+          </div>
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="filtro-estado">Estado</label>
+            <select id="filtro-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="CONFIRMADA">Confirmada</option>
+              <option value="CANCELADA">Cancelada</option>
+              <option value="RECHAZADA">Rechazada</option>
+            </select>
+          </div>
+          <button className="boton boton--secundario" type="submit">Filtrar</button>
+        </form>
+
         {cargando ? <Cargando /> : null}
 
         {!cargando && reservas && reservas.length === 0 ? (
-          <Vacio titulo="Todavía no hay reservas" detalle="Aparecerán aquí las que lleguen por la web o por los canales." />
+          <Vacio titulo="Sin resultados" detalle="Ninguna reserva coincide con ese filtro." />
         ) : null}
 
         {reservas && reservas.length > 0 ? (

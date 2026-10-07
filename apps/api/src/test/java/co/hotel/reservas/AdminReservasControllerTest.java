@@ -2,6 +2,7 @@ package co.hotel.reservas;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -302,6 +303,52 @@ class AdminReservasControllerTest {
     mvc.perform(post("/api/admin/reservas/" + b + "/estado").with(ADMIN).with(csrf())
         .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("estado", "CONFIRMADA"))))
       .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("buscar por fragmento de correo encuentra sin traer el resto")
+  void buscarPorCorreoEncuentra() throws Exception {
+    var escenario = habitacionTarifada("Q" + System.nanoTime() % 100000);
+    crearReservaEn("zuniga-unica@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    mvc.perform(get("/api/admin/reservas").with(ADMIN).param("q", "zuniga-unica"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.length()").value(1))
+      .andExpect(jsonPath("$[0].email").value("zuniga-unica@example.com"));
+  }
+
+  @Test
+  @DisplayName("buscar por código encuentra la reserva exacta")
+  void buscarPorCodigoEncuentra() throws Exception {
+    var escenario = habitacionTarifada("W" + System.nanoTime() % 100000);
+    String codigo = crearReservaEn("codigo@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    mvc.perform(get("/api/admin/reservas").with(ADMIN).param("q", codigo.substring(2, 6)))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[?(@.codigo=='" + codigo + "')]").exists());
+  }
+
+  @Test
+  @DisplayName("filtrar por estado trae la cancelada y esconde la pendiente")
+  void filtrarPorEstadoSoloTraeEseEstado() throws Exception {
+    var escenario = habitacionTarifada("E" + System.nanoTime() % 100000);
+    String pendiente = crearReservaEn("queda@example.com", "2026-11-01", "2026-11-03", escenario.room());
+    var otro = habitacionTarifada("R" + System.nanoTime() % 100000);
+    String cancelada = crearReservaEn("secierra@example.com", "2026-11-01", "2026-11-03", otro.room());
+    cambiarEstado(cancelada, "CANCELADA");
+
+    var cuerpo = mvc.perform(get("/api/admin/reservas").with(ADMIN).param("estado", "CANCELADA"))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    assertTrue(JSON.readTree(cuerpo).toString().contains(cancelada), "la cancelada debe salir");
+    assertTrue(!JSON.readTree(cuerpo).toString().contains(pendiente), "la pendiente no debe salir");
+  }
+
+  @Test
+  @DisplayName("un estado que no existe filtra con 400, no con lista vacía silenciosa")
+  void estadoDeFiltroInvalidoEs400() throws Exception {
+    mvc.perform(get("/api/admin/reservas").with(ADMIN).param("estado", "VOLADORA"))
+      .andExpect(status().isBadRequest());
   }
 
   @Test

@@ -132,6 +132,11 @@ public class ReservaService {
 
   public List<Reserva> listar(int limite) { return repo.listar(limite); }
 
+  /** Listado del panel con búsqueda por texto y filtro por estado, ambos opcionales. */
+  public List<Reserva> listar(String texto, EstadoReserva estado, int limite) {
+    return repo.listarFiltrado(texto, estado, limite);
+  }
+
   /** Parte del día para la recepción: quién llega, quién se va y quién duerme. */
   public record ParteDia(List<ReservaRepository.Movimiento> llegadas,
                          List<ReservaRepository.Movimiento> salidas,

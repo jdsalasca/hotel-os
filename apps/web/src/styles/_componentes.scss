@@ -118,6 +118,19 @@
   }
 }
 
+// --- Barra de filtros: campos más botón, apilados en móvil y en fila en escritorio ---
+.filtros {
+  display: grid;
+  gap: $e-3;
+  grid-template-columns: 1fr;
+  margin-bottom: $e-4;
+  align-items: end;
+
+  @media (min-width: 48rem) {
+    grid-template-columns: 2fr 1fr auto;
+  }
+}
+
 // --- Etiquetas de estado ---
 .etiqueta {
   @include etiqueta;

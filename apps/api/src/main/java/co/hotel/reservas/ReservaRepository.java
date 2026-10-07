@@ -169,6 +169,23 @@ public class ReservaRepository {
       (rs, numFila) -> mapear(rs), Math.min(limite, 200));
   }
 
+  /**
+   * Listado con búsqueda y filtro de estado para la recepción. El texto busca en código, correo
+   * y nombre sin distinguir mayúsculas; los comodines que escriba el hotel se buscan literales,
+   * no como patrones.
+   */
+  public List<Reserva> listarFiltrado(String texto, EstadoReserva estado, int limite) {
+    String patron = texto == null || texto.isBlank() ? null
+      : "%" + texto.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    return jdbc.query("SELECT " + CAMPOS + " FROM reservations "
+        + "WHERE (? IS NULL OR codigo LIKE ? ESCAPE '\\' OR lower(email) LIKE lower(?) ESCAPE '\\' "
+        + "OR lower(nombre) LIKE lower(?) ESCAPE '\\') "
+        + "AND (? IS NULL OR estado = ?) ORDER BY id DESC LIMIT ?",
+      (rs, numFila) -> mapear(rs), patron, patron, patron, patron,
+      estado == null ? null : estado.name(), estado == null ? null : estado.name(),
+      Math.min(limite, 200));
+  }
+
   public void actualizarEstado(String codigo, EstadoReserva estado) {
     jdbc.update("UPDATE reservations SET estado=? WHERE codigo=?", estado.name(), codigo);
   }
