@@ -101,8 +101,13 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `unsafe-inline` ni `unsafe-eval` (el build no emite nada inline) y verificada además de que el
   navegador la hace cumplir, no solo que la cabecera existe. `Permissions-Policy` faltaba en el
   nginx. Evidencia: `docs/evidence/round-25/verificacion.md`.
-- [ ] **Siguiente: endurecer el borde.** Revisar qué endpoints públicos siguen sin cobertura (rate
-  limit, CSP) y qué queda del plan de indicadores. Sin ítems externos bloqueados.
+- [x] **Ronda 26 - Tope de intentos en el arranque del administrador.** `POST /api/admin/init` es la
+  ruta más sensible (su única barrera es el token y crea la cuenta de admin) y era la única que
+  aceptaba un secreto sin límite: 5 intentos por IP. Además `MessageDigest.isEqual` en vez de
+  `String.equals`. Evidencia: `docs/evidence/round-26/verificacion.md`.
+- [ ] **Siguiente: tope por IP en el login.** `LoginThrottle` está indexado por `correo|IP`: frena
+  los intentos contra un correo, pero una IP puede probar cinco contraseñas de mil correos sin
+  toparse. Es el camino del credential stuffing. Añadir tope por IP además del actual.
 
 
 ## Criterios de aceptación, verificados con ejecución real
@@ -116,7 +121,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | 5 | Las OTAs muestran su estado real | `BOOKING/DESPEGAR/AIRBNB = NO_CONFIGURADO` | ✅ |
 | 6 | Los indicadores no inventan datos | `tieneResultado=False` con motivo concreto | ✅ |
 | 7 | `compose up --build` funciona en dev y prod | Ambos `config` validan con exit 0 | ✅ |
-| 8 | Pruebas verdes | `Tests run: 197, Failures: 0, Errors: 0` | ✅ |
+| 8 | Pruebas verdes | `Tests run: 199, Failures: 0, Errors: 0` | ✅ |
 | 9 | Sin secretos en el repositorio | Escaneo del diff antes de cada commit | ✅ |
 
 ### Escalado medido de SQLite
@@ -129,7 +134,7 @@ el backend no puede ir en Vercel (filesystem efímero) y sí en una VM o servici
 
 ## Estado real 2026-10-06
 - Java 25.0.4.1, Docker 29.8.2, Maven Wrapper 3.9.11 funcionando. `distributionUrl` corregido.
-- **197 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
+- **199 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
   faltaban: todo React era `any` implícito y nadie lo notaba porque `vite build` no comprueba tipos).
 - 34 capturas verificadas por guion, sin errores de consola ni de API.
 - **Node.js sigue ausente en el host**: el frontend se construye y verifica en `node:22-alpine`,
