@@ -69,6 +69,116 @@ public class TarifaService {
     return repo.planPorId(id).orElseThrow(() -> new DatosInvalidosException("plan tarifario no encontrado"));
   }
 
+  public Optional<TarifaRepository.TarifaNoche> nocheDe(long planId, long tipoId, LocalDate fecha) {
+    return repo.nocheDe(planId, tipoId, fecha);
+  }
+
+  /** Una noche dentro de un lote: lo ausente se conserva, como en el alta individual. */
+  public record CambioNoche(LocalDate fecha, Long precioCents, Integer minEstancia,
+                            Integer maxEstancia, Boolean cerrado) {}
+
+  /** Resultado por fila de la previa: lo válido trae lo que se guardaría, lo inválido el motivo. */
+  public record FilaPrevia(LocalDate fecha, boolean valida, String motivo, Long precioCents,
+                           boolean cerrado, boolean nueva) {}
+
+  public record PreviaLote(java.util.List<FilaPrevia> filas) {
+    public boolean lista() { return filas.stream().allMatch(FilaPrevia::valida); }
+  }
+
+  /** El lote trae al menos una fila inválida: nada se escribió y la previa dice qué falló. */
+  public static class LoteRechazadoException extends DatosInvalidosException {
+    private final PreviaLote previa;
+    public LoteRechazadoException(PreviaLote previa) {
+      super(previa.filas().stream().filter(f -> !f.valida()).findFirst()
+        .map(f -> (f.fecha() == null ? "sin fecha" : f.fecha().toString()) + ": " + f.motivo())
+        .orElse("lote inválido"));
+      this.previa = previa;
+    }
+    public PreviaLote previa() { return previa; }
+  }
+
+  /**
+   * Previa de un lote: valida cada fila y dice qué se guardaría, sin escribir nada.
+   * Lo inválido no aborta la previa: cada fila trae su propio motivo.
+   */
+  public PreviaLote previsualizarLote(long planId, long tipoId, java.util.List<CambioNoche> cambios) {
+    validarLoteBasico(planId, tipoId, cambios);
+    return new PreviaLote(cambios.stream().map(c -> filaPrevia(planId, tipoId, c)).toList());
+  }
+
+  /**
+   * Aplica un lote en una sola transacción: una fila inválida revierte todo y responde
+   * con el detalle por fila. Lo omitido se conserva, incluido el cierre.
+   */
+  public java.util.List<TarifaRepository.TarifaNoche> aplicarLote(long planId, long tipoId,
+      java.util.List<CambioNoche> cambios) {
+    validarLoteBasico(planId, tipoId, cambios);
+    var previa = previsualizarLote(planId, tipoId, cambios);
+    if (!previa.lista()) throw new LoteRechazadoException(previa);
+    var resueltas = cambios.stream()
+      .map(c -> resolverNoche(planId, tipoId, c.fecha(), c.precioCents(), c.minEstancia(),
+        c.maxEstancia(), c.cerrado()))
+      .toList();
+    return tx.enTransaccion(estado -> {
+      for (var r : resueltas)
+        repo.guardarNoche(planId, tipoId, r.fecha(), r.precio(), r.minimo(), r.maximo(), r.cerrada());
+      return resueltas.stream()
+        .map(r -> repo.nocheDe(planId, tipoId, r.fecha()).orElseThrow())
+        .toList();
+    });
+  }
+
+  private void validarLoteBasico(long planId, long tipoId, java.util.List<CambioNoche> cambios) {
+    if (cambios == null || cambios.isEmpty())
+      throw new DatosInvalidosException("el lote no trae noches");
+    if (cambios.size() > 366)
+      throw new DatosInvalidosException("el lote no puede pasar de 366 noches");
+    if (repo.planPorId(planId).isEmpty())
+      throw new DatosInvalidosException("plan tarifario no encontrado");
+    if (inventario.tipoPorId(tipoId).isEmpty())
+      throw new DatosInvalidosException("tipo de habitación no encontrado");
+  }
+
+  private FilaPrevia filaPrevia(long planId, long tipoId, CambioNoche c) {
+    if (c.fecha() == null)
+      return new FilaPrevia(null, false, "la fecha es obligatoria", null, false, false);
+    try {
+      var r = resolverNoche(planId, tipoId, c.fecha(), c.precioCents(), c.minEstancia(),
+        c.maxEstancia(), c.cerrado());
+      return new FilaPrevia(c.fecha(), true, "", r.precio(), r.cerrada(), r.crea());
+    } catch (DatosInvalidosException e) {
+      return new FilaPrevia(c.fecha(), false, e.getMessage(), null, false, false);
+    }
+  }
+
+  private record ResueltaNoche(LocalDate fecha, long precio, Integer minimo, Integer maximo,
+                               boolean cerrada, boolean crea) {}
+
+  private ResueltaNoche resolverNoche(long planId, long tipoId, LocalDate fecha,
+      Long precioCents, Integer minEstancia, Integer maxEstancia, Boolean cerrado) {
+    if (fecha == null) throw new DatosInvalidosException("la fecha es obligatoria");
+    if (precioCents != null && precioCents < 0)
+      throw new DatosInvalidosException("el precio no puede ser negativo");
+    if (minEstancia != null && minEstancia < 1)
+      throw new DatosInvalidosException("la estancia mínima debe ser al menos 1 noche");
+    if (maxEstancia != null && maxEstancia < 1)
+      throw new DatosInvalidosException("la estancia máxima debe ser al menos 1 noche");
+    var previa = repo.nocheDe(planId, tipoId, fecha);
+    if (previa.isEmpty() && precioCents == null) {
+      throw new DatosInvalidosException(
+        "la noche no existe: fija primero el precio para crearla");
+    }
+    long precio = precioCents != null ? precioCents : previa.orElseThrow().precioCents();
+    Integer minimo = minEstancia != null ? minEstancia : previa.map(TarifaRepository.TarifaNoche::minEstancia).orElse(null);
+    Integer maximo = maxEstancia != null ? maxEstancia : previa.map(TarifaRepository.TarifaNoche::maxEstancia).orElse(null);
+    if (minimo != null && maximo != null && minimo > maximo) {
+      throw new DatosInvalidosException(
+        "la estancia mínima (" + minimo + ") no puede superar a la máxima (" + maximo + ")");
+    }
+    boolean cerrada = cerrado != null ? cerrado : previa.map(TarifaRepository.TarifaNoche::cerrado).orElse(false);
+    return new ResueltaNoche(fecha, precio, minimo, maximo, cerrada, previa.isEmpty());
+  }
+
   public void fijarPrecio(PlanTarifario plan, long tipoId, LocalDate fecha, long precioCents) {
     if (precioCents < 0) throw new DatosInvalidosException("el precio no puede ser negativo");
     repo.fijarPrecio(plan.id(), tipoId, fecha, precioCents);
@@ -89,28 +199,10 @@ public class TarifaService {
       throw new DatosInvalidosException("plan tarifario no encontrado");
     if (inventario.tipoPorId(tipoId).isEmpty())
       throw new DatosInvalidosException("tipo de habitación no encontrado");
-    if (precioCents != null && precioCents < 0)
-      throw new DatosInvalidosException("el precio no puede ser negativo");
-    if (minEstancia != null && minEstancia < 1)
-      throw new DatosInvalidosException("la estancia mínima debe ser al menos 1 noche");
-    if (maxEstancia != null && maxEstancia < 1)
-      throw new DatosInvalidosException("la estancia máxima debe ser al menos 1 noche");
-    var previa = repo.nocheDe(planId, tipoId, fecha);
-    if (previa.isEmpty() && precioCents == null) {
-      throw new DatosInvalidosException(
-        "la noche no existe: fija primero el precio para crearla");
-    }
-    long precio = precioCents != null ? precioCents : previa.orElseThrow().precioCents();
-    Integer minimo = minEstancia != null ? minEstancia : previa.map(TarifaRepository.TarifaNoche::minEstancia).orElse(null);
-    Integer maximo = maxEstancia != null ? maxEstancia : previa.map(TarifaRepository.TarifaNoche::maxEstancia).orElse(null);
-    if (minimo != null && maximo != null && minimo > maximo) {
-      throw new DatosInvalidosException(
-        "la estancia mínima (" + minimo + ") no puede superar a la máxima (" + maximo + ")");
-    }
-    boolean cerrada = cerrado != null ? cerrado : previa.map(TarifaRepository.TarifaNoche::cerrado).orElse(false);
+    var r = resolverNoche(planId, tipoId, fecha, precioCents, minEstancia, maxEstancia, cerrado);
     return tx.enTransaccion(estado -> {
-      repo.guardarNoche(planId, tipoId, fecha, precio, minimo, maximo, cerrada);
-      return repo.nocheDe(planId, tipoId, fecha).orElseThrow();
+      repo.guardarNoche(planId, tipoId, r.fecha(), r.precio(), r.minimo(), r.maximo(), r.cerrada());
+      return repo.nocheDe(planId, tipoId, r.fecha()).orElseThrow();
     });
   }
 

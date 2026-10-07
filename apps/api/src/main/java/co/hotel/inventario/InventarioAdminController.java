@@ -34,6 +34,9 @@ public class InventarioAdminController {
   public record DescuentoReq(Integer descuentoPct) {}
   public record TarifaReq(Long ratePlanId, Long roomTypeId, String fecha, Long precioCents,
                           Integer minEstancia, Integer maxEstancia, Boolean cerrado) {}
+  public record NocheLoteReq(String fecha, Long precioCents,
+                             Integer minEstancia, Integer maxEstancia, Boolean cerrado) {}
+  public record LoteReq(Long ratePlanId, Long roomTypeId, java.util.List<NocheLoteReq> noches) {}
   public record BloqueoReq(Long roomId, String desde, String hasta, String motivo) {}
 
   @PostMapping("/api/admin/tipos")
@@ -140,6 +143,85 @@ public class InventarioAdminController {
         ? inventario.bloquearTodo(desde, hasta, req.motivo())
         : inventario.bloquear(req.roomId(), desde, hasta, req.motivo()));
     });
+  }
+
+  /**
+   * Previa de un lote de noches: valida cada fila y dice qué se guardaría, sin escribir nada.
+   * Siempre responde 200 con el detalle por fila; lo que impide guardar viaja por fila, no
+   * como un error genérico.
+   */
+  @PostMapping("/api/admin/tarifas/lote/preview")
+  public ResponseEntity<?> previsualizarLote(@RequestBody LoteReq req) {
+    if (req == null || req.ratePlanId() == null || req.roomTypeId() == null || req.noches() == null)
+      return ResponseEntity.badRequest()
+        .body(Map.of("error", "ratePlanId, roomTypeId y noches son obligatorios"));
+    try {
+      var previa = tarifas.previsualizarLote(req.ratePlanId(), req.roomTypeId(), convertirLote(req.noches()));
+      return ResponseEntity.ok(Map.of("lista", previa.lista(), "filas", filasJson(previa, req.noches())));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  /**
+   * Aplica un lote de noches en una sola transacción: una fila inválida revierte todo y la
+   * respuesta 400 trae el motivo por fila. Lo omitido se conserva, incluido el cierre.
+   */
+  @PostMapping("/api/admin/tarifas/lote")
+  public ResponseEntity<?> aplicarLote(@RequestBody LoteReq req) {
+    if (req == null || req.ratePlanId() == null || req.roomTypeId() == null || req.noches() == null)
+      return ResponseEntity.badRequest()
+        .body(Map.of("error", "ratePlanId, roomTypeId y noches son obligatorios"));
+    try {
+      var guardadas = tarifas.aplicarLote(req.ratePlanId(), req.roomTypeId(), convertirLote(req.noches()));
+      return ResponseEntity.status(201).body(Map.of("guardadas", guardadas.size(), "noches", guardadas));
+    } catch (TarifaService.LoteRechazadoException e) {
+      return ResponseEntity.badRequest()
+        .body(Map.of("error", e.getMessage(), "filas", filasJson(e.previa(), req.noches())));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  /** Convierte las filas del lote; una fecha mal escrita es error de su fila, no de la petición. */
+  private static java.util.List<TarifaService.CambioNoche> convertirLote(
+      java.util.List<NocheLoteReq> noches) {
+    var cambios = new java.util.ArrayList<TarifaService.CambioNoche>(noches.size());
+    for (var n : noches) {
+      LocalDate fecha = null;
+      if (n.fecha() != null && !n.fecha().isBlank()) {
+        try {
+          fecha = LocalDate.parse(n.fecha().trim());
+        } catch (DateTimeParseException e) {
+          fecha = null;
+        }
+      }
+      cambios.add(new TarifaService.CambioNoche(fecha, n.precioCents(), n.minEstancia(),
+        n.maxEstancia(), n.cerrado()));
+    }
+    return cambios;
+  }
+
+  /** Detalle por fila para la previa y el rechazo: si la fecha no parseó, se muestra la cruda. */
+  private static java.util.List<Map<String, Object>> filasJson(TarifaService.PreviaLote previa,
+      java.util.List<NocheLoteReq> pedidas) {
+    var filas = new java.util.ArrayList<Map<String, Object>>(previa.filas().size());
+    for (int i = 0; i < previa.filas().size(); i++) {
+      var f = previa.filas().get(i);
+      Map<String, Object> fila = new java.util.LinkedHashMap<>();
+      String cruda = i < pedidas.size() && pedidas.get(i).fecha() != null ? pedidas.get(i).fecha() : "";
+      fila.put("fecha", f.fecha() != null ? f.fecha().toString() : cruda);
+      fila.put("valida", f.valida());
+      if (f.valida()) {
+        fila.put("precioCents", f.precioCents());
+        fila.put("cerrado", f.cerrado());
+        fila.put("nueva", f.nueva());
+      } else {
+        fila.put("motivo", f.motivo());
+      }
+      filas.add(fila);
+    }
+    return filas;
   }
 
   /** Bloqueos vigentes con su motivo, para gestionarlos desde el panel. */

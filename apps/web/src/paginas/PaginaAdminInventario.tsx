@@ -9,6 +9,8 @@ type Habitacion = { id: number; codigo: string; roomTypeId: number; nombre: stri
 type Tipo = { id: number; codigo: string; nombre: string; capacidadMax: number };
 type Plan = { id: number; codigo: string; nombre: string; moneda: string; descuentoPct: number };
 type Noche = { fecha: string; precioCents: number; minEstancia: number | null; maxEstancia: number | null; cerrado: boolean };
+type FilaPrevia = { fecha: string; valida: boolean; motivo?: string; precioCents?: number; cerrado?: boolean; nueva?: boolean };
+type PreviaLote = { lista: boolean; filas: FilaPrevia[] };
 
 /** Monedas que el hotel puede usar en sus planes. El backend acepta cualquier ISO 4217;
  * esta lista cerrada es para no escribir COP como "cop", "Cop" o "COL" en un campo abierto. */
@@ -130,6 +132,10 @@ export function PaginaAdminInventario() {
   const [noches, setNoches] = useState<Map<string, Noche>>(new Map());
   const [borrador, setBorrador] = useState<Record<string, string>>({});
   const [cerradas, setCerradas] = useState<Record<string, boolean>>({});
+  /** Previa del lote: lo que se guardaría al confirmar, sin haber escrito nada todavía. */
+  const [previa, setPrevia] = useState<PreviaLote | null>(null);
+  /** Al confirmar, las noches se releen para mostrar lo guardado de verdad, no el borrador. */
+  const [versionTarifas, setVersionTarifas] = useState(0);
 
   async function cargar() {
     setCargando(true);
@@ -169,8 +175,10 @@ export function PaginaAdminInventario() {
       setNoches(new Map());
       setBorrador({});
       setCerradas({});
+      setPrevia(null);
       return;
     }
+    setPrevia(null);
     void api
       .get<Noche[]>(`/api/admin/tarifas?planId=${tarifas.planId}&tipoId=${tarifas.tipoId}&desde=${desde}&hasta=${hasta}`)
       .then((lista) => {
@@ -180,7 +188,29 @@ export function PaginaAdminInventario() {
         setCerradas(Object.fromEntries(lista.map((n) => [n.fecha, n.cerrado])));
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'No se pudieron leer las tarifas'));
-  }, [tarifas.planId, tarifas.tipoId, mesTarifas]);
+  }, [tarifas.planId, tarifas.tipoId, mesTarifas, versionTarifas]);
+
+  /** Noches que cambiaron en el borrador, listas para la previa o el lote. */
+  function cambiosDelMes() {
+    return diasDelMes(mesTarifas)
+      .filter((dia) => {
+        const guardado = noches.get(dia);
+        const texto = (borrador[dia] ?? '').trim();
+        const centimos = texto === '' ? null : Math.round(Number(texto) * 100);
+        const cerrado = cerradas[dia] ?? false;
+        if (centimos === null) return guardado !== undefined;
+        if (Number.isNaN(centimos)) return false;
+        return guardado?.precioCents !== centimos || guardado?.cerrado !== cerrado;
+      })
+      .map((dia) => {
+        const texto = (borrador[dia] ?? '').trim();
+        return {
+          fecha: dia,
+          precioCents: texto === '' ? 0 : Math.round(Number(texto) * 100),
+          cerrado: cerradas[dia] ?? false,
+        };
+      });
+  }
 
   async function accion<T>(tarea: () => Promise<T>) {
     setError(null);
@@ -743,38 +773,26 @@ export function PaginaAdminInventario() {
         </div>
 
         {tarifas.planId && tarifas.tipoId ? (
+          <>
           <form
             className="tarjeta pila"
             onSubmit={(e) => {
               e.preventDefault();
-              const dias = diasDelMes(mesTarifas);
-              const planId = Number(tarifas.planId);
-              const tipoId = Number(tarifas.tipoId);
-              const cambios = dias.filter((dia) => {
-                const guardado = noches.get(dia);
-                const texto = (borrador[dia] ?? '').trim();
-                const centimos = texto === '' ? null : Math.round(Number(texto) * 100);
-                const cerrado = cerradas[dia] ?? false;
-                if (centimos === null) return guardado !== undefined;
-                if (Number.isNaN(centimos)) return false;
-                return guardado?.precioCents !== centimos || guardado?.cerrado !== cerrado;
-              });
+              const cambios = cambiosDelMes();
               if (cambios.length === 0) {
                 setError('No hay cambios que guardar.');
                 return;
               }
-              void accion(async () => {
-                for (const dia of cambios) {
-                  const centimos = Math.round(Number((borrador[dia] ?? '').trim()) * 100);
-                  await api.post('/api/admin/tarifas', {
-                    ratePlanId: planId,
-                    roomTypeId: tipoId,
-                    fecha: dia,
-                    precioCents: centimos,
-                    cerrado: cerradas[dia] ?? false,
-                  });
-                }
-              });
+              setError(null);
+              setPrevia(null);
+              void api
+                .post<PreviaLote>('/api/admin/tarifas/lote/preview', {
+                  ratePlanId: Number(tarifas.planId),
+                  roomTypeId: Number(tarifas.tipoId),
+                  noches: cambios,
+                })
+                .then(setPrevia)
+                .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo previsualizar'));
             }}
           >
             <div className="tabla-envoltura">
@@ -833,9 +851,83 @@ export function PaginaAdminInventario() {
               </table>
             </div>
             <button className="boton boton--primario no-estirar" type="submit">
-              Guardar precios del mes
+              Revisar cambios
             </button>
           </form>
+
+          {previa ? (
+            <div className="tarjeta pila mt-e6" role="region" aria-label="Previa del lote">
+              <h3 className="t-lg mb-0">Revisa antes de guardar</h3>
+              <p className="campo__ayuda sin-margen">
+                {previa.filas.length} noches. Si una falla, no se guarda ninguna.
+              </p>
+              <div className="tabla-envoltura">
+                <table className="tabla">
+                  <caption>Cambios que se guardarán al confirmar</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Noche</th>
+                      <th scope="col">Antes</th>
+                      <th scope="col">Después</th>
+                      <th scope="col">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previa.filas.map((f) => {
+                      const guardada = noches.get(f.fecha);
+                      return (
+                        <tr key={f.fecha} className={f.valida ? undefined : 'previa-fila--invalida'}>
+                          <th scope="row" className="cifra">{fechaCorta(f.fecha)}</th>
+                          <td className="cifra">{guardada ? String(guardada.precioCents / 100) : '—'}</td>
+                          <td className="cifra">
+                            {f.valida && f.precioCents !== undefined ? String(f.precioCents / 100) : '—'}
+                          </td>
+                          <td>
+                            {f.valida ? (
+                              <Etiqueta tono={f.nueva ? 'info' : 'exito'}>
+                                {f.nueva ? 'Nueva' : 'Cambia'}
+                              </Etiqueta>
+                            ) : (
+                              <span className="campo__error">{f.motivo}</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="asistente__navegacion">
+                <button className="boton boton--secundario" type="button" onClick={() => setPrevia(null)}>
+                  Corregir
+                </button>
+                <button
+                  className="boton boton--primario no-estirar"
+                  type="button"
+                  disabled={!previa.lista}
+                  title={!previa.lista ? 'Corrige las filas con error: si una falla, no se guarda ninguna' : undefined}
+                  onClick={() => {
+                    setError(null);
+                    void api
+                      .post('/api/admin/tarifas/lote', {
+                        ratePlanId: Number(tarifas.planId),
+                        roomTypeId: Number(tarifas.tipoId),
+                        noches: cambiosDelMes(),
+                      })
+                      .then(() => {
+                        setPrevia(null);
+                        setVersionTarifas((v) => v + 1);
+                        void cargar();
+                      })
+                      .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo guardar el lote'));
+                  }}
+                >
+                  Confirmar y guardar {previa.filas.length} noches
+                </button>
+              </div>
+            </div>
+          ) : null}
+          </>
         ) : (
           <p className="campo__ayuda">Selecciona un plan y un tipo de habitación para ver el mes.</p>
         )}

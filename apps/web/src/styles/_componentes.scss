@@ -1064,3 +1064,8 @@
     margin-top: $e-4;
   }
 }
+
+// --- Previa del lote de tarifas: la fila que impide guardar se ve, no solo se dice ---
+.previa-fila--invalida {
+  background: $error-tenue;
+}

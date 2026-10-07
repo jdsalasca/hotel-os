@@ -250,6 +250,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   nombre nulo, tipo inexistente, estado inválido y moneda no-ISO son 400 en español sin
   escribir nada; `cop` se normaliza a `COP`. El panel guía en 4 pasos con foco y
   `aria-current`. Evidencia: `docs/evidence/round-66/verificacion.md`.
+- [x] **Ronda 67 - Edición masiva de tarifas con preview (cierra Etapa C).**
+  `POST /api/admin/tarifas/lote/preview` (200, sin escribir) y `/lote` (201 o 400 con
+  detalle por fila, atómico). El panel revisa Antes/Después y confirma; al guardar
+  relee del servidor. Evidencia: `docs/evidence/round-67/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

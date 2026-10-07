@@ -527,6 +527,76 @@ class InventarioServiceTest {
     assertTrue(ex.getMessage().contains("FLEX"));
   }
 
+  @Test
+  @DisplayName("un lote con una fila inválida no escribe nada: ni la válida se guarda")
+  void loteConFilaInvalidaNoEscribeNada() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("FLEX", "Flexible", "COP");
+    var cambios = java.util.List.of(
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-01"), 10000L, null, null, null),
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-02"), 10000L, 0, null, null));
+    assertThrows(DatosInvalidosException.class, () -> tarifas.aplicarLote(plan.id(), tipo.id(), cambios));
+    assertTrue(tarifas.nocheDe(plan.id(), tipo.id(), LocalDate.parse("2026-11-01")).isEmpty(),
+      "la fila válida tampoco se guardó: el lote es atómico");
+  }
+
+  @Test
+  @DisplayName("un lote válido guarda todas las noches en una sola operación")
+  void loteValidoGuardaTodo() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("FLEX", "Flexible", "COP");
+    var guardadas = tarifas.aplicarLote(plan.id(), tipo.id(), java.util.List.of(
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-01"), 10000L, null, null, null),
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-02"), 12000L, 2, null, null),
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-03"), 12000L, null, null, true)));
+    assertEquals(3, guardadas.size());
+    assertEquals(12000L, tarifas.nocheDe(plan.id(), tipo.id(), LocalDate.parse("2026-11-02")).orElseThrow().precioCents());
+    assertTrue(tarifas.nocheDe(plan.id(), tipo.id(), LocalDate.parse("2026-11-03")).orElseThrow().cerrado());
+  }
+
+  @Test
+  @DisplayName("la previa no escribe: valida y reporta por fila")
+  void previaNoEscribe() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("FLEX", "Flexible", "COP");
+    var previa = tarifas.previsualizarLote(plan.id(), tipo.id(), java.util.List.of(
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-01"), 10000L, null, null, null),
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-02"), 10000L, 0, null, null)));
+    assertFalse(previa.lista());
+    assertEquals(2, previa.filas().size());
+    assertTrue(previa.filas().get(0).valida());
+    assertFalse(previa.filas().get(1).valida());
+    assertTrue(previa.filas().get(1).motivo().contains("mínima"));
+    assertTrue(tarifas.nocheDe(plan.id(), tipo.id(), LocalDate.parse("2026-11-01")).isEmpty(),
+      "la previa no guarda nada");
+  }
+
+  @Test
+  @DisplayName("un lote vacío o desmedido se rechaza sin tocar nada")
+  void loteVacioODesmedidoSeRechaza() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("FLEX", "Flexible", "COP");
+    assertThrows(DatosInvalidosException.class,
+      () -> tarifas.aplicarLote(plan.id(), tipo.id(), java.util.List.of()));
+    var enorme = new java.util.ArrayList<TarifaService.CambioNoche>();
+    for (int i = 0; i < 400; i++)
+      enorme.add(new TarifaService.CambioNoche(LocalDate.parse("2026-01-01").plusDays(i), 10000L, null, null, null));
+    assertThrows(DatosInvalidosException.class, () -> tarifas.aplicarLote(plan.id(), tipo.id(), enorme));
+  }
+
+  @Test
+  @DisplayName("el lote conserva el cierre al cambiar solo el precio de una noche cerrada")
+  void loteConservaCierreAlCambiarPrecio() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("FLEX", "Flexible", "COP");
+    tarifas.fijarNoche(plan.id(), tipo.id(), LocalDate.parse("2026-11-01"), 10000L, null, null, true);
+    tarifas.aplicarLote(plan.id(), tipo.id(), java.util.List.of(
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-01"), 15000L, null, null, null)));
+    var noche = tarifas.nocheDe(plan.id(), tipo.id(), LocalDate.parse("2026-11-01")).orElseThrow();
+    assertEquals(15000L, noche.precioCents());
+    assertTrue(noche.cerrado(), "cambiar el precio no reabre la noche");
+  }
+
   private InventarioService.OcupacionHabitacion porCodigo(
       java.util.List<InventarioService.OcupacionHabitacion> calendario, String codigo) {
     return calendario.stream().filter(c -> codigo.equals(c.codigo())).findFirst().orElseThrow();
