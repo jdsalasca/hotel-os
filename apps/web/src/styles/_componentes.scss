@@ -1004,3 +1004,63 @@
   border-radius: $radio;
   display: inline-block;
 }
+
+// --- Asistente de alta: el hotelero avanza por pasos en vez de cinco formularios sueltos ---
+.asistente {
+  @include tarjeta;
+  padding: $e-5;
+
+  &__progreso {
+    list-style: none;
+    margin: $e-4 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: $e-2;
+  }
+
+  &__paso {
+    display: inline-flex;
+    align-items: center;
+    gap: $e-2;
+    padding: $e-2 $e-3;
+    font-size: $texto-sm;
+    font-weight: $peso-medio;
+    color: $tinta-suave;
+    background: #fff;
+    border: 1px solid $borde-fuerte;
+    border-radius: $radio-full;
+    cursor: pointer;
+    @include focusable;
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    &--actual {
+      color: #fff;
+      background: $teja;
+      border-color: $teja;
+    }
+  }
+
+  &__numero {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    font-weight: $peso-fuerte;
+    border: 1px solid currentcolor;
+  }
+
+  &__navegacion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $e-3;
+    margin-top: $e-4;
+  }
+}

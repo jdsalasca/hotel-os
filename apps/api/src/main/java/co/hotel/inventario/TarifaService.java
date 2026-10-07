@@ -33,11 +33,23 @@ public class TarifaService {
   public PlanTarifario crearPlan(String codigo, String nombre, String moneda, int descuentoPct) {
     if (codigo == null || codigo.isBlank()) throw new DatosInvalidosException("código de plan requerido");
     if (nombre == null || nombre.isBlank()) throw new DatosInvalidosException("nombre de plan requerido");
-    if (moneda == null || !moneda.matches("[A-Z]{3}"))
+    String iso = moneda == null ? "" : moneda.trim().toUpperCase();
+    try {
+      java.util.Currency.getInstance(iso);
+    } catch (IllegalArgumentException e) {
       throw new DatosInvalidosException("moneda inválida: use el código ISO 4217, p.ej. COP");
+    }
     validarDescuento(descuentoPct);
-    return repo.planPorId(repo.insertarPlan(codigo.trim(), nombre.trim(), moneda.trim(), descuentoPct))
-      .orElseThrow(() -> new DatosInvalidosException("no se pudo crear el plan"));
+    String cod = codigo.trim();
+    try {
+      return repo.planPorId(repo.insertarPlan(cod, nombre.trim(), iso, descuentoPct))
+        .orElseThrow(() -> new DatosInvalidosException("no se pudo crear el plan"));
+    } catch (org.springframework.dao.DataAccessException e) {
+      for (Throwable t = e; t != null; t = t.getCause())
+        if (t.getMessage() != null && t.getMessage().contains("UNIQUE"))
+          throw new DatosInvalidosException("ya existe un plan con el código " + cod);
+      throw e;
+    }
   }
 
   /** Cambia el descuento de un plan existente. Las reservas ya guardadas no se tocan. */

@@ -38,6 +38,7 @@ public class InventarioAdminController {
 
   @PostMapping("/api/admin/tipos")
   public ResponseEntity<?> crearTipo(@RequestBody TipoReq req) {
+    if (req == null) return ResponseEntity.badRequest().body(Map.of("error", "cuerpo requerido"));
     return ok(() -> inventario.crearTipo(req.codigo(), req.nombre(),
       req.capacidadMax() == null ? 0 : req.capacidadMax()));
   }
@@ -47,6 +48,7 @@ public class InventarioAdminController {
 
   @PostMapping("/api/admin/habitaciones")
   public ResponseEntity<?> crearHabitacion(@RequestBody HabitacionReq req) {
+    if (req == null) return ResponseEntity.badRequest().body(Map.of("error", "cuerpo requerido"));
     if (req.roomTypeId() == null) return ResponseEntity.badRequest().body(Map.of("error", "roomTypeId requerido"));
     return ok(() -> inventario.crearHabitacion(req.codigo(), req.roomTypeId(), req.nombre()));
   }
@@ -56,11 +58,20 @@ public class InventarioAdminController {
 
   @PostMapping("/api/admin/habitaciones/{id}/estado")
   public ResponseEntity<?> cambiarEstado(@PathVariable long id, @RequestBody EstadoReq req) {
-    return ok(() -> inventario.cambiarEstado(id, EstadoHabitacion.valueOf(req.estado().toUpperCase())));
+    if (req == null || req.estado() == null || req.estado().isBlank())
+      return ResponseEntity.badRequest().body(Map.of("error", "estado inválido: use ACTIVA o FUERA_DE_SERVICIO"));
+    final EstadoHabitacion nuevo;
+    try {
+      nuevo = EstadoHabitacion.valueOf(req.estado().trim().toUpperCase());
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "estado inválido: use ACTIVA o FUERA_DE_SERVICIO"));
+    }
+    return ok(() -> inventario.cambiarEstado(id, nuevo));
   }
 
   @PostMapping("/api/admin/planes")
   public ResponseEntity<?> crearPlan(@RequestBody PlanReq req) {
+    if (req == null) return ResponseEntity.badRequest().body(Map.of("error", "cuerpo requerido"));
     return ok(() -> tarifas.crearPlan(req.codigo(), req.nombre(), req.moneda(),
       req.descuentoPct() == null ? 0 : req.descuentoPct()));
   }

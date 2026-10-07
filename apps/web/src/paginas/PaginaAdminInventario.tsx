@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
@@ -81,6 +81,18 @@ export function PaginaAdminInventario() {
   const [catalogoServicios, setCatalogoServicios] = useState<Amenidad[] | null>(null);
   const [tipoServicios, setTipoServicios] = useState('');
   const [marcados, setMarcados] = useState<number[]>([]);
+
+  /** Alta guiada: el hotelero avanza 1 Tipo → 2 Habitación → 3 Servicios → 4 Plan. */
+  const [paso, setPaso] = useState(1);
+  const tituloPaso = useRef<HTMLHeadingElement>(null);
+  const primerPaso = useRef(true);
+  useEffect(() => {
+    if (primerPaso.current) {
+      primerPaso.current = false;
+      return;
+    }
+    tituloPaso.current?.focus();
+  }, [paso]);
 
   useEffect(() => {
     void api
@@ -189,6 +201,14 @@ export function PaginaAdminInventario() {
     filasCalendario.map((fila) => [fila.id, new Map(fila.noches.map((noche) => [noche.fecha, noche]))]),
   );
   const nochesCalendario = filasCalendario.flatMap((fila) => fila.noches);
+  const hayTipos = (tipos?.length ?? 0) > 0;
+  const PASOS = [
+    { n: 1, titulo: 'Tipo de habitación', deshabilitado: false },
+    { n: 2, titulo: 'Habitaciones', deshabilitado: !hayTipos },
+    { n: 3, titulo: 'Servicios del tipo', deshabilitado: !hayTipos },
+    { n: 4, titulo: 'Plan tarifario', deshabilitado: false },
+  ];
+  const puedeAvanzar = paso < 4 && !PASOS[paso]?.deshabilitado;
   const ocupadasMes = nochesCalendario.filter((noche) => noche.estado === 'OCUPADA').length;
   const bloqueadasMes = nochesCalendario.filter((noche) => noche.estado === 'BLOQUEADA').length;
   const noVendiblesMes = nochesCalendario.filter(
@@ -353,7 +373,32 @@ export function PaginaAdminInventario() {
           <p className="campo__ayuda">No hay habitaciones registradas todavía.</p>
         )}
 
-        <div className="rejilla mt-e6">
+        <section className="asistente mt-e6" aria-label="Alta guiada del inventario">
+          <h2 className="t-xl">Alta del hotel, paso a paso</h2>
+          <p className="seccion__intro mb-0">
+            Primero el tipo, luego sus habitaciones y servicios, y al final el plan con el que se
+            venden. Sin plan y sin precios, la web no muestra habitaciones.
+          </p>
+          <ol className="asistente__progreso">
+            {PASOS.map((p) => (
+              <li key={p.n}>
+                <button
+                  type="button"
+                  className={`asistente__paso${p.n === paso ? ' asistente__paso--actual' : ''}`}
+                  aria-current={p.n === paso ? 'step' : undefined}
+                  disabled={p.deshabilitado}
+                  title={p.deshabilitado ? 'Primero crea un tipo de habitación' : undefined}
+                  onClick={() => setPaso(p.n)}
+                >
+                  <span aria-hidden="true" className="asistente__numero">{p.n}</span> {p.titulo}
+                </button>
+              </li>
+            ))}
+          </ol>
+          <h3 ref={tituloPaso} tabIndex={-1} className="t-lg">
+            Paso {paso}: {PASOS[paso - 1]?.titulo}
+          </h3>
+          {paso === 1 ? (
           <form
             className="tarjeta pila"
             onSubmit={(e) => {
@@ -389,7 +434,8 @@ export function PaginaAdminInventario() {
             </div>
             <button className="boton boton--primario" type="submit">Crear tipo</button>
           </form>
-
+          ) : null}
+          {paso === 2 ? (
           <form
             className="tarjeta pila"
             onSubmit={(e) => {
@@ -432,7 +478,8 @@ export function PaginaAdminInventario() {
               Crear habitación
             </button>
           </form>
-
+          ) : null}
+          {paso === 3 ? (
           <form
             className="tarjeta pila"
             onSubmit={(e) => {
@@ -482,48 +529,8 @@ export function PaginaAdminInventario() {
               Guardar servicios
             </button>
           </form>
-
-          <form
-            className="tarjeta pila"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void accion(() =>
-                api.post('/api/admin/bloqueos', {
-                  roomId: bloqueo.roomId ? Number(bloqueo.roomId) : null,
-                  desde: bloqueo.desde,
-                  hasta: bloqueo.hasta,
-                  motivo: bloqueo.motivo,
-                }),
-              );
-            }}
-          >
-            <h2 className="t-lg mb-0">Bloqueo de mantenimiento</h2>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="bloqueo-hab">Habitación</label>
-              <select id="bloqueo-hab" value={bloqueo.roomId} onChange={(e) => setBloqueo({ ...bloqueo, roomId: e.target.value })}>
-                <option value="">Todo el hotel</option>
-                {habitaciones?.map((h) => (
-                  <option key={h.id} value={h.id}>{h.codigo}</option>
-                ))}
-              </select>
-            </div>
-            <div className="campos">
-              <div className="campo">
-                <label className="campo__etiqueta" htmlFor="bloqueo-desde">Desde</label>
-                <input id="bloqueo-desde" type="date" required value={bloqueo.desde} onChange={(e) => setBloqueo({ ...bloqueo, desde: e.target.value })} />
-              </div>
-              <div className="campo">
-                <label className="campo__etiqueta" htmlFor="bloqueo-hasta">Hasta</label>
-                <input id="bloqueo-hasta" type="date" required value={bloqueo.hasta} onChange={(e) => setBloqueo({ ...bloqueo, hasta: e.target.value })} />
-              </div>
-            </div>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="bloqueo-motivo">Motivo</label>
-              <input id="bloqueo-motivo" value={bloqueo.motivo} onChange={(e) => setBloqueo({ ...bloqueo, motivo: e.target.value })} />
-            </div>
-            <button className="boton boton--primario" type="submit">Aplicar bloqueo</button>
-          </form>
-
+          ) : null}
+          {paso === 4 ? (
           <form
             className="tarjeta pila"
             onSubmit={(e) => {
@@ -578,6 +585,75 @@ export function PaginaAdminInventario() {
               />
             </div>
             <button className="boton boton--primario" type="submit">Crear plan</button>
+          </form>
+          ) : null}
+          <div className="asistente__navegacion">
+            <button
+              className="boton boton--secundario"
+              type="button"
+              disabled={paso === 1}
+              onClick={() => setPaso(paso - 1)}
+            >
+              Anterior
+            </button>
+            {paso < 4 ? (
+              <button
+                className="boton boton--primario"
+                type="button"
+                disabled={!puedeAvanzar}
+                title={!puedeAvanzar ? 'Primero crea un tipo de habitación' : undefined}
+                onClick={() => setPaso(paso + 1)}
+              >
+                Siguiente
+              </button>
+            ) : (
+              <span className="campo__ayuda sin-margen">
+                Con el plan creado, fija sus precios por noche más abajo.
+              </span>
+            )}
+          </div>
+        </section>
+
+        <div className="rejilla mt-e6">
+          <form
+            className="tarjeta pila"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void accion(() =>
+                api.post('/api/admin/bloqueos', {
+                  roomId: bloqueo.roomId ? Number(bloqueo.roomId) : null,
+                  desde: bloqueo.desde,
+                  hasta: bloqueo.hasta,
+                  motivo: bloqueo.motivo,
+                }),
+              );
+            }}
+          >
+            <h2 className="t-lg mb-0">Bloqueo de mantenimiento</h2>
+            <div className="campo">
+              <label className="campo__etiqueta" htmlFor="bloqueo-hab">Habitación</label>
+              <select id="bloqueo-hab" value={bloqueo.roomId} onChange={(e) => setBloqueo({ ...bloqueo, roomId: e.target.value })}>
+                <option value="">Todo el hotel</option>
+                {habitaciones?.map((h) => (
+                  <option key={h.id} value={h.id}>{h.codigo}</option>
+                ))}
+              </select>
+            </div>
+            <div className="campos">
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="bloqueo-desde">Desde</label>
+                <input id="bloqueo-desde" type="date" required value={bloqueo.desde} onChange={(e) => setBloqueo({ ...bloqueo, desde: e.target.value })} />
+              </div>
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="bloqueo-hasta">Hasta</label>
+                <input id="bloqueo-hasta" type="date" required value={bloqueo.hasta} onChange={(e) => setBloqueo({ ...bloqueo, hasta: e.target.value })} />
+              </div>
+            </div>
+            <div className="campo">
+              <label className="campo__etiqueta" htmlFor="bloqueo-motivo">Motivo</label>
+              <input id="bloqueo-motivo" value={bloqueo.motivo} onChange={(e) => setBloqueo({ ...bloqueo, motivo: e.target.value })} />
+            </div>
+            <button className="boton boton--primario" type="submit">Aplicar bloqueo</button>
           </form>
 
           {planes && planes.length > 0 ? (

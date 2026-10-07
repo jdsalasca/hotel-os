@@ -28,21 +28,46 @@ public class InventarioService {
 
   public RoomType crearTipo(String codigo, String nombre, int capacidadMax) {
     if (codigo == null || codigo.isBlank()) throw new DatosInvalidosException("código de tipo requerido");
+    if (nombre == null || nombre.isBlank()) throw new DatosInvalidosException("nombre de tipo requerido");
     if (capacidadMax < 1) throw new DatosInvalidosException("la capacidad debe ser al menos 1 huésped");
-    return tx.enTransaccion(estado -> {
-      long id = inventario.insertarTipo(codigo.trim(), nombre.trim(), capacidadMax);
-      return inventario.tipoPorId(id).orElseThrow();
-    });
+    String cod = codigo.trim();
+    String nom = nombre.trim();
+    try {
+      return tx.enTransaccion(estado -> {
+        long id = inventario.insertarTipo(cod, nom, capacidadMax);
+        return inventario.tipoPorId(id).orElseThrow();
+      });
+    } catch (org.springframework.dao.DataAccessException e) {
+      if (mensajeContiene(e, "UNIQUE"))
+        throw new DatosInvalidosException("ya existe un tipo con el código " + cod);
+      throw e;
+    }
   }
 
   public Habitacion crearHabitacion(String codigo, long tipoId, String nombre) {
     if (codigo == null || codigo.isBlank()) throw new DatosInvalidosException("código de habitación requerido");
+    if (inventario.tipoPorId(tipoId).isEmpty())
+      throw new DatosInvalidosException("tipo de habitación no encontrado");
     if (inventario.idPorCodigoHabitacion(codigo.trim()).isPresent())
       throw new DatosInvalidosException("ya existe una habitación con el código " + codigo.trim());
-    return tx.enTransaccion(estado -> {
-      long id = inventario.insertarHabitacion(codigo.trim(), tipoId, nombre == null ? "" : nombre.trim());
-      return inventario.habitacionPorId(id).orElseThrow();
-    });
+    try {
+      return tx.enTransaccion(estado -> {
+        long id = inventario.insertarHabitacion(codigo.trim(), tipoId, nombre == null ? "" : nombre.trim());
+        return inventario.habitacionPorId(id).orElseThrow();
+      });
+    } catch (org.springframework.dao.DataAccessException e) {
+      if (mensajeContiene(e, "UNIQUE"))
+        throw new DatosInvalidosException("ya existe una habitación con el código " + codigo.trim());
+      if (mensajeContiene(e, "FOREIGN KEY"))
+        throw new DatosInvalidosException("tipo de habitación no encontrado");
+      throw e;
+    }
+  }
+
+  private static boolean mensajeContiene(Exception e, String fragmento) {
+    for (Throwable t = e; t != null; t = t.getCause())
+      if (t.getMessage() != null && t.getMessage().contains(fragmento)) return true;
+    return false;
   }
 
   public Habitacion cambiarEstado(long habitacionId, EstadoHabitacion nuevo) {

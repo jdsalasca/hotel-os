@@ -480,6 +480,53 @@ class InventarioServiceTest {
       () -> svc.ocupacion(LocalDate.parse("2026-01-01"), LocalDate.parse("2030-01-01")));
   }
 
+  @Test
+  @DisplayName("un tipo sin nombre se rechaza con 400, no con NPE")
+  void tipoSinNombreSeRechaza() {
+    assertThrows(DatosInvalidosException.class, () -> svc.crearTipo("DOBLE", null, 2));
+    assertThrows(DatosInvalidosException.class, () -> svc.crearTipo("DOBLE", "   ", 2));
+  }
+
+  @Test
+  @DisplayName("un código de tipo repetido se rechaza con el código en el mensaje")
+  void codigoDeTipoRepetidoSeRechaza() {
+    svc.crearTipo("DOBLE", "Habitación doble", 2);
+    var ex = assertThrows(DatosInvalidosException.class,
+      () -> svc.crearTipo("DOBLE", "Otra doble", 2));
+    assertTrue(ex.getMessage().contains("DOBLE"));
+  }
+
+  @Test
+  @DisplayName("una habitación con tipo inexistente se rechaza, no deja huérfana ni 500")
+  void habitacionConTipoInexistenteSeRechaza() {
+    var ex = assertThrows(DatosInvalidosException.class,
+      () -> svc.crearHabitacion("101", 999999L, "Habitación 101"));
+    assertTrue(ex.getMessage().contains("tipo"));
+  }
+
+  @Test
+  @DisplayName("la moneda en minúsculas se normaliza a ISO mayúsculas")
+  void monedaEnMinusculasSeNormaliza() {
+    PlanTarifario plan = tarifas.crearPlan("FLEX", "Flexible", "cop");
+    assertEquals("COP", plan.moneda());
+  }
+
+  @Test
+  @DisplayName("una moneda que no es ISO se rechaza aunque tenga 3 letras")
+  void monedaNoIsoSeRechaza() {
+    assertThrows(DatosInvalidosException.class,
+      () -> tarifas.crearPlan("FLEX", "Flexible", "COL"));
+  }
+
+  @Test
+  @DisplayName("un código de plan repetido se rechaza con el código en el mensaje")
+  void codigoDePlanRepetidoSeRechaza() {
+    tarifas.crearPlan("FLEX", "Flexible", "COP");
+    var ex = assertThrows(DatosInvalidosException.class,
+      () -> tarifas.crearPlan("FLEX", "Otro flexible", "COP"));
+    assertTrue(ex.getMessage().contains("FLEX"));
+  }
+
   private InventarioService.OcupacionHabitacion porCodigo(
       java.util.List<InventarioService.OcupacionHabitacion> calendario, String codigo) {
     return calendario.stream().filter(c -> codigo.equals(c.codigo())).findFirst().orElseThrow();
