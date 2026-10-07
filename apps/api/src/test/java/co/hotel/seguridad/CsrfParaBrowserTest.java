@@ -4,7 +4,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import co.hotel.pruebas.HotelDePrueba;
 import java.nio.file.Files;
+import java.time.LocalDate;
 import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +53,8 @@ class CsrfParaBrowserTest {
   @DisplayName("el navegador recibe XSRF-TOKEN y puede escribir enviándolo de vuelta")
   void elNavegadorRecibeElTokenYEscribe() throws Exception {
     jdbc.update("INSERT OR IGNORE INTO rooms(codigo, estado, nombre) VALUES('101','ACTIVA','Habitación 101')");
+    // La reserva pública exige precio acordado; esta clase mide el token CSRF.
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2026-12-01"), LocalDate.parse("2026-12-13"));
 
     var respuesta = mvc.perform(get("/api/health")).andExpect(status().isOk()).andReturn();
     var cookie = java.util.Arrays.stream(respuesta.getResponse().getCookies())

@@ -50,8 +50,14 @@ public class ReservaService {
       }
 
       // El precio se congela con el inventario vigente en la transacción: si el hotel cambia las
-      // tarifas después, el comprobante sigue mostrando lo acordado. Sin tarifa, NULL.
+      // tarifas después, el comprobante sigue mostrando lo acordado. Y sin precio completo no hay
+      // reserva: ni la habitación retirada, ni la que no alcanza la capacidad, ni la noche sin
+      // tarifa están a la venta. Guardar NULL era vender sin importe.
       var precio = inventario.precioDe(datos.roomId(), datos.llegada(), datos.salida(), datos.huespedes());
+      if (precio.isEmpty()) {
+        throw new SinDisponibilidadException(
+          "la habitación no está a la venta para esas fechas y huéspedes");
+      }
       String codigo = generarCodigo();
       long id = repo.insertar(codigo, datos, clave,
         precio.map(InventarioService.PrecioAcordado::totalCents).orElse(null),

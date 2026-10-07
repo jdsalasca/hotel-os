@@ -60,9 +60,23 @@ public class ReservaController {
     try {
       LocalDate llegada = LocalDate.parse(req.llegada());
       LocalDate salida = LocalDate.parse(req.salida());
-      Long habitacion = req.roomId() != null ? req.roomId() : rooms.primeraDisponible(llegada, salida);
+      int h = req.huespedes() == null ? 0 : req.huespedes();
+      Long habitacion = req.roomId();
+      if (habitacion == null) {
+        // Sin habitación elegida se ofrece la primera vendible, no la primera libre: la libre
+        // sin precio o sin capacidad se rechaza igual en el servicio. Y cero huéspedes es un 400
+        // con su motivo, no un 409 que culpe a la disponibilidad.
+        if (h < 1) {
+          return ResponseEntity.badRequest().body(Map.of("error", "número de huéspedes inválido"));
+        }
+        habitacion = rooms.primeraDisponible(llegada, salida, h);
+        if (habitacion == null) {
+          return ResponseEntity.status(409).body(Map.of("error",
+            "no hay habitaciones a la venta para esas fechas y huéspedes"));
+        }
+      }
       var datos = new CrearReserva(req.email(), req.nombre(), llegada, salida,
-        req.huespedes() == null ? 0 : req.huespedes(), Origen.WEB, clave, habitacion);
+        h, Origen.WEB, clave, habitacion);
       String codigo = svc.crear(datos);
       // Si quien reserva tiene sesión de huésped, la reserva queda colgando de su cuenta para que
       // la vea en "Mis reservas". Si no, usuario_id queda NULL y sigue siendo consultable por

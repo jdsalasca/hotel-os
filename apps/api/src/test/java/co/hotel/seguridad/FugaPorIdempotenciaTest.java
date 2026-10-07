@@ -6,7 +6,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import co.hotel.pruebas.HotelDePrueba;
 import java.nio.file.Files;
+import java.time.LocalDate;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
@@ -59,6 +61,8 @@ class FugaPorIdempotenciaTest {
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('101','ACTIVA','Habitación 101')");
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('102','ACTIVA','Habitación 102')");
     }
+    // La reserva pública exige precio acordado; esta clase mide que la clave no filtre datos.
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2035-01-01"), LocalDate.parse("2036-01-01"));
   }
 
   private String reserva(Map<String, ?> cuerpo, String clave) throws Exception {

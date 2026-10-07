@@ -9,7 +9,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import co.hotel.pruebas.HotelDePrueba;
 import java.nio.file.Files;
+import java.time.LocalDate;
 import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,6 +66,8 @@ class AdminReservasControllerTest {
     if (jdbc.queryForObject("SELECT COUNT(*) FROM rooms", Integer.class) == 0) {
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('101','ACTIVA','Habitación 101')");
     }
+    // La reserva pública exige precio acordado; esta clase mide el panel, no las tarifas.
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-12-28"));
   }
 
   private String crearReserva(String email, String llegada, String salida) throws Exception {

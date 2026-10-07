@@ -8,7 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import co.hotel.pruebas.HotelDePrueba;
 import java.nio.file.Files;
+import java.time.LocalDate;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +64,8 @@ class AuditoriaAdminTest {
     if (jdbc.queryForObject("SELECT COUNT(*) FROM rooms", Integer.class) == 0) {
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('101','ACTIVA','Habitación 101')");
     }
+    // La reserva pública exige precio acordado; esta clase mide auditoría, no tarifas.
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2030-05-01"), LocalDate.parse("2030-05-04"));
   }
 
   @Test

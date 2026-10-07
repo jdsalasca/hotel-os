@@ -60,6 +60,14 @@ class ReservaServiceTest {
         hasta TEXT NOT NULL, motivo TEXT);
       INSERT INTO rooms(codigo, estado) VALUES('101','ACTIVA');
       INSERT INTO rooms(codigo, estado) VALUES('102','ACTIVA');
+      INSERT INTO room_types(codigo,nombre,capacidad_max) VALUES('DOBLE','Doble',2);
+      INSERT INTO rate_plans(codigo,nombre,moneda,activo) VALUES('STD','Estándar','COP',1);
+      UPDATE rooms SET room_type_id=1 WHERE codigo IN ('101','102');
+      INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,cerrado) VALUES
+        (1,1,'2026-11-01',150000,0),(1,1,'2026-11-02',150000,0),(1,1,'2026-11-03',150000,0),
+        (1,1,'2026-11-04',150000,0),(1,1,'2026-11-05',150000,0),(1,1,'2026-11-06',150000,0),
+        (1,1,'2026-12-01',150000,0),(1,1,'2026-12-02',150000,0),(1,1,'2026-12-03',150000,0),
+        (1,1,'2026-12-10',150000,0),(1,1,'2026-12-11',150000,0),(1,1,'2026-12-12',150000,0);
       """;
 
   private Path db;
@@ -233,19 +241,10 @@ class ReservaServiceTest {
   @DisplayName("precio acordado al reservar")
   class PrecioAcordado {
 
-    /** Habitación con tarifa completa: dos noches a 150.000 COP en el plan PES. */
+    /** Habitación con tarifa completa: dos noches a 150.000 COP en el plan STD del esquema. */
     private long habitacionTarifada() {
-      jdbc.update("INSERT INTO room_types(codigo,nombre,capacidad_max) VALUES('DOBLE','Doble',2)");
-      long tipo = jdbc.queryForObject("SELECT id FROM room_types WHERE codigo='DOBLE'", Long.class);
-      jdbc.update("INSERT INTO rate_plans(codigo,nombre,moneda,activo) VALUES('PES','Plan pesos','COP',1)");
-      long plan = jdbc.queryForObject("SELECT id FROM rate_plans WHERE codigo='PES'", Long.class);
-      jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('201',?,'ACTIVA')", tipo);
-      long room = jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='201'", Long.class);
-      jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,cerrado) VALUES(?,?,?,150000,0)",
-        plan, tipo, "2026-11-01");
-      jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,cerrado) VALUES(?,?,?,150000,0)",
-        plan, tipo, "2026-11-02");
-      return room;
+      jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('201',1,'ACTIVA')");
+      return jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='201'", Long.class);
     }
 
     @Test void guardaElTotalLaMonedaYElPlan() {
@@ -258,13 +257,36 @@ class ReservaServiceTest {
       assertNotNull(fila.get("rate_plan_id"), "el plan acordado queda registrado");
     }
 
-    @Test void sinTarifaGuardaNuloEnVezDeInventarUnPrecio() {
-      String codigo = crear("ana@example.com", "2026-11-01", "2026-11-03", 1);
+    @Test void sinTarifaCompletaSeRechazaSinConsumirInventario() {
+      jdbc.update("INSERT INTO rooms(codigo,estado) VALUES('103','ACTIVA')");
+      long room = jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='103'", Long.class);
+      var ex = assertThrows(SinDisponibilidadException.class,
+        () -> crear("ana@example.com", "2026-11-01", "2026-11-03", room));
+      assertTrue(ex.getMessage().contains("a la venta"),
+        "el motivo debe decir que no está a la venta, no un genérico: " + ex.getMessage());
+      assertEquals(0, contar("reservations"), "la reserva rechazada no debe quedar escrita");
+    }
 
-      var fila = jdbc.queryForMap("SELECT total_cents, moneda, rate_plan_id FROM reservations WHERE codigo=?", codigo);
-      assertNull(fila.get("total_cents"), "sin tarifa no hay total que guardar");
-      assertNull(fila.get("moneda"));
-      assertNull(fila.get("rate_plan_id"));
+    @Test void capacidadInsuficienteSeRechaza() {
+      jdbc.update("INSERT INTO room_types(codigo,nombre,capacidad_max) VALUES('IND','Individual',1)");
+      long tipo = jdbc.queryForObject("SELECT id FROM room_types WHERE codigo='IND'", Long.class);
+      jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('104',?,'ACTIVA')", tipo);
+      long room = jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='104'", Long.class);
+      jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,cerrado) VALUES(1,?, '2026-11-01',90000,0)", tipo);
+      jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,cerrado) VALUES(1,?, '2026-11-02',90000,0)", tipo);
+      var ex = assertThrows(SinDisponibilidadException.class,
+        () -> crear("dos@example.com", "2026-11-01", "2026-11-03", room));
+      assertTrue(ex.getMessage().contains("a la venta"),
+        "dos huéspedes no caben en una individual: " + ex.getMessage());
+      assertEquals(0, contar("reservations"));
+    }
+
+    @Test void habitacionRetiradaSeRechaza() {
+      jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('105',1,'FUERA_DE_SERVICIO')");
+      long room = jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='105'", Long.class);
+      assertThrows(SinDisponibilidadException.class,
+        () -> crear("ana@example.com", "2026-11-01", "2026-11-03", room));
+      assertEquals(0, contar("reservations"));
     }
   }
 

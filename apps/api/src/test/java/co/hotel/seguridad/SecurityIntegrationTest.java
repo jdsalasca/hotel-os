@@ -6,7 +6,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import co.hotel.pruebas.HotelDePrueba;
 import java.nio.file.Files;
+import java.time.LocalDate;
 import java.nio.file.Path;
 import java.util.Map;
 import tools.jackson.databind.ObjectMapper;
@@ -64,6 +66,8 @@ class SecurityIntegrationTest {
     if (jdbc.queryForObject("SELECT COUNT(*) FROM rooms", Integer.class) == 0) {
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('101','ACTIVA','Habitación 101')");
     }
+    // La reserva pública exige precio acordado; esta clase mide CSRF y autorización.
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-13"));
   }
 
   @Test

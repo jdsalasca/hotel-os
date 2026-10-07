@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import co.hotel.auditoria.AuditoriaRepository;
 import co.hotel.auditoria.AuditoriaService;
+import co.hotel.pruebas.HotelDePrueba;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -71,6 +72,10 @@ class EscaladoSqliteTest {
     try (var c = ds.getConnection(); var s = c.createStatement()) {
       for (String stmt : ESQUEMA.split(";")) if (!stmt.isBlank()) s.execute(stmt);
     }
+    // La reserva pública exige precio acordado; aquí se mide concurrencia y rendimiento.
+    var jdbc = new JdbcTemplate(ds);
+    HotelDePrueba.tarifarTodo(jdbc, java.time.LocalDate.parse("2026-01-01"), java.time.LocalDate.parse("2026-04-05"));
+    HotelDePrueba.tarifarTodo(jdbc, java.time.LocalDate.parse("2026-11-01"), java.time.LocalDate.parse("2026-11-06"));
     return ds;
   }
 
@@ -137,6 +142,7 @@ class EscaladoSqliteTest {
     JdbcTemplate jdbc = new JdbcTemplate(ds);
     for (int i = 2; i <= 10; i++)
       jdbc.update("INSERT INTO rooms(codigo,estado,nombre) VALUES(?,'ACTIVA',?)", String.valueOf(100 + i), "H" + i);
+    HotelDePrueba.tarifarTodo(jdbc, java.time.LocalDate.parse("2026-01-01"), java.time.LocalDate.parse("2026-04-05"));
 
     int reservas = 300;
     long inicio = System.nanoTime();

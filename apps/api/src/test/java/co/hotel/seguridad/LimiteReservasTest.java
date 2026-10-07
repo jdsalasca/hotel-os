@@ -6,7 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import co.hotel.pruebas.HotelDePrueba;
 import java.nio.file.Files;
+import java.time.LocalDate;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -66,6 +68,8 @@ class LimiteReservasTest {
     if (jdbc.queryForObject("SELECT COUNT(*) FROM rooms", Integer.class) == 0) {
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('101','ACTIVA','Habitación 101')");
     }
+    // La reserva pública exige precio acordado; esta clase mide el tope por IP.
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2030-01-01"), LocalDate.parse("2031-01-01"));
   }
 
   /** Fechas distintas por intento: si no, el bloqueo podría deberse al inventario y no al límite. */
