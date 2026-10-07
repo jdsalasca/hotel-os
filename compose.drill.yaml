@@ -1,0 +1,30 @@
+# Simulacro de respaldo y restauración en entorno aislado.
+#
+# Volúmenes y red propios del proyecto (-p hotel-drill): la base de desarrollo ni se toca.
+# Uso:
+#   docker compose -p hotel-drill -f compose.drill.yaml up -d api
+# Al terminar: docker compose -p hotel-drill -f compose.drill.yaml down -v
+# (el -v aquí solo borra los volúmenes del simulacro, que son desechables por diseño).
+
+services:
+  api:
+    build: ./apps/api
+    environment:
+      JDBC_URL: jdbc:sqlite:/data/hotel.sqlite3
+      HOTEL_AMBIENTE: drill
+      HOTEL_DEMO_ADMIN: "true"
+    volumes:
+      - drill-data:/data
+      - drill-backups:/backups
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health | grep -q '\"estado\":\"ok\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  drill-data:
+  drill-backups:

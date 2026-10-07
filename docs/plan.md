@@ -170,6 +170,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   sesión vencida mostraban `TypeError`, `SyntaxError` o el «Unauthorized» de Boot. Ahora hay
   mensajes legibles y el 401 trae motivo en español desde el entry point. Evidencia:
   `docs/evidence/round-42/verificacion.md`.
+- [x] **Ronda 43 - El simulacro de respaldo funciona de verdad.** Ciclo respaldo →
+  destrucción → restauración → app sirviendo, en proyecto aislado sin tocar desarrollo.
+  Hallazgo: no hay respaldos programados (siguiente ítem operativo). Evidencia:
+  `docs/evidence/round-43/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
