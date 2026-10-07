@@ -2,6 +2,7 @@ package co.hotel.reservas;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -474,6 +475,34 @@ class AdminReservasControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .content(json(Map.of("llegada", "2026-11-10", "salida", "2026-11-12"))))
       .andExpect(status().isConflict());
+  }
+
+  @Test
+  @DisplayName("el CSV de reservas trae cabecera, filas y fórmulas neutralizadas")
+  void csvReservasConCabeceraYFilas() throws Exception {
+    var escenario = habitacionTarifada("S" + System.nanoTime() % 100000);
+    String codigo = crearReservaEn("csv@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    var csv = mvc.perform(get("/api/admin/reservas.csv").with(ADMIN))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    assertTrue(csv.startsWith("codigo,"), "primera línea de cabecera");
+    assertTrue(csv.contains(codigo), "la reserva sale en el CSV");
+    assertTrue(csv.contains("csv@example.com"));
+  }
+
+  @Test
+  @DisplayName("el CSV respeta el filtro de estado y neutraliza el nombre del huésped")
+  void csvRespetaFiltroYNeutraliza() throws Exception {
+    var escenario = habitacionTarifada("T" + System.nanoTime() % 100000);
+    crearReservaEn("=MALO@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    var csv = mvc.perform(get("/api/admin/reservas.csv").with(ADMIN).param("estado", "PENDIENTE"))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    assertTrue(csv.contains("\"'=MALO@example.com\""), "el correo fórmula sale neutralizado");
+    assertFalse(csv.lines().anyMatch(l -> l.contains(",\"=MALO")),
+      "ninguna celda puede empezar por =");
   }
 
   @Test

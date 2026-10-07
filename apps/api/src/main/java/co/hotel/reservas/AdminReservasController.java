@@ -159,6 +159,44 @@ public class AdminReservasController {
       "huespedes", m.huespedes(), "habitacion", m.habitacion());
   }
 
+  /**
+   * La lista en CSV para trabajar fuera del panel: mismos filtros que la pantalla. Las celdas
+   * salen neutralizadas como en el resto de exportaciones.
+   */
+  @GetMapping(value = "/api/admin/reservas.csv", produces = "text/csv;charset=UTF-8")
+  public ResponseEntity<String> exportarCsv(@RequestParam(defaultValue = "200") int limite,
+                                           @RequestParam(required = false) String q,
+                                           @RequestParam(required = false) String estado) {
+    final EstadoReserva filtro;
+    try {
+      filtro = estado == null || estado.isBlank() ? null : EstadoReserva.valueOf(estado.toUpperCase());
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body("error,estado no válido: " + estado + "\n");
+    }
+    StringBuilder csv = new StringBuilder();
+    csv.append("codigo,email,nombre,llegada,salida,noches,huespedes,estado,origen,"
+      + "total_cents,moneda,creado_en\n");
+    for (Reserva r : svc.listar(q, filtro, limite)) {
+      csv.append(co.hotel.util.Csv.celda(r.codigo())).append(',')
+        .append(co.hotel.util.Csv.celda(r.email())).append(',')
+        .append(co.hotel.util.Csv.celda(r.nombre())).append(',')
+        .append(co.hotel.util.Csv.celda(r.llegada().toString())).append(',')
+        .append(co.hotel.util.Csv.celda(r.salida().toString())).append(',')
+        .append(r.noches()).append(',')
+        .append(r.huespedes()).append(',')
+        .append(co.hotel.util.Csv.celda(r.estado().name())).append(',')
+        .append(co.hotel.util.Csv.celda(r.origen().name())).append(',')
+        .append(r.totalCents() == null ? "" : r.totalCents()).append(',')
+        .append(co.hotel.util.Csv.celda(r.moneda())).append(',')
+        .append(co.hotel.util.Csv.celda(r.creadoEn()))
+        .append('\n');
+    }
+    return ResponseEntity.ok()
+      .header("Content-Disposition", "attachment; filename=reservas.csv")
+      .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
+      .body(csv.toString());
+  }
+
   private static Map<String, Object> fila(Reserva r) {
     return Map.ofEntries(
       Map.entry("codigo", r.codigo()),

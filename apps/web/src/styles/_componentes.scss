@@ -135,7 +135,7 @@
   align-items: end;
 
   @media (min-width: 48rem) {
-    grid-template-columns: 2fr 1fr auto;
+    grid-template-columns: 2fr 1fr auto auto;
   }
 }
 

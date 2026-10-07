@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api/cliente';
+import { api, urlApi } from '../api/cliente';
 import { fechaCorta, monto } from '../api/formato';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
@@ -101,6 +101,14 @@ export function PaginaAdminReservas() {
   useEffect(() => {
     void cargar();
   }, []);
+
+  /** Los mismos filtros de la pantalla, para que el CSV traiga lo que se ve. */
+  function filtrosUrl(): string {
+    const consulta = new URLSearchParams({ limit: '200' });
+    if (texto.trim() !== '') consulta.set('q', texto.trim());
+    if (estado !== '') consulta.set('estado', estado);
+    return consulta.toString();
+  }
 
   async function abrir(codigo: string) {
     setError(null);
@@ -229,6 +237,13 @@ export function PaginaAdminReservas() {
             </select>
           </div>
           <button className="boton boton--secundario" type="submit">Filtrar</button>
+          <a
+            className="boton boton--fantasma boton--chico"
+            href={urlApi(`/api/admin/reservas.csv?${filtrosUrl()}`)}
+            download="reservas.csv"
+          >
+            Descargar CSV
+          </a>
         </form>
 
         {cargando ? <Cargando /> : null}
