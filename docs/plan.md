@@ -230,8 +230,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   no navegaba y nadie mostraba la identidad: nuevo `GET /api/admin/sesion`, redirect a
   `/admin/reservas`, "Hola, {correo|nombre}" en la cabecera para admin y huésped. Evidencia:
   `docs/evidence/round-60/verificacion.md`.
-- [ ] **Ronda 61 - Mis reservas con estado de pago.** Saldo/abonos visibles por reserva del huésped.
-  En curso: backend con suma de vigentes + columnas Abonado/Pendiente y badge PAGADA.
+- [x] **Ronda 61 - Mis reservas con estado de pago.** `abonado_cents`/`pendiente_cents` por fila
+  (anulado excluido), columnas Abonado/Pendiente y badge PAGADA. Evidencia:
+  `docs/evidence/round-61/verificacion.md`.
 - [ ] **Ronda 62 - Habitaciones fáciles para el hotelero.** Alta guiada + checkboxes donde hoy hay
   campo abierto (servicios, monedas).
 - [ ] **Ronda 63 - GPS, distancias y mapa.** Ubicación del hotel, cercanía a sitios y panel de
