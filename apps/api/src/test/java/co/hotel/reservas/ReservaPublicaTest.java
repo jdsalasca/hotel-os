@@ -204,6 +204,57 @@ class ReservaPublicaTest {
   }
 
   @Test
+  @DisplayName("el huésped cancela su reserva con código y correo, y la habitación se libera")
+  void huespedCancelaSuReserva() throws Exception {
+    String codigo = reservar(cuerpo("cancela@example.com", "2026-11-13", "2026-11-15", 2, 1L));
+
+    var respuesta = mvc.perform(post("/api/reservas/" + codigo + "/cancelar").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("email", "cancela@example.com"))))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    assertEquals("CANCELADA", JSON.readTree(respuesta).get("estado").asText());
+
+    // La noche liberada se puede volver a vender: cancelar no es solo un dato.
+    var otra = cuerpo("otro@example.com", "2026-11-13", "2026-11-15", 2, 1L);
+    mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(otra)))
+      .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("con otro correo no se cancela nada: 404 sin distinguir el motivo")
+  void cancelarConOtroCorreoEs404() throws Exception {
+    String codigo = reservar(cuerpo("mia@example.com", "2026-11-16", "2026-11-18", 2, 1L));
+
+    mvc.perform(post("/api/reservas/" + codigo + "/cancelar").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("email", "ajeno@example.com"))))
+      .andExpect(status().isNotFound());
+
+    mvc.perform(post("/api/reservas/" + codigo + "/cancelar").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("email", "mia@example.com"))))
+      .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("cancelar dos veces es un 409, no un error ni un duplicado")
+  void dobleCancelacionEs409() throws Exception {
+    String codigo = reservar(cuerpo("dos@example.com", "2026-11-19", "2026-11-21", 2, 1L));
+    var cuerpo = Map.of("email", "dos@example.com");
+    mvc.perform(post("/api/reservas/" + codigo + "/cancelar").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(cuerpo)))
+      .andExpect(status().isOk());
+    mvc.perform(post("/api/reservas/" + codigo + "/cancelar").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(cuerpo)))
+      .andExpect(status().isConflict());
+  }
+
+  @Test
   @DisplayName("sin fechas: 400 con motivo, no un 500 por un nulo")
   void sinFechasEs400() throws Exception {
     var sinLlegada = cuerpo("sin@example.com", "2026-11-05", "2026-11-07", 2, 1L);

@@ -31,11 +31,16 @@ export function PaginaConsulta() {
   const [comprobante, setComprobante] = useState<Comprobante | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
+  const [cancelada, setCancelada] = useState(false);
 
   async function consultar(evento: React.FormEvent) {
     evento.preventDefault();
     setError(null);
     setComprobante(null);
+    setConfirmando(false);
+    setCancelada(false);
     setBuscando(true);
     try {
       const consulta = new URLSearchParams({ email });
@@ -46,6 +51,28 @@ export function PaginaConsulta() {
       setError('No encontramos una reserva con ese código y ese correo.');
     } finally {
       setBuscando(false);
+    }
+  }
+
+  /** Cancelar en dos pasos: el primero avisa, el segundo ejecuta. Sin vuelta atrás fingida. */
+  async function cancelar() {
+    if (!comprobante) return;
+    if (!confirmando) {
+      setConfirmando(true);
+      return;
+    }
+    setCancelando(true);
+    setError(null);
+    try {
+      await api.post(`/api/reservas/${comprobante.reserva.codigo}/cancelar`, { email });
+      setComprobante({ ...comprobante, reserva: { ...comprobante.reserva, estado: 'CANCELADA' } });
+      setCancelada(true);
+      setConfirmando(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo cancelar la reserva');
+      setConfirmando(false);
+    } finally {
+      setCancelando(false);
     }
   }
 
@@ -145,6 +172,27 @@ export function PaginaConsulta() {
             <button className="boton boton--secundario boton--chico no-estirar no-imprimir" type="button" onClick={() => window.print()}>
               Imprimir comprobante
             </button>
+            {cancelada ? (
+              <Aviso tono="exito" titulo="Reserva cancelada">
+                <p>La habitación vuelve a estar disponible. Si cambias de idea, haz una reserva nueva.</p>
+              </Aviso>
+            ) : (comprobante.reserva.estado === 'PENDIENTE' || comprobante.reserva.estado === 'CONFIRMADA') ? (
+              <>
+                {confirmando ? (
+                  <Aviso tono="aviso" titulo="¿Seguro que la cancelas?">
+                    <p>Se liberan tus fechas y tendrás que reservar de nuevo si cambias de idea.</p>
+                  </Aviso>
+                ) : null}
+                <button
+                  className={`boton ${confirmando ? 'boton--peligro' : 'boton--fantasma'} boton--chico no-estirar no-imprimir`}
+                  type="button"
+                  onClick={() => void cancelar()}
+                  disabled={cancelando}
+                >
+                  {cancelando ? 'Cancelando…' : confirmando ? 'Sí, cancelar mi reserva' : 'Cancelar esta reserva'}
+                </button>
+              </>
+            ) : null}
           </div>
         ) : null}
 

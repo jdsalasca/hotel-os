@@ -141,4 +141,29 @@ public class ReservaController {
     return ResponseEntity.status(429).body(Map.of("error",
       "demasiadas consultas seguidas desde esta conexión. Espera un minuto e inténtalo de nuevo."));
   }
+
+  public record CancelarReq(String email) {}
+
+  /**
+   * El huésped cancela su reserva con código y correo: la misma compuerta que la consulta, así
+   * que nadie cancela reservas ajenas adivinando el código. Solo viaja de PENDIENTE o
+   * CONFIRMADA a CANCELADA; lo cerrado no se toca. El actor queda en la auditoría con el
+   * prefijo de huésped para distinguirlo del personal.
+   */
+  @PostMapping("/api/reservas/{codigo}/cancelar")
+  public ResponseEntity<?> cancelar(@PathVariable String codigo, @RequestBody CancelarReq req,
+                                    HttpServletRequest peticion) {
+    if (!lecturas.permitir(peticion.getRemoteAddr())) return Demasiadas();
+    String email = req.email() == null ? "" : req.email().trim();
+    if (svc.consultar(codigo, email).isEmpty()) {
+      return ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada"));
+    }
+    try {
+      var cancelada = svc.cambiarEstado(codigo, EstadoReserva.CANCELADA, "huésped:" + email);
+      return ResponseEntity.ok(ReservaResp.de(cancelada,
+        "Reserva cancelada. Si tus planes cambian, aquí te esperamos."));
+    } catch (ExcepcionDeEstado e) {
+      return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+    }
+  }
 }
