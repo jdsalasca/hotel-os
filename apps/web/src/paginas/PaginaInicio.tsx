@@ -74,6 +74,21 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   const [buscado, setBuscado] = useState(false);
   const [detalles, setDetalles] = useState<Record<number, DetalleOferta>>({});
   const [servicios, setServicios] = useState<Record<number, string[]>>({});
+  const [mapa, setMapa] = useState<{
+    hotel: { ubicado: boolean; latitud?: number; longitud?: number };
+    lugares: { id: number; nombre: string; descripcion: string; latitud: number; longitud: number }[];
+  } | null>(null);
+
+  /** Mapa y distancias: una sola lectura; si el hotel no se ubicó, la sección no se muestra. */
+  useEffect(() => {
+    void api
+      .get<{
+        hotel: { ubicado: boolean; latitud?: number; longitud?: number };
+        lugares: { id: number; nombre: string; descripcion: string; latitud: number; longitud: number }[];
+      }>('/api/lugares')
+      .then((datos) => setMapa(datos))
+      .catch(() => setMapa(null));
+  }, []);
   const [detalleCargando, setDetalleCargando] = useState<Record<number, boolean>>({});
   const [detalleAbierto, setDetalleAbierto] = useState<Record<number, boolean>>({});
   const [mes, setMes] = useState(() => hoyIso().slice(0, 7));
@@ -152,6 +167,18 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       })
       .catch(() => setServicios({}));
   }, [ofertas]);
+
+/** Distancia en línea recta, en km con un decimal. Es orientación, no ruta: el "cómo
+ * llegar" abre el navegador con la ruta real. */
+function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hastaLng: number): number {
+  const rad = (g: number) => (g * Math.PI) / 180;
+  const dLat = rad(hastaLat - desdeLat);
+  const dLng = rad(hastaLng - desdeLng);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(rad(desdeLat)) * Math.cos(rad(hastaLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return Math.round(2 * 6371 * Math.asin(Math.sqrt(a)) * 10) / 10;
+}
 
   /** Desglose noche por noche de una oferta: el plan que la respalda y cada importe. */
   async function verDetalle(oferta: Oferta) {
@@ -334,6 +361,78 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
           </ol>
         </section>
       </div>
+
+      {mapa !== null &&
+      (mapa.hotel.ubicado || mapa.lugares.length > 0) ? (
+        <div className="centrado">
+          <section className="seccion" aria-labelledby="titulo-mapa">
+            <h2 id="titulo-mapa" className="seccion__titulo">
+              Encuéntranos y explora
+            </h2>
+            {mapa.hotel.ubicado &&
+            mapa.hotel.latitud !== undefined &&
+            mapa.hotel.longitud !== undefined ? (
+              <div className="mapa">
+                <iframe
+                  className="mapa__marco"
+                  title={`Mapa de ${nombreHotel}`}
+                  loading="lazy"
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${
+                    mapa.hotel.longitud - 0.03
+                  }%2C${mapa.hotel.latitud - 0.02}%2C${mapa.hotel.longitud + 0.03}%2C${
+                    mapa.hotel.latitud + 0.02
+                  }&layer=mapnik&marker=${mapa.hotel.latitud}%2C${mapa.hotel.longitud}`}
+                />
+                <ul className="mapa__lugares">
+                  {mapa.lugares.map((lugar) => (
+                    <li key={lugar.id} className="mapa__lugar">
+                      <div>
+                        <strong>{lugar.nombre}</strong>
+                        {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
+                        <span className="mapa__distancia">
+                          {' '}
+                          a {distanciaKm(
+                            mapa.hotel.latitud ?? 0,
+                            mapa.hotel.longitud ?? 0,
+                            lugar.latitud,
+                            lugar.longitud,
+                          )}{' '}
+                          km
+                        </span>
+                      </div>
+                      <a
+                        className="boton boton--fantasma boton--chico"
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${lugar.latitud},${lugar.longitud}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Cómo llegar
+                      </a>
+                    </li>
+                  ))}
+                  {mapa.lugares.length === 0 ? (
+                    <li className="campo__ayuda">
+                      El hotel ya marcó su punto; los sitios cercanos aparecen aquí cuando los
+                      agregue.
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+            ) : (
+              <ul className="mapa__lugares">
+                {mapa.lugares.map((lugar) => (
+                  <li key={lugar.id} className="mapa__lugar">
+                    <div>
+                      <strong>{lugar.nombre}</strong>
+                      {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      ) : null}
 
       <div className="centrado">
         <section className="seccion" aria-labelledby="titulo-buscar">

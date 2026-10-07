@@ -108,6 +108,7 @@ export const api = {
     peticion<T>(ruta, { method: 'POST', body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) }),
   put: <T>(ruta: string, cuerpo?: unknown) =>
     peticion<T>(ruta, { method: 'PUT', body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) }),
+  del: <T>(ruta: string) => peticion<T>(ruta, { method: 'DELETE' }),
 };
 
 /**

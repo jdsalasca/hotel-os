@@ -10,6 +10,7 @@ const CAMPOS: {
   clave: string;
   etiqueta: string;
   tipo?: string;
+  paso?: string;
   maxLength?: number;
   placeholder?: string;
   ayuda?: string;
@@ -56,6 +57,22 @@ const CAMPOS: {
     maxLength: 3,
     placeholder: 'COP',
     ayuda: 'Código ISO 4217 de tres letras.',
+  },
+  {
+    clave: 'latitud',
+    etiqueta: 'Latitud del hotel',
+    tipo: 'number',
+    paso: 'any',
+    placeholder: '5.65',
+    ayuda: 'Para el mapa: -90 a 90. Vacío = sin ubicar.',
+  },
+  {
+    clave: 'longitud',
+    etiqueta: 'Longitud del hotel',
+    tipo: 'number',
+    paso: 'any',
+    placeholder: '-73.52',
+    ayuda: 'Para el mapa: -180 a 180. Vacío = sin ubicar.',
   },
 ];
 
@@ -142,6 +159,7 @@ export function PaginaAdminHotel() {
                   <input
                     id={`hotel-${campo.clave}`}
                     type={campo.tipo ?? 'text'}
+                    step={campo.paso}
                     required={campo.clave === 'nombre'}
                     maxLength={campo.maxLength}
                     placeholder={campo.placeholder}

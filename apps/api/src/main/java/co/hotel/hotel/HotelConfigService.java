@@ -29,7 +29,9 @@ public class HotelConfigService {
     "hora_salida",
     "politica_cancelacion",
     "zona_horaria",
-    "moneda");
+    "moneda",
+    "latitud",
+    "longitud");
 
   /** Lo único que la web pública puede leer. Las claves internas nunca salen por aquí. */
   private static final Set<String> PUBLICAS = ADMINISTRABLES;
@@ -123,12 +125,30 @@ public class HotelConfigService {
           throw new ConfiguracionInvalidaException("moneda inválida: use el código ISO 4217, p. ej. COP");
         yield texto;
       }
+      case "latitud" -> {
+        yield coordenada(texto, -90, 90, "latitud inválida (-90 a 90)");
+      }
+      case "longitud" -> {
+        yield coordenada(texto, -180, 180, "longitud inválida (-180 a 180)");
+      }
       default -> throw new ConfiguracionInvalidaException("clave no administrable: " + clave);
     };
   }
 
-  private Map<String, String> filtrar(Map<String, String> valores, Set<String> claves) {
-    Map<String, String> filtrados = new LinkedHashMap<>();
+  /** Coordenada opcional para el mapa: vacía vale (hotel sin ubicar), el resto debe ser número. */
+  private static String coordenada(String texto, double minimo, double maximo, String mensaje) {
+    if (texto.isEmpty()) return texto;
+    try {
+      double valor = Double.parseDouble(texto);
+      if (!Double.isFinite(valor) || valor < minimo || valor > maximo)
+        throw new ConfiguracionInvalidaException(mensaje);
+    } catch (NumberFormatException e) {
+      throw new ConfiguracionInvalidaException(mensaje);
+    }
+    return texto;
+  }
+
+  private Map<String, String> filtrar(Map<String, String> valores, Set<String> claves) {    Map<String, String> filtrados = new LinkedHashMap<>();
     for (String clave : claves) {
       if (valores.containsKey(clave)) filtrados.put(clave, valores.get(clave));
     }

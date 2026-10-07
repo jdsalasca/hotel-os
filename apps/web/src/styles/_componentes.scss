@@ -581,6 +581,50 @@
   }
 }
 
+// --- Mapa: marco OpenStreetMap + sitios con distancia ---
+.mapa {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: $e-4;
+
+  &__marco {
+    width: 100%;
+    height: 22rem;
+    border: 1px solid $borde;
+    border-radius: $radio-sm;
+  }
+
+  &__lugares {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: $e-2;
+  }
+
+  &__lugar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $e-3;
+    @include tarjeta;
+    padding: $e-3 $e-4;
+
+    strong { display: inline; }
+    span { font-size: $texto-sm; color: $tinta-suave; }
+  }
+
+  &__distancia {
+    font-weight: $peso-medio;
+    color: $tinta;
+  }
+
+  @media (max-width: 50rem) {
+    grid-template-columns: 1fr;
+  }
+}
+
 // --- Portada: foto de Boyacá a todo ancho con el nombre, el propósito y las acciones ---
 .portada {
   position: relative;

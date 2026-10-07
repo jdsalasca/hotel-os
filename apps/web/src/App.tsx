@@ -14,6 +14,7 @@ import { PaginaAdminHotel } from './paginas/PaginaAdminHotel';
 import { PaginaAdminHoy } from './paginas/PaginaAdminHoy';
 import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
 import { PaginaAdminAuditoria } from './paginas/PaginaAdminAuditoria';
+import { PaginaAdminLugares } from './paginas/PaginaAdminLugares';
 import { PaginaMisReservas } from './paginas/PaginaMisReservas';
 import { PaginaPrivacidad } from './paginas/PaginaPrivacidad';
 import { PaginaTerminos } from './paginas/PaginaTerminos';
@@ -130,6 +131,7 @@ export function App() {
         <Route path="/admin/integraciones" element={<PaginaAdminIntegraciones />} />
         <Route path="/admin/indicadores" element={<PaginaAdminIndicadores />} />
         <Route path="/admin/auditoria" element={<PaginaAdminAuditoria />} />
+        <Route path="/admin/lugares" element={<PaginaAdminLugares />} />
       </Routes>
 
       <footer className="pie no-imprimir">
@@ -147,6 +149,7 @@ export function App() {
             <NavLink to="/admin/integraciones">Integraciones</NavLink>
             <NavLink to="/admin/indicadores">Indicadores</NavLink>
             <NavLink to="/admin/auditoria">Actividad</NavLink>
+            <NavLink to="/admin/lugares">Mapa</NavLink>
             {enPanel ? <CierreSesionPanel /> : null}
           </nav>
           <nav className="nav" aria-label="Información legal">

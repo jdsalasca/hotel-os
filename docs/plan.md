@@ -237,7 +237,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   (V13), checkboxes por tipo que reemplazan, moneda en select ISO y pastillas en las ofertas.
   Evidencia: `docs/evidence/round-62/verificacion.md`.
 - [ ] **Ronda 63 - GPS, distancias y mapa.** Ubicación del hotel, cercanía a sitios y panel de
-  lugares/experiencias.
+  lugares/experiencias. En curso: V14, CRUD admin, sección Encuéntranos con OSM.
 - [ ] **Ronda 64 - Chat huésped ↔ hotel.** Conversación por reserva con bandeja en el panel.
 - [ ] **Ronda 65 - El admin también reserva.** Entrar como huésped sin perder el panel.
 - [x] **Ronda 61 - Tarifas atómicas, núcleo (Etapa C).** `fijarNoche()` valida todo antes
