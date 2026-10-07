@@ -4,6 +4,7 @@ import { api, urlApi } from '../api/cliente';
 import { fechaCorta, monto } from '../api/formato';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
+import { HiloMensajes, type Mensaje } from '../componentes/HiloMensajes';
 
 type Estado = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'RECHAZADA';
 
@@ -398,8 +399,7 @@ export function PaginaAdminReservas() {
                 </form>
               </>
             )}
-            <h3 className="t-base mb-0">Historial</h3>
-            <ol className="pila gap-e1 lista-marcada">
+            <h3 className="t-base mb-0">Historial</h3>            <ol className="pila gap-e1 lista-marcada">
               {detalle.historial.map((h, i) => (
                 <li key={i} className="campo__ayuda">
                   {h.estado_ant ? `${h.estado_ant} → ` : 'creada como '}
@@ -408,6 +408,16 @@ export function PaginaAdminReservas() {
                 </li>
               ))}
             </ol>
+            <HiloMensajes
+              titulo="Conversación con el huésped"
+              ladoPropio="HOTEL"
+              cargar={() =>
+                api.get<{ mensajes: Mensaje[] }>(`/api/admin/reservas/${detalle.reserva.codigo}/mensajes`)
+              }
+              enviar={(texto) =>
+                api.post(`/api/admin/reservas/${detalle.reserva.codigo}/mensajes`, { texto }).then(() => undefined)
+              }
+            />
             {(detalle.reserva.estado === 'PENDIENTE' || detalle.reserva.estado === 'CONFIRMADA') && habitaciones ? (
               <form
                 className="campos"

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
 import { useSesionHuesped } from '../api/useSesionHuesped';
+import { HiloMensajes, type Mensaje } from '../componentes/HiloMensajes';
 import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
 
 type Reserva = {
@@ -32,6 +33,8 @@ export function PaginaMisReservas() {
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState<string | null>(null);
+  const [hiloAbierto, setHiloAbierto] = useState<string | null>(null);
+  const [nuevos, setNuevos] = useState<Record<string, number>>({});
 
   /** Cancelar en dos pasos por fila: el primero avisa, el segundo ejecuta con el correo de la sesión. */
   async function cancelar(codigo: string) {
@@ -59,6 +62,10 @@ export function PaginaMisReservas() {
       .get<{ reservas: Reserva[] }>('/api/mis-reservas')
       .then((datos) => setReservas(datos.reservas))
       .catch((e: Error) => setError(e.message));
+    api
+      .get<{ nuevos: number; porReserva: Record<string, number> }>('/api/mis-reservas/mensajes/nuevos')
+      .then((datos) => setNuevos(datos.porReserva ?? {}))
+      .catch(() => setNuevos({}));
   }, [sesion.haySesion]);
 
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
@@ -157,7 +164,14 @@ export function PaginaMisReservas() {
                     </Etiqueta>
                   </td>
                   <td data-label="Acciones">
-                    {(r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') ? (
+                    <button
+                      className="boton boton--fantasma boton--chico"
+                      type="button"
+                      onClick={() => setHiloAbierto((abierto) => (abierto === r.codigo ? null : r.codigo))}
+                      aria-expanded={hiloAbierto === r.codigo}
+                    >
+                      Mensajes{(nuevos[r.codigo] ?? 0) > 0 ? ` (${nuevos[r.codigo]})` : ''}
+                    </button>{' '}                    {(r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') ? (
                       <button
                         className={`boton boton--chico ${confirmando === r.codigo ? 'boton--peligro' : 'boton--fantasma'}`}
                         type="button"
@@ -175,6 +189,28 @@ export function PaginaMisReservas() {
               ))}
             </tbody>
           </table>
+        ) : null}
+
+        {hiloAbierto ? (
+          <div className="tarjeta pila mt-e6">
+            <HiloMensajes
+              titulo={`Conversación de ${hiloAbierto}`}
+              ladoPropio="HUESPED"
+              cargar={() => api.get<{ mensajes: Mensaje[] }>(`/api/mis-reservas/${hiloAbierto}/mensajes`)}
+              enviar={(texto) =>
+                api
+                  .post(`/api/mis-reservas/${hiloAbierto}/mensajes`, { texto })
+                  .then(() =>
+                    api
+                      .get<{ nuevos: number; porReserva: Record<string, number> }>(
+                        '/api/mis-reservas/mensajes/nuevos',
+                      )
+                      .then((datos) => setNuevos(datos.porReserva ?? {}))
+                      .catch(() => undefined),
+                  )
+              }
+            />
+          </div>
         ) : null}
 
         <p className="mt-e6">

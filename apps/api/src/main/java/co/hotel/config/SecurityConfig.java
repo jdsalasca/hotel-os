@@ -61,8 +61,9 @@ public class SecurityConfig {
         // vuelta con el código son peticiones sin sesión por definición.
         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
         // Lo del huésped con sesión: cada uno necesita su propia sesión para saber de quién es.
-        // ROLE_HUESPED no llega a /api/admin/**, que exige ROLE_ADMIN.
-        .requestMatchers("/api/yo", "/api/mis-reservas")
+        // ROLE_HUESPED no llega a /api/admin/**, que exige ROLE_ADMIN. El /** cubre los
+        // hilos de mensajes por reserva, que también son de su dueño y de nadie más.
+        .requestMatchers("/api/yo", "/api/mis-reservas", "/api/mis-reservas/**")
         .hasAnyRole("HUESPED", "ADMIN")
         .requestMatchers("/api/huesped/**").hasAnyRole("HUESPED", "ADMIN")
         .requestMatchers("/api/admin/**").hasRole("ADMIN")

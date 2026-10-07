@@ -1,0 +1,49 @@
+@use "tokens" as *;
+
+// --- Chat por reserva: hilo y caja de envío, igual en la web y en el panel ---
+.hilo {
+  display: flex;
+  flex-direction: column;
+  gap: $e-3;
+}
+
+.hilo__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $e-2;
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.hilo__mensaje {
+  max-width: 85%;
+  padding: $e-2 $e-3;
+  border-radius: $radio-sm;
+  background: $piedra-clara;
+  align-self: flex-start;
+
+  &--propio {
+    align-self: flex-end;
+    background: $teja;
+    color: #fff;
+  }
+}
+
+.hilo__meta {
+  display: block;
+  font-size: $texto-xs;
+  opacity: 0.8;
+  margin-top: $e-1;
+}
+
+.hilo__envio {
+  display: flex;
+  gap: $e-2;
+
+  input {
+    flex: 1;
+  }
+}

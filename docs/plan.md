@@ -240,6 +240,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   Encuéntranos con OSM + distancias + cómo llegar. Evidencia:
   `docs/evidence/round-63/verificacion.md`.
 - [ ] **Ronda 64 - Chat huésped ↔ hotel.** Conversación por reserva con bandeja en el panel.
+  En curso: V15, hilo compartido en Mis reservas y detalle del panel.
 - [ ] **Ronda 65 - El admin también reserva.** Entrar como huésped sin perder el panel.
 - [x] **Ronda 61 - Tarifas atómicas, núcleo (Etapa C).** `fijarNoche()` valida todo antes
   de escribir en una transacción; lo omitido se conserva y lo rechazado no toca nada. Queda la
