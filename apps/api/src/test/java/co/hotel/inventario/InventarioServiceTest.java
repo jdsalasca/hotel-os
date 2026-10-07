@@ -57,9 +57,9 @@ class InventarioServiceTest {
         + " room_id INTEGER NOT NULL, desde TEXT NOT NULL, hasta TEXT NOT NULL)");
     }
     jdbc = new JdbcTemplate(dataSource);
-    svc = new InventarioService(new InventarioRepository(jdbc), new TarifaRepository(jdbc),
-      new co.hotel.reservas.SqliteTransactionExecutor(dataSource));
-    tarifas = new TarifaService(new TarifaRepository(jdbc));
+    var tx = new co.hotel.reservas.SqliteTransactionExecutor(dataSource);
+    svc = new InventarioService(new InventarioRepository(jdbc), new TarifaRepository(jdbc), tx);
+    tarifas = new TarifaService(new TarifaRepository(jdbc), new InventarioRepository(jdbc), tx);
   }
 
   @Test
@@ -193,6 +193,73 @@ class InventarioServiceTest {
     assertThrows(DatosInvalidosException.class, () -> tarifas.fijarDescuento(plan.id(), -5));
     tarifas.fijarDescuento(plan.id(), 15);
     assertEquals(15, tarifas.planPorId(plan.id()).descuentoPct());
+  }
+
+  @Test
+  @DisplayName("precio válido con mínimo inválido: error y precio intacto, nada a medias")
+  void operacionRechazadaNoCambiaNada() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    LocalDate fecha = LocalDate.parse("2026-11-01");
+    tarifas.fijarPrecio(plan, tipo.id(), fecha, 150_000);
+
+    assertThrows(DatosInvalidosException.class, () ->
+      tarifas.fijarNoche(plan.id(), tipo.id(), fecha, 200_000L, 0, null, null));
+    var noche = tarifas.nochesDe(plan.id(), tipo.id(), fecha, fecha.plusDays(1)).get(0);
+    assertEquals(150_000, noche.precioCents(), "el precio anterior sigue intacto");
+  }
+
+  @Test
+  @DisplayName("precio negativo: error sin escribir nada")
+  void precioNegativoEsError() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+
+    assertThrows(DatosInvalidosException.class, () ->
+      tarifas.fijarNoche(plan.id(), tipo.id(), LocalDate.parse("2026-11-01"), -100L, null, null, null));
+    assertTrue(tarifas.nochesDe(plan.id(), tipo.id(),
+      LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-02")).isEmpty());
+  }
+
+  @Test
+  @DisplayName("mínimo mayor que máximo se rechaza antes de tocar nada")
+  void minimoMayorQueMaximoSeRechaza() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+
+    assertThrows(DatosInvalidosException.class, () ->
+      tarifas.fijarNoche(plan.id(), tipo.id(), LocalDate.parse("2026-11-01"), 150_000L, 5, 3, null));
+  }
+
+  @Test
+  @DisplayName("restricción sobre noche inexistente sin precio: error, no éxito silencioso")
+  void restriccionSinNocheEsError() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+
+    assertThrows(DatosInvalidosException.class, () ->
+      tarifas.fijarNoche(plan.id(), tipo.id(), LocalDate.parse("2026-11-01"), null, 2, null, null));
+  }
+
+  @Test
+  @DisplayName("editar el precio de una noche cerrada no la reabre")
+  void editarPrecioNoReabreNocheCerrada() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    LocalDate fecha = LocalDate.parse("2026-11-01");
+    tarifas.fijarPrecio(plan, tipo.id(), fecha, 150_000);
+    tarifas.cerrarNoche(plan, tipo.id(), fecha);
+
+    var guardada = tarifas.fijarNoche(plan.id(), tipo.id(), fecha, 180_000L, null, null, null);
+    assertEquals(180_000, guardada.precioCents());
+    assertTrue(guardada.cerrado(), "el cerrado se conserva si no se dice nada");
+  }
+
+  @Test
+  @DisplayName("tipo o plan inexistente: error sin escribir")
+  void referenciasInexistentesSonError() {
+    assertThrows(DatosInvalidosException.class, () ->
+      tarifas.fijarNoche(9999L, 1L, LocalDate.parse("2026-11-01"), 150_000L, null, null, null));
   }
 
   @Test

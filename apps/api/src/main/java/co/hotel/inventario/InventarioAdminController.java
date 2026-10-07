@@ -99,22 +99,23 @@ public class InventarioAdminController {
     return lectura(() -> inventario.ocupacion(desde, hasta));
   }
 
-  /** Alta o actualización del precio de una noche. Repetir la misma fecha la sobrescribe. */
+  /**
+   * Alta o actualización de una noche: precio, restricciones y cierre en una sola operación
+   * atómica. Repetir la misma fecha la sobrescribe; lo omitido se conserva. Lo rechazado no
+   * cambia nada y responde 400 con el motivo.
+   */
   @PostMapping("/api/admin/tarifas")
   public ResponseEntity<?> fijarTarifa(@RequestBody TarifaReq req) {
-    if (req.ratePlanId() == null || req.roomTypeId() == null || req.fecha() == null || req.precioCents() == null)
+    if (req.ratePlanId() == null || req.roomTypeId() == null || req.fecha() == null)
       return ResponseEntity.badRequest()
-        .body(Map.of("error", "ratePlanId, roomTypeId, fecha y precioCents son obligatorios"));
+        .body(Map.of("error", "ratePlanId, roomTypeId y fecha son obligatorios"));
     return ok(() -> {
-      PlanTarifario plan = plan(req.ratePlanId());
       LocalDate fecha = LocalDate.parse(req.fecha());
-      if (req.precioCents() >= 0) tarifas.fijarPrecio(plan, req.roomTypeId(), fecha, req.precioCents());
-      if (req.minEstancia() != null) tarifas.fijarMinimoEstancia(plan, req.roomTypeId(), fecha, req.minEstancia());
-      if (req.maxEstancia() != null) tarifas.fijarMaximoEstancia(plan, req.roomTypeId(), fecha, req.maxEstancia());
-      if (Boolean.TRUE.equals(req.cerrado())) tarifas.cerrarNoche(plan, req.roomTypeId(), fecha);
-      if (Boolean.FALSE.equals(req.cerrado())) tarifas.abrirNoche(plan, req.roomTypeId(), fecha);
-      return Map.of("ok", true, "ratePlanId", req.ratePlanId(), "roomTypeId", req.roomTypeId(),
-        "fecha", req.fecha());
+      var noche = tarifas.fijarNoche(req.ratePlanId(), req.roomTypeId(), fecha,
+        req.precioCents(), req.minEstancia(), req.maxEstancia(), req.cerrado());
+      return Map.of("ratePlanId", req.ratePlanId(), "roomTypeId", req.roomTypeId(),
+        "fecha", noche.fecha().toString(), "precioCents", noche.precioCents(),
+        "cerrado", noche.cerrado());
     });
   }
 
@@ -156,10 +157,6 @@ public class InventarioAdminController {
     } catch (DatosInvalidosException e) {
       return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
     }
-  }
-
-  private PlanTarifario plan(long id) {
-    return tarifas.planPorId(id);
   }
 
   /** Escritura: 201 al crear, 200 si no hubo nada que crear. */

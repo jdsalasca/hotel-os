@@ -128,6 +128,35 @@ class DisponibilidadControllerTest {
   }
 
   @Test
+  @DisplayName("precio válido con mínimo inválido por HTTP: 400 y la noche intacta")
+  void tarifaInvalidaPorHttpNoTocaNada() throws Exception {
+    String sufijo = "Z" + System.nanoTime() % 100000;
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "DOBLE_" + sufijo, "nombre", "Habitación doble", "capacidadMax", 2))).get("id").asLong();
+    long planId = JSON.readTree(admin("/api/admin/planes",
+      Map.of("codigo", "PES_" + sufijo, "nombre", "Plan pesos", "moneda", "COP"))).get("id").asLong();
+    var tarifa = Map.of("ratePlanId", planId, "roomTypeId", tipoId, "fecha", "2027-05-01");
+    var base = new java.util.HashMap<String, Object>(tarifa);
+    base.put("precioCents", 150_000);
+    mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(base)))
+      .andExpect(status().isCreated());
+
+    var mala = new java.util.HashMap<String, Object>(tarifa);
+    mala.put("precioCents", 200_000);
+    mala.put("minEstancia", 0);
+    mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(mala)))
+      .andExpect(status().isBadRequest());
+
+    mvc.perform(get("/api/admin/tarifas").with(ADMIN)
+        .param("planId", String.valueOf(planId)).param("tipoId", String.valueOf(tipoId))
+        .param("desde", "2027-05-01").param("hasta", "2027-05-02"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].precioCents").value(150000));
+  }
+
+  @Test
   @DisplayName("el hotel fija el descuento del plan por API y la oferta lo refleja")
   void descuentoPorApiLlegaALaOferta() throws Exception {
     long tipoId = JSON.readTree(admin("/api/admin/tipos",

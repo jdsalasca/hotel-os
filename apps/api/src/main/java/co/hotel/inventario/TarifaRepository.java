@@ -36,6 +36,21 @@ public class TarifaRepository {
       planId, tipoId, fecha.toString(), precioCents);
   }
 
+  public Optional<TarifaNoche> nocheDe(long planId, long tipoId, LocalDate fecha) {
+    var filas = nochesDelPeriodo(planId, tipoId, fecha, fecha.plusDays(1));
+    return filas.stream().findFirst();
+  }
+
+  /** Alta o reescritura completa de la noche en una sola sentencia. */
+  public void guardarNoche(long planId, long tipoId, LocalDate fecha, long precioCents,
+      Integer minEstancia, Integer maxEstancia, boolean cerrado) {
+    jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,min_estancia,"
+        + "max_estancia,cerrado) VALUES(?,?,?,?,?,?,?) "
+        + "ON CONFLICT(rate_plan_id,room_type_id,fecha) DO UPDATE SET precio_cents=excluded.precio_cents,"
+        + " min_estancia=excluded.min_estancia, max_estancia=excluded.max_estancia, cerrado=excluded.cerrado",
+      planId, tipoId, fecha.toString(), precioCents, minEstancia, maxEstancia, cerrado ? 1 : 0);
+  }
+
   public void fijarMinimoEstancia(long planId, long tipoId, LocalDate fecha, int minimo) {
     jdbc.update("UPDATE rates SET min_estancia=? WHERE rate_plan_id=? AND room_type_id=? AND fecha=?",
       minimo, planId, tipoId, fecha.toString());

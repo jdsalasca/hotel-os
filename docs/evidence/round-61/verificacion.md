@@ -1,25 +1,34 @@
-# Ronda 61 - Mis reservas muestra lo pagado y lo pendiente
+# Ronda 61 — Tarifas atómicas: lo rechazado no toca nada (Etapa C, núcleo)
 
-Fecha: 2026-10-07.
+## Los defectos
 
-## Dolor
-"Mis reservas" no decía si la reserva estaba paga: solo el total acordado, sin abonos.
+`POST /api/admin/tarifas` aplicaba cada campo por separado y sin validar antes: precio válido +
+mínimo inválido dejaba el precio cambiado con error; precio negativo respondía éxito sin hacer
+nada; editar el importe reabría la noche (`fijarPrecio` forzaba `cerrado=0`); mínimo mayor que
+máximo colaba; y una restricción sobre una noche inexistente era éxito silencioso.
 
-## Cambio
-- `ReservaServiceHuesped.de()` trae por fila `abonado_cents` (suma de pagos vigentes, el
-  anulado no suma) y `pendiente_cents` (total menos abonos; NULL si no hay precio acordado).
-  El saldo se calcula al leer, igual que el comprobante del panel; sin migración.
-- `PaginaMisReservas`: columnas Abonado y Pendiente; `PAGADA` en verde cuando el pendiente
-  llega a cero; "Sin precio" cuando no hay total acordado.
+## Lo que cambia
 
-## Verificación real
-- `MisReservasPagosTest` nuevo: abonos suman, anulado excluido, sin abonos pendiente = total,
-  sin precio pendiente NULL. Verde.
-- Vecinas de huésped/pagos por correr en el deploy (build Docker compila front+back).
-- Despliegue: `git reset --hard origin/develop` + `up -d --build` en TopNUC; health `ok`;
-  columnas visibles en `/mis-reservas` con sesión.
-- Archivos del otro agente intactos: solo se commitearon los de esta ronda.
+Nueva operación de dominio `TarifaService.fijarNoche()`: valida toda la entrada (fecha, plan y
+tipo existentes, precio ≥ 0, mínimos/máximos ≥ 1 y coherentes, noche inexistente exige precio),
+aplica en una transacción y devuelve lo guardado. Semántica explícita: lo omitido se conserva
+(incluido el cierre) y el endpoint mantiene su contrato. Se eliminó un helper muerto (`plan()`).
 
-## Archivos
-- Tocados: `ReservaServiceHuesped.java`, `PaginaMisReservas.tsx`.
-- Nuevo: `MisReservasPagosTest.java`, este archivo.
+Queda fuera a propósito: la edición masiva con preview (la pantalla sigue mandando noche por
+noche, ahora atómicas una por una) y la edición por rangos/días de semana.
+
+## Verificación
+
+```text
+.\mvnw.cmd test
+Tests run: 299, Failures: 0, Errors: 0, Skipped: 1
+BUILD SUCCESS
+
+docker compose build api  (web sin cambios)
+node tools/operacion/verificar-despliegue.mjs
+despliegue: rutas de proxy, cabeceras y CSP coherentes   exit=0
+```
+
+Matriz viva contra el servidor: base 201, precio+mínimo inválido 400, negativo 400, editar
+precio en noche cerrada 201 y sigue `cerrado:true` con el importe nuevo. Sin cambios de
+interfaz en esta ronda.

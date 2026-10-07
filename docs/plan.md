@@ -238,6 +238,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   lugares/experiencias.
 - [ ] **Ronda 64 - Chat huésped ↔ hotel.** Conversación por reserva con bandeja en el panel.
 - [ ] **Ronda 65 - El admin también reserva.** Entrar como huésped sin perder el panel.
+- [x] **Ronda 61 - Tarifas atómicas, núcleo (Etapa C).** `fijarNoche()` valida todo antes
+  de escribir en una transacción; lo omitido se conserva y lo rechazado no toca nada. Queda la
+  edición masiva con preview. Evidencia: `docs/evidence/round-61/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
@@ -253,7 +256,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | 5 | Las OTAs muestran su estado real | `BOOKING/DESPEGAR/AIRBNB = NO_CONFIGURADO` | ✅ |
 | 6 | Los indicadores no inventan datos | `tieneResultado=False` con motivo concreto | ✅ |
 | 7 | `compose up --build` funciona en dev y prod | Ambos `config` validan con exit 0 | ✅ |
-| 8 | Pruebas verdes | `Tests run: 290, Failures: 0, Errors: 0` | ✅ |
+| 8 | Pruebas verdes | `Tests run: 299, Failures: 0, Errors: 0` | ✅ |
 | 9 | Sin secretos en el repositorio | Escaneo del diff antes de cada commit | ✅ |
 
 ### Escalado medido de SQLite
@@ -266,7 +269,7 @@ el backend no puede ir en Vercel (filesystem efímero) y sí en una VM o servici
 
 ## Estado real 2026-10-06
 - Java 25.0.4.1, Docker 29.8.2, Maven Wrapper 3.9.11 funcionando. `distributionUrl` corregido.
-- **290 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
+- **299 pruebas backend** y **`tsc --noEmit` limpio** en el frontend (los `@types` de React
   faltaban: todo React era `any` implícito y nadie lo notaba porque `vite build` no comprueba tipos).
 - 34 capturas verificadas por guion, sin errores de consola ni de API.
 - **Node.js sigue ausente en el host**: el frontend se construye y verifica en `node:22-alpine`,
