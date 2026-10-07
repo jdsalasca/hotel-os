@@ -205,56 +205,114 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
           <h2 id="titulo-descubre" className="seccion__titulo">
             A minutos de lo mejor de Boyacá
           </h2>
-          <div className="lugares">
-            <figure className="lugar">
+          <div className="collage" role="list" aria-label="Fotos de Sáchica y Villa de Leyva">
+            <figure className="collage__item collage__item--ancha" role="listitem">
               <img
-                className="lugar__foto"
+                className="collage__foto"
                 src="/img/casa-terracota.jpg"
                 alt="Casa de Terracota, Villa de Leyva"
                 loading="lazy"
               />
-              <figcaption className="lugar__pie">
-                <strong>Casa de Terracota</strong>
-                <span>La casa de barro cocido más grande del mundo, en Villa de Leyva.</span>
-              </figcaption>
+              <figcaption className="collage__leyenda">Casa de Terracota</figcaption>
             </figure>
-            <figure className="lugar">
+            <figure className="collage__item collage__item--alta" role="listitem">
               <img
-                className="lugar__foto"
+                className="collage__foto"
+                src="/img/balcones.jpg"
+                alt="Balcones coloniales, Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="collage__leyenda">Balcones coloniales</figcaption>
+            </figure>
+            <figure className="collage__item" role="listitem">
+              <img
+                className="collage__foto"
                 src="/img/desierto.jpg"
                 alt="Atardecer en el desierto de Villa de Leyva"
                 loading="lazy"
               />
-              <figcaption className="lugar__pie">
-                <strong>Desierto de la Candelaria</strong>
-                <span>Atardeceres y fósiles a un paseo de distancia.</span>
-              </figcaption>
+              <figcaption className="collage__leyenda">Desierto de la Candelaria</figcaption>
             </figure>
-            <figure className="lugar">
+            <figure className="collage__item collage__item--alta" role="listitem">
               <img
-                className="lugar__foto"
+                className="collage__foto"
+                src="/img/calles.jpg"
+                alt="Calles empedradas, Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="collage__leyenda">Calles empedradas</figcaption>
+            </figure>
+            <figure className="collage__item" role="listitem">
+              <img
+                className="collage__foto"
                 src="/img/cruz-sachica.jpg"
                 alt="Cruz atrial de Sáchica, Boyacá"
                 loading="lazy"
               />
-              <figcaption className="lugar__pie">
-                <strong>Sáchica colonial</strong>
-                <span>Iglesia y parque de piedra a minutos del hotel.</span>
-              </figcaption>
+              <figcaption className="collage__leyenda">Sáchica colonial</figcaption>
+            </figure>
+            <figure className="collage__item collage__item--ancha" role="listitem">
+              <img
+                className="collage__foto"
+                src="/img/cascada.jpg"
+                alt="Cascada La Periquera, Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="collage__leyenda">Cascada La Periquera</figcaption>
             </figure>
           </div>
           <p className="campo__ayuda">
             Fotografías:{' '}
-            <a href="https://commons.wikimedia.org/wiki/File:Casa_de_Terracota.jpg">Casa de
-            Terracota © amontero89</a>
+            <a href="https://commons.wikimedia.org/wiki/File:Casa_de_Terracota.jpg">Terracota ©
+            amontero89</a>
+            {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Balcones_de_Villa_de_Leyva.jpg">
+            Balcones © Adrián Salazar Garelli</a>
             {', '}
             <a href="https://commons.wikimedia.org/wiki/File:Atardecer_desierto_Villa_de_Leyva.JPG">
             Desierto © Petruss</a>
             {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Calles_Villa_Leyva.JPG">Calles ©
+            MatthRomero</a>
+            {', '}
             <a href="https://commons.wikimedia.org/wiki/File:Cruz_Atrial_de_S%C3%A1chica.jpg">
-            Cruz de Sáchica</a>
+            Sáchica</a>
+            {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Cascada_La_Periquera_-_panoramio.jpg">
+            Cascada © diego_cue</a>
             {' '}vía Wikimedia Commons (CC BY-SA).
           </p>
+        </section>
+      </div>
+
+      <div className="centrado">
+        <section className="seccion" aria-labelledby="titulo-pasos">
+          <h2 id="titulo-pasos" className="seccion__titulo">
+            Reservar es así de simple
+          </h2>
+          <ol className="pasos">
+            <li className="paso">
+              <span className="paso__numero" aria-hidden="true">1</span>
+              <div>
+                <strong>Elige tus fechas</strong>
+                <span> Dinos llegada, salida y huéspedes: te mostramos precio final, sin letra pequeña.</span>
+              </div>
+            </li>
+            <li className="paso">
+              <span className="paso__numero" aria-hidden="true">2</span>
+              <div>
+                <strong>Confirma con tus datos</strong>
+                <span> Nombre y correo: con eso nace tu reserva y tu código de consulta.</span>
+              </div>
+            </li>
+            <li className="paso">
+              <span className="paso__numero" aria-hidden="true">3</span>
+              <div>
+                <strong>Gestiona a tu manera</strong>
+                <span> Consulta o cancela con tu código, o entra con Google y ve tus reservas.</span>
+              </div>
+            </li>
+          </ol>
         </section>
       </div>
 
