@@ -174,26 +174,89 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
 
   return (
     <main id="contenido">
-      <section className="hero">
-        <div className="hero__interna">
-          <img src="/icono-hotel.svg" alt="" width={72} height={72} className="hero__logo" />
-          <p className="hero__nombre">{nombreHotel}</p>
-          <h1 className="hero__titulo">Reserva directa, sin intermediarios</h1>
-          <p className="hero__texto">
-            Consulta la disponibilidad de {nombreHotel}, reserva tus fechas y gestiona tu
-            reserva con tu código o tu cuenta de Google. Sin comisiones ni apps de terceros:
-            lo que ves es lo que el hotel configuró.
+      <section className="portada">
+        <img
+          className="portada__fondo"
+          src="/img/portada-villa-de-leyva.jpg"
+          alt="Panorámica de Villa de Leyva, Boyacá"
+          fetchPriority="high"
+        />
+        <div className="portada__interna">
+          <p className="portada__ojal">Sáchica · Villa de Leyva · Boyacá</p>
+          <h1 className="portada__titulo">{nombreHotel}: reserva directa, sin intermediarios</h1>
+          <p className="portada__texto">
+            Consulta la disponibilidad, reserva tus fechas y gestiona tu reserva con tu código o
+            tu cuenta de Google. Sin comisiones ni apps de terceros: lo que ves es lo que el
+            hotel configuró.
           </p>
-          <p className="hero__acciones">
+          <p className="portada__acciones">
             <a className="boton boton--primario" href="#titulo-buscar">
               Ver disponibilidad
             </a>{' '}
-            <a className="boton boton--secundario" href="/consulta">
+            <a className="boton boton--secundario boton--claro" href="/consulta">
               Consultar mi reserva
             </a>
           </p>
         </div>
       </section>
+
+      <div className="centrado">
+        <section className="seccion" aria-labelledby="titulo-descubre">
+          <h2 id="titulo-descubre" className="seccion__titulo">
+            A minutos de lo mejor de Boyacá
+          </h2>
+          <div className="lugares">
+            <figure className="lugar">
+              <img
+                className="lugar__foto"
+                src="/img/casa-terracota.jpg"
+                alt="Casa de Terracota, Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="lugar__pie">
+                <strong>Casa de Terracota</strong>
+                <span>La casa de barro cocido más grande del mundo, en Villa de Leyva.</span>
+              </figcaption>
+            </figure>
+            <figure className="lugar">
+              <img
+                className="lugar__foto"
+                src="/img/desierto.jpg"
+                alt="Atardecer en el desierto de Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="lugar__pie">
+                <strong>Desierto de la Candelaria</strong>
+                <span>Atardeceres y fósiles a un paseo de distancia.</span>
+              </figcaption>
+            </figure>
+            <figure className="lugar">
+              <img
+                className="lugar__foto"
+                src="/img/cruz-sachica.jpg"
+                alt="Cruz atrial de Sáchica, Boyacá"
+                loading="lazy"
+              />
+              <figcaption className="lugar__pie">
+                <strong>Sáchica colonial</strong>
+                <span>Iglesia y parque de piedra a minutos del hotel.</span>
+              </figcaption>
+            </figure>
+          </div>
+          <p className="campo__ayuda">
+            Fotografías:{' '}
+            <a href="https://commons.wikimedia.org/wiki/File:Casa_de_Terracota.jpg">Casa de
+            Terracota © amontero89</a>
+            {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Atardecer_desierto_Villa_de_Leyva.JPG">
+            Desierto © Petruss</a>
+            {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Cruz_Atrial_de_S%C3%A1chica.jpg">
+            Cruz de Sáchica</a>
+            {' '}vía Wikimedia Commons (CC BY-SA).
+          </p>
+        </section>
+      </div>
 
       <div className="centrado">
         <section className="seccion" aria-labelledby="titulo-buscar">

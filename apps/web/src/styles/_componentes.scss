@@ -50,6 +50,14 @@
 
   &--bloque { width: 100%; }
   &--chico { padding: $e-2 $e-3; font-size: $texto-sm; }
+
+  &--claro {
+    background: rgba(255, 255, 255, 0.94);
+    color: $tinta;
+    border-color: transparent;
+
+    &:hover:not(:disabled) { background: #fff; }
+  }
 }
 
 // --- Formularios ---
@@ -520,35 +528,54 @@
   }
 }
 
-// --- Franja superior ---
-.hero {
-  padding-block: $e-7 $e-6;
-  background:
-    linear-gradient(180deg, rgba(251, 249, 245, 0.6), rgba(251, 249, 245, 0)),
-    $piedra-clara;
-  border-bottom: 1px solid $borde;
+// --- Portada: foto de Boyacá a todo ancho con el nombre, el propósito y las acciones ---
+.portada {
+  position: relative;
+  overflow: hidden;
+  background: $tinta;
+  color: #fff;
+
+  &__fondo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 
   &__interna {
+    position: relative;
     @include contenedor;
+    padding-block: $e-8 $e-7;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(20, 14, 8, 0.62), rgba(20, 14, 8, 0.38));
+    }
+
+    > * { position: relative; }
+  }
+
+  &__ojal {
+    margin: 0 0 $e-2;
+    font-size: $texto-sm;
+    font-weight: $peso-fuerte;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #f3e3cf;
   }
 
   &__titulo {
-    max-width: 18ch;
+    max-width: 20ch;
+    color: #fff;
   }
 
-  &__logo {
-    width: 4.5rem;
-    height: 4.5rem;
-    margin-bottom: $e-3;
-  }
-
-  &__nombre {
-    margin: 0 0 $e-1;
-    font-size: $texto-sm;
-    font-weight: $peso-fuerte;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: $teja;
+  &__texto {
+    font-size: $texto-lg;
+    max-width: 48ch;
+    color: #f6f1e7;
   }
 
   &__acciones {
@@ -557,11 +584,33 @@
     gap: $e-3;
     margin-top: $e-4;
   }
+}
 
-  &__texto {
-    font-size: $texto-lg;
-    color: $tinta-suave;
-    max-width: 46ch;
+// --- Lugares: tarjetas con foto de la zona (Sáchica, Villa de Leyva) ---
+.lugares {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: $e-4;
+}
+
+.lugar {
+  margin: 0;
+  @include tarjeta;
+  overflow: hidden;
+  padding: 0;
+
+  &__foto {
+    display: block;
+    width: 100%;
+    height: 12rem;
+    object-fit: cover;
+  }
+
+  &__pie {
+    padding: $e-3 $e-4 $e-4;
+
+    strong { display: block; }
+    span { font-size: $texto-sm; color: $tinta-suave; }
   }
 }
 
