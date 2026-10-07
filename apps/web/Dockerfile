@@ -46,6 +46,24 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
   }
 
+  # El baile OAuth2 vive en el backend, no en /api: la ida a Google y la vuelta con el código.
+  # Sin estas dos rutas, el botón "Entrar con Google" caería en el index.html del SPA (200 vacío).
+  location /oauth2/ {
+    proxy_pass $api$request_uri;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location /login/oauth2/ {
+    proxy_pass $api$request_uri;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
   # React Router necesita este fallback: sin él, /admin/reservas da 404 al recargar.
   location / {
     try_files $uri $uri/ /index.html;

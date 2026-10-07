@@ -2,6 +2,7 @@ package co.hotel.auditoria;
 
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 
 /**
  * El usuario con sesión, para atribuir una acción.
@@ -20,6 +21,12 @@ public final class ActorActual {
     // AnonymousAuthenticationToken viene "autenticado" pero no es una persona.
     if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
       return ANONIMO;
+    }
+    // Con login de Google el nombre de la sesión ya es el correo (lo fija el manejador), pero si
+    // algún día llega un principal OAuth2 sin renombrar, el correo sigue siendo lo que identifica.
+    if (auth.getPrincipal() instanceof OAuth2User p) {
+      String email = p.getAttribute("email");
+      if (email != null && !email.isBlank()) return email;
     }
     return auth.getName();
   }

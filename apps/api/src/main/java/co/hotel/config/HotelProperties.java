@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *
  * @param ambiente        dev | produccion. En produccion se niegan los atajos de desarrollo.
  * @param correo          configuración del envío de correo (OAuth2 de Google, sin valores por defecto)
+ * @param oauth2          login con Google: mismo Client ID que el correo, allowlist del panel
  * @param adminInitToken  secreto de arranque del primer administrador
  */
 @ConfigurationProperties(prefix = "hotel")
@@ -18,7 +19,8 @@ public record HotelProperties(
     @DefaultValue("") String adminInitToken,
     @DefaultValue("es") String idioma,
     @DefaultValue("America/Bogota") String zonaHoraria,
-    @DefaultValue CorreoProperties correo) {
+    @DefaultValue CorreoProperties correo,
+    @DefaultValue Oauth2Properties oauth2) {
 
   /** El token de arranque debe venir del entorno: en producción es obligatorio. */
   public boolean hayTokenInicial() { return adminInitToken != null && !adminInitToken.isBlank(); }

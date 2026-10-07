@@ -66,7 +66,8 @@ class AdminDemoTest {
   void enProduccionSeNiegaElArranque() {
     // Se comprueba la regla, no el arranque completo: la condición es lo que hay que fijar.
     var propsProd = new co.hotel.config.HotelProperties("./x.sqlite3", "produccion", "token", "es",
-      "America/Bogota", new co.hotel.config.CorreoProperties(false, "", "", "", "", "", "", ""));
+      "America/Bogota", new co.hotel.config.CorreoProperties(false, "", "", "", "", "", "", ""),
+      new co.hotel.config.Oauth2Properties("", "", ""));
     assertTrue(propsProd.esProduccion());
     assertFalse(propsProd.permiteAtajosDeDesarrollo(),
       "en producción no puede haber atajos de desarrollo, ni siquiera si alguien los activó");

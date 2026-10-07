@@ -1,14 +1,22 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useSesion } from '../api/useSesion';
+import { urlApi } from '../api/cliente';
 import { Aviso } from '../componentes/Estado';
 
-/** Inicio de sesión del panel. El backend limita los intentos fallidos. */
+/**
+ * Inicio de sesión del panel. El backend limita los intentos fallidos con contraseña; con Google
+ * solo entra quien esté en la allowlist, y el backend lo dice con ?error=denegado en la vuelta.
+ */
 export function PaginaLoginAdmin() {
   const sesion = useSesion();
+  const [parametros] = useSearchParams();
   const [email, setEmail] = useState('');
   const [clave, setClave] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  const denegado = parametros.get('error') === 'denegado';
 
   async function entrar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -54,11 +62,24 @@ export function PaginaLoginAdmin() {
               />
             </div>
             {error ? <Aviso tono="error">{error}</Aviso> : null}
+            {denegado && !error ? (
+              <Aviso tono="aviso">
+                Esa cuenta de Google no está autorizada para el panel. Pide que la añadan o entra
+                con contraseña.
+              </Aviso>
+            ) : null}
             <button className="boton boton--primario boton--bloque" type="submit" disabled={enviando}>
               {enviando ? 'Entrando…' : 'Entrar'}
             </button>
           </div>
         </form>
+
+        <p className="campo__ayuda mt-e4 sin-margen">
+          ¿Prefieres no usar contraseña?{' '}
+          <a className="boton boton--secundario boton--bloque mt-e2" href={urlApi('/oauth2/authorization/google-admin')}>
+            Entrar con Google
+          </a>
+        </p>
       </section>
     </main>
   );

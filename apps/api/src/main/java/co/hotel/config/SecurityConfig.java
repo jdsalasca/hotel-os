@@ -1,10 +1,13 @@
 package co.hotel.config;
 
+import co.hotel.seguridad.EnrutadorOauth2;
 import jakarta.servlet.DispatcherType;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
@@ -25,7 +28,9 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 public class SecurityConfig {
 
   @Bean
-  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+  SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                           ObjectProvider<ClientRegistrationRepository> registros,
+                                           EnrutadorOauth2 enrutador) throws Exception {
     var csrfCookie = CookieCsrfTokenRepository.withHttpOnlyFalse();
     csrfCookie.setCookiePath("/");
 
@@ -40,11 +45,30 @@ public class SecurityConfig {
         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
         .requestMatchers("/api/health", "/api/hotel", "/api/reservas", "/api/reservas/**", "/api/disponibilidad").permitAll()
         .requestMatchers("/api/admin/init", "/api/admin/login").permitAll()
+        // Sin estas dos, el flujo de Google caería en el denyAll de abajo: la ida a Google y la
+        // vuelta con el código son peticiones sin sesión por definición.
+        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
         .requestMatchers("/api/admin/**").hasRole("ADMIN")
         .anyRequest().denyAll())
       .logout(l -> l.logoutUrl("/api/admin/logout").deleteCookies("JSESSIONID"))
       .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) ->
         res.sendError(401, "se requiere sesión administrativa")));
+    // El login con Google solo existe con Client ID: sin él no hay repositorio y la contraseña
+    // queda como único método. ObjectProvider en vez de inyección directa para no tumbar el
+    // arranque cuando Google no está configurado.
+    var repo = registros.getIfAvailable();
+    if (repo != null) {
+      http.oauth2Login(o -> o
+        .clientRegistrationRepository(repo)
+        .successHandler(enrutador)
+        .failureHandler((peticion, respuesta, ex) -> {
+          // La vuelta fallida trae el registro en la ruta (/login/oauth2/code/{registro}):
+          // cada entrada vuelve a su puerta, no a la del otro.
+          String destino = peticion.getRequestURI().endsWith(EnrutadorOauth2.HUESPED)
+            ? "/?error=oauth2" : "/admin/entrar?error=oauth2";
+          respuesta.sendRedirect(destino);
+        }));
+    }
     return http.build();
   }
 }

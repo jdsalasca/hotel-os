@@ -17,6 +17,7 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+      GOOGLE_ADMIN_EMAILS: ${GOOGLE_ADMIN_EMAILS:-}
     volumes:
       - hotel-data:/data
       - hotel-backups:/backups
