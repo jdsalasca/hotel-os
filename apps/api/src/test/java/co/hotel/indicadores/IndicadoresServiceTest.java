@@ -255,5 +255,18 @@ class IndicadoresServiceTest {
       assertTrue(csv.contains("0.00"), "ocupación cero con inventario cargado");
       assertTrue(csv.contains("SIN_DATOS"), "un indicador sin denominador va marcado como faltante");
     }
+
+    @Test void elCsvNeutralizaFormulasInyectadasEnLosTextos() {
+      // Entrecomillar no basta: Excel ejecuta "=..." aunque vaya entre comillas. Si un texto
+      // empieza por = + - @, se prefija con comilla simple para que quede como texto.
+      jdbc.update("INSERT INTO indicator_definitions(clave,fase,nombre,definicion,formula,fuente,"
+        + "unidad,periodo_por_defecto) VALUES('f9_mal',3,'=HYPERLINK(\"http://mal\",\"clic\")',"
+        + "'+cmd',\"@mal\",\"fuente\",\"u\",\"2026-11\")");
+      var csv = indicadores.exportarCsv(periodo);
+      assertTrue(csv.contains("\"'=HYPERLINK"),
+        "la fórmula debe salir neutralizada, no ejecutable");
+      assertFalse(csv.lines().anyMatch(l -> l.contains(",\"=HYPERLINK") || l.contains(",\"+cmd")
+        || l.contains(",\"@mal")), "ninguna celda puede empezar por = + - @:\n" + csv);
+    }
   }
 }

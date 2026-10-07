@@ -206,8 +206,16 @@ public class IndicadoresService {
     return inicio.plusMonths(1).toString();
   }
 
+  /**
+   * Celda CSV entre comillas y con las comillas internas duplicadas. Y con una más: entrecomillar
+   * NO impide que Excel ejecute una fórmula, así que si el texto empieza por = + - @ se le
+   * antepone una comilla simple para que quede como texto. Los textos salen de la base (nombres,
+   * motivos, responsables que escribe el hotel), así que alguien puede colar una fórmula sin
+   * querer —o queriendo— y el que abre la hoja no tiene por qué pagarla.
+   */
   private static String csv(String valor) {
     if (valor == null) return "";
-    return "\"" + valor.replace("\"", "\"\"") + "\"";
+    String seguro = valor.isEmpty() || "=+-@".indexOf(valor.charAt(0)) < 0 ? valor : "'" + valor;
+    return "\"" + seguro.replace("\"", "\"\"") + "\"";
   }
 }
