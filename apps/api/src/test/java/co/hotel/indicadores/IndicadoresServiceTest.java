@@ -136,10 +136,37 @@ class IndicadoresServiceTest {
       assertTrue(resultado.motivoFaltante().contains("habitaciones"));
     }
 
+    @Test void lasCreadasSeCuentanPorFechaDeCreacionNoDeLlegada() {
+      // Creada en octubre para diciembre: en el informe de noviembre no existe, aunque llegue
+      // en otro mes. Contarla por llegada la pondría en un periodo donde nadie la creó.
+      long h = crearHabitacion("101");
+      crearReserva("H-1", h, "2026-11-05", "2026-11-07", "CONFIRMADA", "WEB");
+      jdbc.update("UPDATE reservations SET creado_en='2026-10-20 10:00:00' WHERE codigo='H-1'");
+
+      var resultado = indicadores.calcular("f3_tasa_cancelacion", periodo);
+      assertFalse(resultado.tieneResultado(), "en noviembre no se creó ninguna");
+      assertEquals(0, indicadores.reservasPorCanal(periodo).values().stream().mapToLong(Long::longValue).sum());
+    }
+
+    @Test void laCanceladaCuentaEnLaCohorteDondeSeCreo() {
+      // Creada y cancelada en noviembre para una estancia de diciembre: la cancelación es de la
+      // cohorte de noviembre, no de diciembre. Por llegada se perdería del numerador.
+      long h = crearHabitacion("101");
+      crearReserva("H-1", h, "2026-12-05", "2026-12-07", "CANCELADA", "WEB");
+      jdbc.update("UPDATE reservations SET creado_en='2026-11-20 10:00:00'");
+
+      var resultado = indicadores.calcular("f3_tasa_cancelacion", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(100.0, resultado.valor(), 0.01, "la única creada en noviembre está cancelada");
+      assertEquals(1, resultado.numerador());
+      assertEquals(1, resultado.denominador());
+    }
+
     @Test void laTasaDeCancelacionMuestraNumeradorYDenominador() {
       long h = crearHabitacion("101");
       crearReserva("H-1", h, "2026-11-01", "2026-11-02", "CONFIRMADA", "WEB");
       crearReserva("H-2", h, "2026-11-05", "2026-11-06", "CANCELADA", "WEB");
+      jdbc.update("UPDATE reservations SET creado_en='2026-11-15 10:00:00'");
 
       var resultado = indicadores.calcular("f3_tasa_cancelacion", periodo);
       assertTrue(resultado.tieneResultado());
@@ -155,6 +182,7 @@ class IndicadoresServiceTest {
       crearReserva("H-1", h, "2026-11-01", "2026-11-02", "CONFIRMADA", "WEB");
       crearReserva("H-2", h, "2026-11-03", "2026-11-04", "CONFIRMADA", "BOOKING");
       crearReserva("H-3", h, "2026-11-05", "2026-11-06", "CONFIRMADA", "BOOKING");
+      jdbc.update("UPDATE reservations SET creado_en='2026-11-15 10:00:00'");
 
       var porCanal = indicadores.reservasPorCanal(periodo);
       assertEquals(1L, porCanal.get("WEB"));

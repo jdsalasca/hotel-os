@@ -70,21 +70,33 @@ public class IndicadoresRepository {
     return Math.max(0, dias * habitacionesActivas() - nochesBloqueadas(desde, hasta));
   }
 
+  /**
+   * Reservas creadas en el periodo, por fecha de creación y no de llegada: una reserva creada en
+   * octubre para diciembre es de la cohorte de octubre. `creado_en` trae fecha y hora, así que se
+   * compara solo la fecha.
+   */
   public long reservasCreadas(String desde, String hasta) {
-    Long n = jdbc.queryForObject("SELECT COUNT(*) FROM reservations WHERE llegada >= ? AND llegada < ?",
+    Long n = jdbc.queryForObject("SELECT COUNT(*) FROM reservations "
+        + "WHERE substr(creado_en,1,10) >= ? AND substr(creado_en,1,10) < ?",
       Long.class, desde, hasta);
     return n == null ? 0L : n;
   }
 
+  /**
+   * Canceladas de la cohorte creada en el periodo: las que se crearon aquí y hoy están
+   * canceladas. Mezclar criterios (creadas por llegada, canceladas por otro) partía la tasa
+   * en dos cohortes distintas sin decirlo.
+   */
   public long reservasCanceladas(String desde, String hasta) {
     Long n = jdbc.queryForObject("SELECT COUNT(*) FROM reservations WHERE estado='CANCELADA' "
-      + "AND llegada >= ? AND llegada < ?", Long.class, desde, hasta);
+        + "AND substr(creado_en,1,10) >= ? AND substr(creado_en,1,10) < ?", Long.class, desde, hasta);
     return n == null ? 0L : n;
   }
 
   public Map<String, Long> reservasPorOrigen(String desde, String hasta) {
     Map<String, Long> conteo = new java.util.LinkedHashMap<>();
-    jdbc.query("SELECT origen, COUNT(*) AS n FROM reservations WHERE llegada >= ? AND llegada < ? "
+    jdbc.query("SELECT origen, COUNT(*) AS n FROM reservations "
+        + "WHERE substr(creado_en,1,10) >= ? AND substr(creado_en,1,10) < ? "
         + "GROUP BY origen", rs -> { conteo.put(rs.getString("origen"), rs.getLong("n")); },
       desde, hasta);
     return conteo;
