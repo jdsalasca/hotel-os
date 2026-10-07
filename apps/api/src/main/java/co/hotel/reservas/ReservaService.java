@@ -121,6 +121,14 @@ public class ReservaService {
 
   public List<Reserva> listar(int limite) { return repo.listar(limite); }
 
+  /** Parte del día para la recepción: quién llega y quién se va, con habitación. */
+  public record ParteDia(List<ReservaRepository.Movimiento> llegadas,
+                         List<ReservaRepository.Movimiento> salidas) {}
+
+  public ParteDia parteDelDia(LocalDate fecha) {
+    return new ParteDia(repo.llegadas(fecha), repo.salidas(fecha));
+  }
+
   private void validar(CrearReserva datos) {
     if (datos.email() == null || !EMAIL.matcher(datos.email().trim()).matches())
       throw new DatosInvalidosException("correo electrónico inválido");

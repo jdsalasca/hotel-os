@@ -10,6 +10,7 @@ import { PaginaAdminReservas } from './paginas/PaginaAdminReservas';
 import { PaginaAdminInventario } from './paginas/PaginaAdminInventario';
 import { PaginaAdminIntegraciones } from './paginas/PaginaAdminIntegraciones';
 import { PaginaAdminHotel } from './paginas/PaginaAdminHotel';
+import { PaginaAdminHoy } from './paginas/PaginaAdminHoy';
 import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
 import { PaginaAdminAuditoria } from './paginas/PaginaAdminAuditoria';
 import { PaginaMisReservas } from './paginas/PaginaMisReservas';
@@ -88,6 +89,7 @@ export function App() {
         {/* Panel administrativo: cada pantalla comprueba la sesión por su cuenta */}
         <Route path="/admin/entrar" element={<PaginaLoginAdmin />} />
         <Route path="/admin/reservas" element={<PaginaAdminReservas />} />
+        <Route path="/admin/hoy" element={<PaginaAdminHoy />} />
         <Route path="/admin/inventario" element={<PaginaAdminInventario />} />
         <Route path="/admin/hotel" element={<PaginaAdminHotel />} />
         <Route path="/admin/integraciones" element={<PaginaAdminIntegraciones />} />
@@ -105,6 +107,7 @@ export function App() {
           ) : null}
           <nav className="nav" aria-label="Navegación del panel">
             <NavLink to="/admin/inventario">Inventario</NavLink>
+            <NavLink to="/admin/hoy">Hoy</NavLink>
             <NavLink to="/admin/hotel">Hotel</NavLink>
             <NavLink to="/admin/integraciones">Integraciones</NavLink>
             <NavLink to="/admin/indicadores">Indicadores</NavLink>

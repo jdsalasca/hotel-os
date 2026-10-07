@@ -73,6 +73,30 @@ public class AdminReservasController {
     }
   }
 
+  /**
+   * Parte del día para la recepción: quién llega y quién se va, con habitación y huéspedes.
+   * Un día sin movimiento trae listas vacías, no un 404: el silencio también es información.
+   */
+  @GetMapping("/api/admin/ocupacion/dia")
+  public ResponseEntity<?> parteDelDia(@RequestParam String fecha) {
+    final java.time.LocalDate dia;
+    try {
+      dia = java.time.LocalDate.parse(fecha);
+    } catch (java.time.format.DateTimeParseException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "la fecha debe tener formato YYYY-MM-DD"));
+    }
+    var parte = svc.parteDelDia(dia);
+    return ResponseEntity.ok(Map.of(
+      "fecha", dia.toString(),
+      "llegadas", parte.llegadas().stream().map(AdminReservasController::movimiento).toList(),
+      "salidas", parte.salidas().stream().map(AdminReservasController::movimiento).toList()));
+  }
+
+  private static Map<String, Object> movimiento(ReservaRepository.Movimiento m) {
+    return Map.of("codigo", m.codigo(), "email", m.email(), "nombre", m.nombre(),
+      "huespedes", m.huespedes(), "habitacion", m.habitacion());
+  }
+
   private static Map<String, Object> fila(Reserva r) {
     return Map.ofEntries(
       Map.entry("codigo", r.codigo()),

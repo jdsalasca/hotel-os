@@ -85,6 +85,27 @@ public class ReservaRepository {
       Long.class, hasta.toString(), desde.toString(), hasta.toString(), desde.toString());
   }
 
+  /** Una reserva que llega o se va un día: quién, a qué habitación y con cuántos. */
+  public record Movimiento(String codigo, String email, String nombre, int huespedes, String habitacion) {}
+
+  public List<Movimiento> llegadas(LocalDate fecha) { return movimientos("llegada", fecha); }
+
+  public List<Movimiento> salidas(LocalDate fecha) { return movimientos("salida", fecha); }
+
+  private List<Movimiento> movimientos(String columnaFecha, LocalDate fecha) {
+    // La columna se elige aquí dentro, nunca llega del exterior: no hay inyección posible.
+    // Solo cuentan las vigentes: una cancelada no llega ni se va.
+    return jdbc.query(
+      "SELECT r.codigo, r.email, r.nombre, r.huespedes, rm.codigo AS habitacion FROM reservations r "
+        + "JOIN reservation_items ri ON ri.reservation_id = r.id "
+        + "JOIN rooms rm ON rm.id = ri.room_id "
+        + "WHERE r." + columnaFecha + " = ? AND r.estado IN ('PENDIENTE','CONFIRMADA') "
+        + "ORDER BY rm.codigo",
+      (rs, n) -> new Movimiento(rs.getString("codigo"), rs.getString("email"),
+        rs.getString("nombre"), rs.getInt("huespedes"), rs.getString("habitacion")),
+      fecha.toString());
+  }
+
   public Optional<Reserva> porCodigo(String codigo) {
     try {
       return Optional.ofNullable(jdbc.query(
