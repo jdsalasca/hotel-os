@@ -1,5 +1,6 @@
 package co.hotel.seguridad;
 
+import co.hotel.huespedes.ManejadorHuespedOauth2;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,8 +22,12 @@ public class EnrutadorOauth2 implements AuthenticationSuccessHandler {
   public static final String HUESPED = "google-huesped";
 
   private final ManejadorAdminOauth2 admin;
+  private final ManejadorHuespedOauth2 huesped;
 
-  public EnrutadorOauth2(ManejadorAdminOauth2 admin) { this.admin = admin; }
+  public EnrutadorOauth2(ManejadorAdminOauth2 admin, ManejadorHuespedOauth2 huesped) {
+    this.admin = admin;
+    this.huesped = huesped;
+  }
 
   @Override
   public void onAuthenticationSuccess(HttpServletRequest req, HttpServletResponse res,
@@ -33,7 +38,10 @@ public class EnrutadorOauth2 implements AuthenticationSuccessHandler {
       admin.onAuthenticationSuccess(req, res, auth);
       return;
     }
-    // El registro de huéspedes llega en la ronda 22 con su propio manejador.
+    if (HUESPED.equals(registro)) {
+      huesped.onAuthenticationSuccess(req, res, auth);
+      return;
+    }
     SecurityContextHolder.clearContext();
     res.sendRedirect("/?error=oauth2");
   }

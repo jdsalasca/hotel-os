@@ -48,6 +48,11 @@ public class SecurityConfig {
         // Sin estas dos, el flujo de Google caería en el denyAll de abajo: la ida a Google y la
         // vuelta con el código son peticiones sin sesión por definición.
         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+        // Lo del huésped con sesión: cada uno necesita su propia sesión para saber de quién es.
+        // ROLE_HUESPED no llega a /api/admin/**, que exige ROLE_ADMIN.
+        .requestMatchers("/api/yo", "/api/mis-reservas")
+        .hasAnyRole("HUESPED", "ADMIN")
+        .requestMatchers("/api/huesped/**").hasAnyRole("HUESPED", "ADMIN")
         .requestMatchers("/api/admin/**").hasRole("ADMIN")
         .anyRequest().denyAll())
       .logout(l -> l.logoutUrl("/api/admin/logout").deleteCookies("JSESSIONID"))

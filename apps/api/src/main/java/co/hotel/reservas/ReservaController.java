@@ -1,5 +1,7 @@
 package co.hotel.reservas;
 
+import co.hotel.huespedes.ReservaServiceHuesped;
+
 import co.hotel.seguridad.LimiteConsultasPublicas;
 import co.hotel.seguridad.LimiteReservas;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,14 +19,17 @@ public class ReservaController {
   private final ComprobanteService comprobantes;
   private final LimiteReservas limite;
   private final LimiteConsultasPublicas lecturas;
+  private final ReservaServiceHuesped servicioHuespedes;
 
   public ReservaController(ReservaService svc, RoomSelector rooms, ComprobanteService comprobantes,
-                           LimiteReservas limite, LimiteConsultasPublicas lecturas) {
+                           LimiteReservas limite, LimiteConsultasPublicas lecturas,
+                           ReservaServiceHuesped servicioHuespedes) {
     this.svc = svc;
     this.rooms = rooms;
     this.comprobantes = comprobantes;
     this.limite = limite;
     this.lecturas = lecturas;
+    this.servicioHuespedes = servicioHuespedes;
   }
 
   /** Contrato de entrada del flujo público. El cliente envía ISO-8601 (YYYY-MM-DD). */
@@ -59,6 +64,12 @@ public class ReservaController {
       var datos = new CrearReserva(req.email(), req.nombre(), llegada, salida,
         req.huespedes() == null ? 0 : req.huespedes(), Origen.WEB, clave, habitacion);
       String codigo = svc.crear(datos);
+      // Si quien reserva tiene sesión de huésped, la reserva queda colgando de su cuenta para que
+      // la vea en "Mis reservas". Si no, usuario_id queda NULL y sigue siendo consultable por
+      // código + correo: nadie pierde su reserva por no haber entrado con Google.
+      String correoSesion = co.hotel.huespedes.ActualCorreo.deSesion();
+      Long idUsuario = correoSesion == null ? null : servicioHuespedes.idPorEmail(correoSesion);
+      if (idUsuario != null) servicioHuespedes.vincular(codigo, idUsuario);
       return ResponseEntity.status(201).body(ReservaResp.de(svc.buscar(codigo).orElseThrow(),
         "Reserva registrada. Queda pendiente de confirmación: el hotel aún no ha configurado pago ni "
           + "confirmación automática."));

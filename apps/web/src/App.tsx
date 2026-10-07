@@ -11,6 +11,7 @@ import { PaginaAdminIntegraciones } from './paginas/PaginaAdminIntegraciones';
 import { PaginaAdminHotel } from './paginas/PaginaAdminHotel';
 import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
 import { PaginaAdminAuditoria } from './paginas/PaginaAdminAuditoria';
+import { PaginaMisReservas } from './paginas/PaginaMisReservas';
 
 function texto(valor?: string): string {
   return valor?.trim() ?? '';
@@ -46,6 +47,7 @@ export function App() {
           <nav className="nav" aria-label="Navegación principal">
             <NavLink to="/" end>Reservar</NavLink>
             <NavLink to="/consulta">Consultar reserva</NavLink>
+            <NavLink to="/mis-reservas">Mis reservas</NavLink>
             <NavLink to="/admin/reservas">Panel</NavLink>
           </nav>
         </div>
@@ -56,6 +58,7 @@ export function App() {
         <Route path="/" element={<PaginaInicio />} />
         <Route path="/reserva" element={<PaginaReserva />} />
         <Route path="/consulta" element={<PaginaConsulta />} />
+        <Route path="/mis-reservas" element={<PaginaMisReservas />} />
 
         {/* Panel administrativo: cada pantalla comprueba la sesión por su cuenta */}
         <Route path="/admin/entrar" element={<PaginaLoginAdmin />} />

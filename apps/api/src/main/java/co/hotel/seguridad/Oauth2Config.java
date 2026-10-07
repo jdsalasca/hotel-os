@@ -29,10 +29,14 @@ public class Oauth2Config {
   ClientRegistrationRepository registrosOauth2(HotelProperties props) {
     var oauth2 = props.oauth2();
     List<ClientRegistration> registros = new ArrayList<>();
-    var base = CommonOAuth2Provider.GOOGLE.getBuilder(EnrutadorOauth2.ADMIN)
+    var admin = CommonOAuth2Provider.GOOGLE.getBuilder(EnrutadorOauth2.ADMIN)
       .clientId(oauth2.clientId())
       .clientSecret(oauth2.clientSecret());
-    registros.add(base.build());
+    var huesped = CommonOAuth2Provider.GOOGLE.getBuilder(EnrutadorOauth2.HUESPED)
+      .clientId(oauth2.clientId())
+      .clientSecret(oauth2.clientSecret());
+    registros.add(admin.build());
+    registros.add(huesped.build());
     return new InMemoryClientRegistrationRepository(registros);
   }
 }
