@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
+import { useSesionHuesped } from '../api/useSesionHuesped';
 import { fechaCorta, monto } from '../api/formato';
 import { Aviso, HuecoImagen, MensajeError } from '../componentes/Estado';
 
@@ -33,6 +34,7 @@ export function PaginaReserva() {
   // Se lee UNA vez al montar. Si se relejera en cada render, al borrar la selección tras el
   // éxito volvería a ser null y la pantalla de confirmación no se llegaría a pintar.
   const [enCurso] = useState<EnCurso | null>(() => leerEnCurso());
+  const sesion = useSesionHuesped();
   const [email, setEmail] = useState('');
   const [nombre, setNombre] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -124,15 +126,25 @@ export function PaginaReserva() {
           </div>
 
           <p className="mt-e5">
-            Guarda el código: con él y tu correo puedes consultar la reserva cuando quieras.
+            {sesion.haySesion ? (
+              <>Esta reserva ya está en tu cuenta: puedes verla sin el código.</>
+            ) : (
+              <>Guarda el código: con él y tu correo puedes consultar la reserva cuando quieras.</>
+            )}
           </p>
           <p className="pila gap-e2">
-            <Link className="boton boton--primario" to="/">
+            <Link className="boton boton--secundario" to="/">
               Volver al inicio
             </Link>
-            <Link className="boton boton--secundario" to="/consulta">
-              Consultar una reserva
-            </Link>
+            {sesion.haySesion ? (
+              <Link className="boton boton--primario" to="/mis-reservas">
+                Ver mis reservas
+              </Link>
+            ) : (
+              <Link className="boton boton--secundario" to="/consulta">
+                Consultar una reserva
+              </Link>
+            )}
           </p>
         </section>
       </main>
