@@ -21,8 +21,8 @@ nunca se ejecutó no es cobertura, es intención.
 ## Lo que faltaba en la pantalla
 
 Reservando con la sesión abierta, la confirmación decía «Guarda el código: con él y tu correo
-puedes consultar la reserva», y solo ofrecía volver al inicio o consultar una reserva. Es cierto,
- pero era la mitad de la historia: con sesión, **la reserva ya está en la cuenta y no hace falta el
+puedes consultar la reserva»**, y solo ofrecía volver al inicio o consultar una reserva. Es cierto,
+pero era la mitad de la historia: con sesión, **la reserva ya está en la cuenta y no hace falta el
 código**.
 
 Ahora, según haya sesión o no:
