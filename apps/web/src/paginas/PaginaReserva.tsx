@@ -45,7 +45,8 @@ export function PaginaReserva() {
   const [reserva, setReserva] = useState<RespuestaReserva | null>(null);
   // Si la tarifa se movió entre la búsqueda y la confirmación, aquí queda el importe vigente
   // para que el huésped lo confirme de nuevo con conocimiento, no en silencio.
-  const [precioNuevo, setPrecioNuevo] = useState<{ totalCents: number; moneda: string } | null>(null);
+  const [precioNuevo, setPrecioNuevo] = useState<{ totalCents: number; moneda: string; ratePlanId: number } | null>(null);
+  const [planNuevo, setPlanNuevo] = useState<string | null>(null);
 
   if (!enCurso) {
     return (
@@ -67,9 +68,15 @@ export function PaginaReserva() {
   // podría ejecutarse antes de que el estado cambie). Se fija aquí y se usa `eleccion` en todas
   // partes: además evita leer un estado que React ya pudo limpiar.
   const eleccion = enCurso;
-  // Lo que el huésped acepta pagar: lo visto en la búsqueda, o el vigente tras un cambio de
-  // tarifa que ya se le mostró. Nunca se envía un importe que no haya visto.
-  const esperado = precioNuevo ?? { totalCents: eleccion.totalCents, moneda: eleccion.moneda };
+  // Lo que el huésped acepta pagar: lo visto en la búsqueda, o lo vigente tras un cambio que
+  // ya se le mostró. Nunca se envía un importe ni un plan que no haya visto.
+  const esperado = precioNuevo
+    ? { totalCents: precioNuevo.totalCents, moneda: precioNuevo.moneda, ratePlanId: precioNuevo.ratePlanId }
+    : {
+        totalCents: eleccion.totalCents,
+        moneda: eleccion.moneda,
+        ratePlanId: eleccion.plan?.id ?? null,
+      };
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -86,7 +93,7 @@ export function PaginaReserva() {
         idempotencia: eleccion.clave,
         totalEsperadoCents: esperado.totalCents,
         monedaEsperada: esperado.moneda,
-        ratePlanIdEsperado: eleccion.plan?.id ?? null,
+        ratePlanIdEsperado: esperado.ratePlanId,
       });
       setReserva(r);
       sessionStorage.removeItem('reserva-en-curso');
@@ -94,6 +101,21 @@ export function PaginaReserva() {
       const cambio = cambioDePrecio(e);
       if (cambio) {
         setPrecioNuevo(cambio);
+        // El resumen visible también se actualiza: el plan puede haber cambiado de nombre, y el
+        // huésped reconfirma lo que ve, no un número oculto.
+        try {
+          const consulta = new URLSearchParams({
+            roomId: String(eleccion.habitacion.id),
+            llegada: eleccion.llegada,
+            salida: eleccion.salida,
+            huespedes: String(eleccion.huespedes),
+          });
+          const detalle = await api.get<{ plan: { nombre: string } }>(
+            `/api/disponibilidad/detalle?${consulta}`);
+          setPlanNuevo(detalle.plan.nombre);
+        } catch {
+          setPlanNuevo(null);
+        }
       } else {
         setPrecioNuevo(null);
         setError(e instanceof Error ? e.message : 'No se pudo registrar la reserva');
@@ -210,15 +232,16 @@ export function PaginaReserva() {
               </div>
 
               {error ? <MensajeError texto={error} /> : null}
-              {precioNuevo ? (
-                <Aviso tono="aviso" titulo="El precio cambió desde tu búsqueda">
-                  <p>
-                    Viste {monto(eleccion.totalCents, eleccion.moneda)} y ahora el total es{' '}
-                    {monto(precioNuevo.totalCents, precioNuevo.moneda)}. Si estás de acuerdo,
-                    pulsa «Confirmar solicitud de reserva» de nuevo.
-                  </p>
-                </Aviso>
-              ) : null}
+            {precioNuevo ? (
+              <Aviso tono="aviso" titulo="El precio cambió desde tu búsqueda">
+                <p>
+                  Viste {monto(eleccion.totalCents, eleccion.moneda)} y ahora el total es{' '}
+                  {monto(precioNuevo.totalCents, precioNuevo.moneda)}
+                  {planNuevo ? ` con el plan ${planNuevo}` : ''}. Si estás de acuerdo,
+                  pulsa «Confirmar solicitud de reserva» de nuevo.
+                </p>
+              </Aviso>
+            ) : null}
 
               <button className="boton boton--primario" type="submit" disabled={enviando}>
                 {enviando ? 'Enviando…' : 'Confirmar solicitud de reserva'}
@@ -244,8 +267,8 @@ export function PaginaReserva() {
               {eleccion.huespedes} {eleccion.huespedes === 1 ? 'huésped' : 'huéspedes'} ·{' '}
               {eleccion.noches} {eleccion.noches === 1 ? 'noche' : 'noches'}
             </p>
-            {eleccion.plan ? (
-              <p className="campo__ayuda sin-margen">Plan {eleccion.plan.nombre}</p>
+            {eleccion.plan || planNuevo ? (
+              <p className="campo__ayuda sin-margen">Plan {planNuevo ?? eleccion.plan?.nombre}</p>
             ) : null}
             {(eleccion.descuentoPct ?? 0) > 0 ? (
               <p className="sin-margen">
@@ -269,12 +292,13 @@ export function PaginaReserva() {
   );
 }
 
-/** Extrae el importe vigente de un 409 por cambio de precio; null para cualquier otro error. */
-function cambioDePrecio(e: unknown): { totalCents: number; moneda: string } | null {
+/** Extrae el importe y plan vigentes de un 409 por cambio de precio; null para otro error. */
+function cambioDePrecio(e: unknown): { totalCents: number; moneda: string; ratePlanId: number } | null {
   if (!(e instanceof ErrorApi) || e.estado !== 409) return null;
-  const d = e.datos as { nuevoTotalCents?: unknown; nuevaMoneda?: unknown } | null;
-  if (!d || typeof d.nuevoTotalCents !== 'number' || typeof d.nuevaMoneda !== 'string') return null;
-  return { totalCents: d.nuevoTotalCents, moneda: d.nuevaMoneda };
+  const d = e.datos as { nuevoTotalCents?: unknown; nuevaMoneda?: unknown; nuevoRatePlanId?: unknown } | null;
+  if (!d || typeof d.nuevoTotalCents !== 'number' || typeof d.nuevaMoneda !== 'string'
+    || typeof d.nuevoRatePlanId !== 'number') return null;
+  return { totalCents: d.nuevoTotalCents, moneda: d.nuevaMoneda, ratePlanId: d.nuevoRatePlanId };
 }
 
 function leerEnCurso(): EnCurso | null {
