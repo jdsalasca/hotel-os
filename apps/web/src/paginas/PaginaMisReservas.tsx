@@ -57,7 +57,7 @@ export function PaginaMisReservas() {
   }
 
   useEffect(() => {
-    if (sesion.haySesion === false) return;
+    if (sesion.haySesion !== true) return;
     api
       .get<{ reservas: Reserva[] }>('/api/mis-reservas')
       .then((datos) => setReservas(datos.reservas))

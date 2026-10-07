@@ -21,6 +21,11 @@ responder dentro de la reserva.
 - `tsc` + `vite build` en el build Docker del servidor.
 - Despliegue: `git reset --hard origin/develop` + `up -d --build`; V15 aplicada; hilo
   servido en bundle; el chat con sesión se prueba con cuenta real (ver nota).
+- Captura `mis-reservas.png`: entrada con Google intacta y logo ya visible (el 404 viejo de
+  Cloudflare expiró). Los 401 de consola sin sesión son el sondeo normal (igual que antes:
+  `/api/yo` y `/api/admin/sesion` responden JSON y la app los maneja); el otro error es el
+  beacon de Cloudflare contra la CSP estricta (se apaga en Speed → Observability).
+- Ajuste menor incluido: los contadores de nuevos solo se piden con sesión confirmada.
 - Archivos del otro agente intactos: paquete nuevo `co.hotel.chat`, `SecurityConfig` solo
   amplía un matcher, páginas tocadas fuera de inventario.
 
