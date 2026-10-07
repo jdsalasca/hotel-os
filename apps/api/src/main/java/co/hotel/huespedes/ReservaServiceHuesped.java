@@ -21,11 +21,18 @@ public class ReservaServiceHuesped {
 
   /**
    * Reservas del usuario, primero las más recientes. Solo por `usuario_id`: el correo coincide en
-   * dos cuentas distintas y esas reservas no se mezclan.
+   * dos cuentas distintas y esas reservas no se mezclan. Cada fila trae lo abonado vigente y lo
+   * pendiente (total menos abonos): el saldo no se guarda en la base, se calcula al leer, igual
+   * que en el comprobante del panel.
    */
   public List<Map<String, Object>> de(long usuarioId) {
     return jdbc.queryForList("SELECT r.codigo, r.llegada, r.salida, r.huespedes, r.estado, "
-      + "r.creado_en, r.total_cents, r.moneda "
+      + "r.creado_en, r.total_cents, r.moneda, "
+      + "COALESCE((SELECT SUM(p.monto_cents) FROM pagos p "
+      + "WHERE p.reservation_id=r.id AND p.anulado_en IS NULL),0) AS abonado_cents, "
+      + "CASE WHEN r.total_cents IS NULL THEN NULL "
+      + "ELSE r.total_cents - COALESCE((SELECT SUM(p.monto_cents) FROM pagos p "
+      + "WHERE p.reservation_id=r.id AND p.anulado_en IS NULL),0) END AS pendiente_cents "
       + "FROM reservations r WHERE r.usuario_id=? ORDER BY r.llegada DESC", usuarioId);
   }
 

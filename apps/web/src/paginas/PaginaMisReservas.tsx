@@ -13,6 +13,8 @@ type Reserva = {
   creado_en: string;
   total_cents: number | null;
   moneda: string | null;
+  abonado_cents: number | null;
+  pendiente_cents: number | null;
 };
 
 function monto(cents: number | null, moneda: string | null): string | null {
@@ -123,6 +125,8 @@ export function PaginaMisReservas() {
                 <th scope="col">Salida</th>
                 <th scope="col">Huéspedes</th>
                 <th scope="col">Total acordado</th>
+                <th scope="col">Abonado</th>
+                <th scope="col">Pendiente</th>
                 <th scope="col">Estado</th>
                 <th scope="col">Acciones</th>
               </tr>
@@ -137,6 +141,16 @@ export function PaginaMisReservas() {
                   <td className="cifra" data-label="Salida">{r.salida}</td>
                   <td className="cifra" data-label="Huéspedes">{r.huespedes}</td>
                   <td className="cifra" data-label="Total">{monto(r.total_cents, r.moneda) ?? 'Sin precio'}</td>
+                  <td className="cifra" data-label="Abonado">{monto(r.abonado_cents ?? 0, r.moneda) ?? '—'}</td>
+                  <td data-label="Pendiente">
+                    {r.total_cents === null || r.moneda === null ? (
+                      <span className="campo__ayuda">Sin precio</span>
+                    ) : (r.pendiente_cents ?? r.total_cents) <= 0 ? (
+                      <Etiqueta tono="exito">PAGADA</Etiqueta>
+                    ) : (
+                      <span className="cifra">{monto(r.pendiente_cents, r.moneda)}</span>
+                    )}
+                  </td>
                   <td data-label="Estado">
                     <Etiqueta tono={r.estado === 'CONFIRMADA' ? 'exito' : r.estado === 'CANCELADA' ? 'error' : 'aviso'}>
                       {r.estado}
