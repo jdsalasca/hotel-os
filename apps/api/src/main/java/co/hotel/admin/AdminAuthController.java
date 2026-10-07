@@ -20,8 +20,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Inicio y cierre de sesión del panel. Acepta correo y contraseña, autentica, y deja sesión
- * HTTP con el contexto persistido: el resto de rutas se protegen con el rol ADMIN.
+ * Inicio de sesión del panel. Acepta correo y contraseña, autentica, y deja sesión
+ * HTTP con el contexto persistido: el resto de rutas se protegen con el rol ADMIN. El cierre lo
+ * atiende el filtro de logout de Spring en la misma ruta y responde 200 con JSON.
  */
 @RestController
 public class AdminAuthController {
@@ -70,15 +71,5 @@ public class AdminAuthController {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
         .body(Map.of("error", "credenciales inválidas"));
     }
-  }
-
-  @PostMapping("/api/admin/logout")
-  public ResponseEntity<?> logout(HttpServletRequest peticion) {
-    var sesion = peticion.getSession(false);
-    if (sesion != null) {
-      sesion.invalidate();
-      SecurityContextHolder.clearContext();
-    }
-    return ResponseEntity.ok(Map.of("estado", "sesión cerrada"));
   }
 }

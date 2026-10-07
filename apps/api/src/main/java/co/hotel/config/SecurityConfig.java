@@ -2,6 +2,7 @@ package co.hotel.config;
 
 import co.hotel.seguridad.EnrutadorOauth2;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -63,7 +64,14 @@ public class SecurityConfig {
         .requestMatchers("/api/huesped/**").hasAnyRole("HUESPED", "ADMIN")
         .requestMatchers("/api/admin/**").hasRole("ADMIN")
         .anyRequest().denyAll())
-      .logout(l -> l.logoutUrl("/api/admin/logout").deleteCookies("JSESSIONID"))
+      // El cierre es una API, no un formulario: responde 200 con JSON en vez de redirigir a
+      // /login. El navegador ya ignoraba la redirección, pero un 302 en un POST de API es mentir.
+      .logout(l -> l.logoutUrl("/api/admin/logout").deleteCookies("JSESSIONID")
+        .logoutSuccessHandler((peticion, respuesta, auth) -> {
+          respuesta.setStatus(HttpServletResponse.SC_OK);
+          respuesta.setContentType("application/json;charset=UTF-8");
+          respuesta.getWriter().write("{\"estado\":\"sesion cerrada\"}");
+        }))
       .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) ->
         res.sendError(401, "se requiere sesión administrativa")));
     // El login con Google solo existe con Client ID: sin él no hay repositorio y la contraseña

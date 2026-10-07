@@ -327,6 +327,20 @@
       font-weight: $peso-medio;
     }
   }
+
+  .nav__salir {
+    padding: $e-2 $e-3;
+    border: 0;
+    border-radius: $radio-sm;
+    background: transparent;
+    color: $tinta-suave;
+    font-family: $fuente-texto;
+    font-size: $texto-sm;
+    cursor: pointer;
+    @include focusable;
+
+    &:hover { background: $piedra-clara; color: $tinta; }
+  }
 }
 
 // --- Pie ---

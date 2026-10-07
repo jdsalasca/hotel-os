@@ -1,6 +1,7 @@
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { api } from './api/cliente';
+import { useSesion } from './api/useSesion';
 import { PaginaInicio } from './paginas/PaginaInicio';
 import { PaginaReserva } from './paginas/PaginaReserva';
 import { PaginaConsulta } from './paginas/PaginaConsulta';
@@ -17,8 +18,32 @@ function texto(valor?: string): string {
   return valor?.trim() ?? '';
 }
 
+/**
+ * Salida del panel donde el personal la encuentra: junto a la navegación del panel y solo con
+ * sesión. Se monta únicamente en las rutas del panel para no pedir la sesión en las públicas.
+ * Tras cerrar, recarga a /admin/entrar para no dejar datos del panel en memoria.
+ */
+function CierreSesionPanel() {
+  const sesion = useSesion();
+
+  if (sesion.haySesion !== true) return null;
+
+  async function salir() {
+    await sesion.salir();
+    window.location.assign('/admin/entrar');
+  }
+
+  return (
+    <button type="button" className="nav__salir" onClick={() => void salir()}>
+      Cerrar sesión
+    </button>
+  );
+}
+
 export function App() {
   const [hotel, setHotel] = useState<Record<string, string> | null>(null);
+  const ubicacion = useLocation();
+  const enPanel = ubicacion.pathname.startsWith('/admin/') && ubicacion.pathname !== '/admin/entrar';
 
   // La marca pública llega del hotel; si la API falla, la cabecera usa el nombre genérico.
   useEffect(() => {
@@ -84,6 +109,7 @@ export function App() {
             <NavLink to="/admin/integraciones">Integraciones</NavLink>
             <NavLink to="/admin/indicadores">Indicadores</NavLink>
             <NavLink to="/admin/auditoria">Actividad</NavLink>
+            {enPanel ? <CierreSesionPanel /> : null}
           </nav>
         </div>
       </footer>

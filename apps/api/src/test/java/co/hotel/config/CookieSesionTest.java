@@ -57,6 +57,10 @@ class CookieSesionTest {
       .orElseThrow(() -> new AssertionError("sin " + nombre + " en: " + cabeceras));
   }
 
+  private static String valor(String setCookie, String nombre) {
+    return setCookie.split(";", 2)[0].substring((nombre + "=").length());
+  }
+
   @Test
   @DisplayName("el login emite JSESSIONID con Secure y SameSite=Strict")
   void cookieDeSesionEndurecida() throws Exception {
@@ -66,7 +70,7 @@ class CookieSesionTest {
       .GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(200, salud.statusCode());
     String xsrf = galleta(salud.headers().allValues("set-cookie"), "XSRF-TOKEN");
-    String valor = xsrf.split(";", 2)[0].substring("XSRF-TOKEN=".length());
+    String valor = valor(xsrf, "XSRF-TOKEN");
 
     HttpResponse<String> acceso = http.send(HttpRequest.newBuilder(URI.create(base + "/api/admin/login"))
       .header("Content-Type", "application/json")
@@ -81,5 +85,40 @@ class CookieSesionTest {
     assertTrue(sesion.contains("Secure"), "falta Secure: " + sesion);
     assertTrue(sesion.toLowerCase().contains("samesite=strict"), "falta SameSite=Strict: " + sesion);
     assertTrue(sesion.contains("HttpOnly"), "falta HttpOnly: " + sesion);
+  }
+
+  @Test
+  @DisplayName("cerrar sesión invalida la sesión: la misma cookie ya no entra al panel")
+  void cerrarSesionInvalidaLaSesion() throws Exception {
+    String base = "http://127.0.0.1:" + puerto;
+
+    HttpResponse<String> salud = http.send(HttpRequest.newBuilder(URI.create(base + "/api/health"))
+      .GET().build(), HttpResponse.BodyHandlers.ofString());
+    String valorXsrf = valor(galleta(salud.headers().allValues("set-cookie"), "XSRF-TOKEN"), "XSRF-TOKEN");
+
+    HttpResponse<String> acceso = http.send(HttpRequest.newBuilder(URI.create(base + "/api/admin/login"))
+      .header("Content-Type", "application/json")
+      .header("Cookie", "XSRF-TOKEN=" + valorXsrf)
+      .header("X-XSRF-TOKEN", valorXsrf)
+      .POST(HttpRequest.BodyPublishers.ofString(
+        JSON.writeValueAsString(Map.of("email", "admin", "password", "admin"))))
+      .build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, acceso.statusCode(), "cuerpo=" + acceso.body());
+    String valorSesion = valor(galleta(acceso.headers().allValues("set-cookie"), "JSESSIONID"), "JSESSIONID");
+
+    HttpResponse<String> salida = http.send(HttpRequest.newBuilder(URI.create(base + "/api/admin/logout"))
+      .header("Cookie", "JSESSIONID=" + valorSesion + "; XSRF-TOKEN=" + valorXsrf)
+      .header("X-XSRF-TOKEN", valorXsrf)
+      .POST(HttpRequest.BodyPublishers.noBody())
+      .build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, salida.statusCode(), "cuerpo=" + salida.body());
+    assertTrue(salida.body().contains("sesi"), "la API debe confirmar el cierre: " + salida.body());
+
+    HttpResponse<String> despues = http.send(HttpRequest.newBuilder(
+        URI.create(base + "/api/admin/reservas?limit=1"))
+      .header("Cookie", "JSESSIONID=" + valorSesion)
+      .GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(401, despues.statusCode(),
+      "la cookie cerrada no puede seguir entrando al panel: " + despues.statusCode());
   }
 }
