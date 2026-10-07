@@ -3,6 +3,7 @@ target/
 .env
 .env.*
 !.env.example
+!.env.tunnel.example
 data/
 *.sqlite3
 *.sqlite3-wal

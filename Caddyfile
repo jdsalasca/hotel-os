@@ -1,13 +1,14 @@
-# Caddy en producción: HTTPS automático (Let's Encrypt), `/api/*` al backend y el resto al
-# frontend. Sin este archivo el proxy no sabe a dónde mandar nada: es la pieza que faltaba.
+# Caddy en producción (modo directo, con IP pública y Let's Encrypt).
+# Solo para este modo: en modo túnel no hay proxy, quien termina TLS es Cloudflare.
+#
+# Un único `reverse_proxy` basta: el nginx de la imagen web ya reenvía `/api/*` a `api:8080`,
+# así que no hace falta una segunda ruta aquí.
 {$DOMAIN} {
-	reverse_proxy /api/* api:8080
+	encode gzip
 	reverse_proxy web:80
 
+	# Las tres primeras ya las pone el nginx de la imagen web; aquí solo lo que no pone nadie más.
 	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
-		Referrer-Policy strict-origin-when-cross-origin
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		-Server
 	}

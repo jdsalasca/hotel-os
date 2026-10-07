@@ -73,8 +73,10 @@ cp .env.example .env && nano .env      # DOMAIN, ACME_EMAIL, ADMIN_INIT_TOKEN
 docker compose -f compose.production.yaml build api
 
 # 2. Respaldo ANTES de actualizar. Ver tools/operacion/respaldar.sh
-docker compose -f compose.production.yaml run --rm --entrypoint \
-  sh api /usr/local/bin/respaldar.sh /data/hotel.sqlite3 /backups
+docker build -t hotel-ops tools/operacion
+docker run --rm -e BACKUP_RETENTION_DAYS=30 \
+  -v hotel-os_hotel-data:/data -v hotel-os_hotel-backups:/backups \
+  hotel-ops /usr/local/bin/respaldar.sh /data/hotel.sqlite3 /backups
 
 # 3. Despliegue
 docker compose -f compose.production.yaml up -d
@@ -104,6 +106,48 @@ Caddy obtiene y renueva el certificado Let's Encrypt automáticamente. Solo hay 
 3. `ACME_EMAIL` para avisos de renovación.
 
 Caddy redirige HTTP a HTTPS y añade HSTS por su cuenta.
+
+## Modo túnel (sin IP pública, sin Caddy, sin ACME)
+
+Para una VM detrás de NAT, una red doméstica o un portátil: **Cloudflare Tunnel** hace de salida a
+internet. No hace falta abrir puertos, tener IP fija, ni que Caddy pida un certificado. Cloudflare
+termina el HTTPS y `cloudflared` lo reenvía al frontend.
+
+`compose.tunnel.yaml` es el modo directo **sin el servicio `proxy`** y con un único puerto publicado
+(`WEB_PORT`, 5173 por defecto). `Caddyfile` no interviene.
+
+```bash
+cp .env.tunnel.example .env && nano .env    # ADMIN_INIT_TOKEN, WEB_PORT
+docker compose -f compose.tunnel.yaml up -d --build
+```
+
+Túnel de prueba, con URL aleatoria de `trycloudflare.com` (cambia en cada arranque):
+
+```bash
+docker run --rm cloudflare/cloudflared:latest tunnel --no-autoupdate \
+  --url http://host.docker.internal:5173
+```
+
+Túnel con dominio propio, el que hay que usar en operación:
+
+```bash
+docker run --rm cloudflare/cloudflared:latest tunnel login
+docker run --rm cloudflare/cloudflared:latest tunnel create hotel-os
+docker run --rm cloudflare/cloudflared:latest tunnel route dns hotel-os app.tu-dominio.com
+docker run --rm cloudflare/cloudflared:latest tunnel run hotel-os
+```
+
+Las dos últimas requieren una credencial del túnel: ponla en la configuración (`cloudflared` la lee
+de `~/.cloudflared/`) o móntala en el contenedor. Por eso `.env.tunnel.example` **no** lleva
+`DOMAIN` ni `ACME_EMAIL`: no hay proxy propio ni Let's Encrypt que configurar.
+
+Lo que sí es idéntico al modo directo: el respaldo (usa los mismos volúmenes `hotel-os_hotel-data` y
+`hotel-os_hotel-backups`), `HOTEL_AMBIENTE=produccion`, `HOTEL_DEMO_ADMIN=false` y la cookie de
+sesión con `Secure` y `SameSite=strict`, porque Cloudflare también termina el HTTPS.
+
+> Ojo al cambiar entre modos: `compose.production.yaml` y `compose.tunnel.yaml` declaran los mismos
+> nombres de volumen, así que los datos se comparten. Lo que **no** se comparte es `caddy-data`, que
+> solo existe en el modo directo.
 
 ## ⚠️ Sobre `docker compose down -v`
 
@@ -186,8 +230,9 @@ Recomendación: copia diaria automática (`cron`) más rotación mensual en un d
 ```bash
 git pull                                                                     # 1. código nuevo
 docker compose -f compose.production.yaml build api                          # 2. compila (con sus pruebas)
-docker compose -f compose.production.yaml run --rm --entrypoint \
-  sh api /usr/local/bin/respaldar.sh /data/hotel.sqlite3 /backups            # 3. respaldo
+docker run --rm -e BACKUP_RETENTION_DAYS=30 \                                # 3. respaldo
+  -v hotel-os_hotel-data:/data -v hotel-os_hotel-backups:/backups \
+  hotel-ops /usr/local/bin/respaldar.sh /data/hotel.sqlite3 /backups
 docker compose -f compose.production.yaml up -d                              # 4. reinicia
 curl -fsS https://tu-dominio.com/api/health                                  # 5. verifica
 ```

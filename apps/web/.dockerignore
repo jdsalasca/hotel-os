@@ -1,0 +1,14 @@
+# Contexto de build de apps/web. `node_modules/` es lo que más pesa aquí: sin esta línea, los
+# cientos de MB de dependencias instaladas en el host se subían al daemon en cada `docker compose
+# build` y se descartaban después, porque el Dockerfile hace su propio `npm ci` dentro de la capa
+# de construcción. DevDependencies (vite, typescript) NO se excluyen: hacen falta para compilar.
+# Tampoco se suben a la imagen final, que es nginx y solo copia /app/dist.
+node_modules/
+dist/
+.env
+.env.*
+*.log
+.idea/
+.vscode/
+Dockerfile
+.dockerignore

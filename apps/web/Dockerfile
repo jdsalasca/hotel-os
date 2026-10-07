@@ -22,6 +22,15 @@ server {
   index index.html;
   client_max_body_size 64k;
 
+  # El nginx.conf de la imagen tiene gzip comentado. El bundle de Vite son cientos de KB de JS/CSS
+  # sin comprimir; sin esto cada carga de página los baja íntegros. No comprime lo que ya va
+  # comprimido (imágenes, fuentes), por eso gzip_types no incluye image/*.
+  gzip on;
+  gzip_vary on;
+  gzip_min_length 1024;
+  gzip_proxied any;
+  gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
   location /api/ {
     proxy_pass http://api:8080;
     proxy_set_header Host $host;

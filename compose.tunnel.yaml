@@ -1,0 +1,89 @@
+# Modo túnel (Cloudflare Tunnel): sin IP pública, sin puertos 80/443 abiertos, sin Caddy ni ACME.
+#
+# Diferencias con compose.production.yaml, y solo estas:
+#   - No hay servicio `proxy`. Quien termina TLS y enruta es `cloudflared`, fuera de este compose.
+#   - `web` publica un puerto local para que cloudflared (o tu navegador) lo alcance.
+#
+# Levantar:
+#   cp .env.tunnel.example .env
+#   docker compose -f compose.tunnel.yaml up -d --build
+#
+# Luego, en otra terminal, el túnel hacia ese puerto:
+#   docker run --rm cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://host.docker.internal:5173
+# En producción, sustituye `--url` por un túnel con nombre y dominio propio (`tunnel login`,
+# `tunnel create`, `tunnel route dns`); ver docs/operations/despliegue-respaldos.md.
+#
+# ⚠️  `docker compose down -v` BORRA los volúmenes, incluido el de SQLite. Nunca con datos reales.
+
+services:
+  api:
+    build: ./apps/api
+    environment:
+      JDBC_URL: jdbc:sqlite:/data/hotel.sqlite3
+      # Heap del backend. Sin esto la JVM se dimensiona sola a ~1/4 de la RAM del host: en el mini PC
+      # (2 núcleos / 3.7 GB) eso son ~900 MB de heap más metaspacio, y el OOM killer del kernel se
+      # lleva el contenedor en vez de dejar que la GC responda. -Xms bajo para no reservar de más
+      # al arrancar; el GC de G1 hace que la JVM no crezca por encima de -Xmx.
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      HOTEL_AMBIENTE: ${HOTEL_AMBIENTE:-produccion}
+      HOTEL_DEMO_ADMIN: ${HOTEL_DEMO_ADMIN:-false}
+      ADMIN_INIT_TOKEN: ${ADMIN_INIT_TOKEN:?define ADMIN_INIT_TOKEN para crear el primer administrador}
+      CORREO_HABILITADO: ${CORREO_HABILITADO:-false}
+      CORREO_REMITENTE: ${CORREO_REMITENTE:-}
+      CORREO_REMITENTE_NOMBRE: ${CORREO_REMITENTE_NOMBRE:-Hotel}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+      BOOKING_CLIENT_ID: ${BOOKING_CLIENT_ID:-}
+      BOOKING_CLIENT_SECRET: ${BOOKING_CLIENT_SECRET:-}
+      BOOKING_HOTEL_ID: ${BOOKING_HOTEL_ID:-}
+      BOOKING_ENV: ${BOOKING_ENV:-sandbox}
+      DESPEGAR_API_KEY: ${DESPEGAR_API_KEY:-}
+      DESPEGAR_HOTEL_CODE: ${DESPEGAR_HOTEL_CODE:-}
+      DESPEGAR_ENV: ${DESPEGAR_ENV:-sandbox}
+      AIRBNB_CLIENT_ID: ${AIRBNB_CLIENT_ID:-}
+      AIRBNB_CLIENT_SECRET: ${AIRBNB_CLIENT_SECRET:-}
+      AIRBNB_LISTING_IDS: ${AIRBNB_LISTING_IDS:-}
+      AIRBNB_ENV: ${AIRBNB_ENV:-sandbox}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      # Cloudflare termina TLS, así que el navegador sigue viendo HTTPS: la cookie de sesión
+      # necesita Secure. SameSite strict también, por lo mismo que en el modo directo.
+      SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
+      SERVER_SERVLET_SESSION_COOKIE_SAME_SITE: "strict"
+    volumes:
+      - hotel-data:/data
+      - hotel-backups:/backups
+    # Sin puertos publicados: el backend no se expone, solo lo ve el nginx de `web`.
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health | grep -q '\"estado\":\"ok\"' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+    environment:
+      API_URL: http://api:8080
+    # Único puerto publicado de todo el stack. Cámbialo con WEB_PORT si está ocupado.
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    expose:
+      - "80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  hotel-data:
+  hotel-backups:

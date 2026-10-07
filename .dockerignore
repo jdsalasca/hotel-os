@@ -1,0 +1,12 @@
+# Contexto raíz. Aplica a los compose que construyen desde el repo entero; los dos servicios de
+# producción (apps/api y apps/web) usan contextos propios y se rigen por sus .dockerignore.
+.git/
+node_modules/
+target/
+dist/
+.env
+.env.*
+*.log
+docs/screenshots/
+.idea/
+.vscode/

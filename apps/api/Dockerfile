@@ -17,14 +17,16 @@ COPY src ./src
 RUN mvn -B -q package -DskipTests
 
 # --- Ejecución ---
-FROM eclipse-temurin:25-jre-jammy
+# Alpine en vez de jammy: mismo JRE, ~150 MB menos en disco. Verificado que esta imagen corre como
+# uid=0, así que el volumen de SQLite sigue naciendo con propietario root y el comentario de abajo
+# sigue siendo cierto. Comprobado además que trae `sh`, `wget` y `java`.
+FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /app
 
-# curl solo para el healthcheck; wget viene en la imagen base.
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl \
-  && rm -rf /var/lib/apt/lists/*
+# curl solo para el healthcheck; wget viene en la imagen base. En Alpine se instala con apk.
+# Los tres compose (dev, producción y túnel) usan curl en su healthcheck.
+RUN apk add --no-cache curl
 
 COPY --from=construccion /build/target/hotel-api-*.jar app.jar
 
@@ -43,4 +45,8 @@ EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=30s \
   CMD curl -fsS http://localhost:8080/api/health | grep -q '"estado":"ok"' || exit 1
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# `sh -c` para que JAVA_OPTS llegue a la JVM: la forma exec anterior no expandía variables, así que
+# el heap se dimensionaba solo (≈1/4 de la RAM del host: 900 MB en un mini PC de 3.7 GB). El `exec`
+# interior deja la JVM como PID 1, así que `docker stop` sigue llegando por señales.
+# JAVA_OPTS lo fija compose.tunnel.yaml; sin él, `:-` deja la JVM con su dimensionado por defecto.
+ENTRYPOINT ["sh", "-c", "exec java ${JAVA_OPTS:-} -jar app.jar"]

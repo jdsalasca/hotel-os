@@ -1,0 +1,11 @@
+# Contexto de build de apps/api. Lo que aquí se excluye nunca sale por la red hacia el daemon y
+# nunca entra en la imagen. OJO: el Dockerfile copia `pom.xml` y `src/`, así que esos dos no se
+# pueden excluir.
+target/
+.env
+.env.*
+*.md
+.idea/
+.vscode/
+Dockerfile
+.dockerignore
