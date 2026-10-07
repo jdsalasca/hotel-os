@@ -40,7 +40,8 @@ class InventarioServiceTest {
         + " room_type_id INTEGER REFERENCES room_types(id), estado TEXT NOT NULL DEFAULT 'ACTIVA',"
         + " nombre TEXT NOT NULL DEFAULT '')");
       s.execute("CREATE TABLE rate_plans(id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL,"
-        + " nombre TEXT NOT NULL, moneda TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1)");
+        + " nombre TEXT NOT NULL, moneda TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1,"
+        + " descuento_pct INTEGER NOT NULL DEFAULT 0)");
       s.execute("CREATE TABLE rates(id INTEGER PRIMARY KEY AUTOINCREMENT, rate_plan_id INTEGER NOT NULL,"
         + " room_type_id INTEGER NOT NULL, fecha TEXT NOT NULL, precio_cents INTEGER NOT NULL,"
         + " min_estancia INTEGER, max_estancia INTEGER, cerrado INTEGER NOT NULL DEFAULT 0,"
@@ -149,6 +150,49 @@ class InventarioServiceTest {
     assertEquals(1, ofertas.size());
     assertEquals(450_000, ofertas.get(0).totalCents(), "3 noches a 150.000");
     assertEquals("COP", ofertas.get(0).moneda());
+  }
+
+  @Test
+  @DisplayName("un plan con 20% de descuento rebaja el total y dice el original")
+  void planConDescuentoRebajaElTotal() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("OFE", "Oferta", "COP", 20);
+    assertEquals(20, plan.descuentoPct());
+    LocalDate desde = LocalDate.parse("2026-11-01");
+    for (int i = 0; i < 2; i++) tarifas.fijarPrecio(plan, tipo.id(), desde.plusDays(i), 150_000);
+    svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+
+    List<OpcionOferta> ofertas = svc.disponiblesConPrecio(desde, desde.plusDays(2), 2);
+    assertEquals(1, ofertas.size());
+    assertEquals(240_000, ofertas.get(0).totalCents(), "300.000 menos el 20%");
+    assertEquals(300_000, ofertas.get(0).totalSinDescuentoCents());
+    assertEquals(20, ofertas.get(0).descuentoPct());
+  }
+
+  @Test
+  @DisplayName("el descuento se redondea al céntimo sobre el total, no por noche")
+  void descuentoSeRedondeaAlCentimo() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("OFE", "Oferta", "COP", 10);
+    LocalDate desde = LocalDate.parse("2026-11-01");
+    tarifas.fijarPrecio(plan, tipo.id(), desde, 199);
+    svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+
+    List<OpcionOferta> ofertas = svc.disponiblesConPrecio(desde, desde.plusDays(1), 2);
+    assertEquals(1, ofertas.size());
+    assertEquals(179, ofertas.get(0).totalCents(), "199 menos el 10% = 179.1, al céntimo 179");
+    assertEquals(199, ofertas.get(0).totalSinDescuentoCents());
+  }
+
+  @Test
+  @DisplayName("descuento fuera de 0-100 se rechaza con motivo, al crear y al modificar")
+  void descuentoInvalidoSeRechaza() {
+    assertThrows(DatosInvalidosException.class, () -> tarifas.crearPlan("MAL", "Malo", "COP", 150));
+    PlanTarifario plan = tarifas.crearPlan("OK", "Correcto", "COP");
+    assertEquals(0, plan.descuentoPct(), "sin descuento declarado no hay rebaja");
+    assertThrows(DatosInvalidosException.class, () -> tarifas.fijarDescuento(plan.id(), -5));
+    tarifas.fijarDescuento(plan.id(), 15);
+    assertEquals(15, tarifas.planPorId(plan.id()).descuentoPct());
   }
 
   @Test

@@ -7,4 +7,5 @@ package co.hotel.inventario;
  * periodo: es preferible no ofrecer nada antes que inventar o dejar sin definir un precio.
  */
 public record OpcionOferta(Habitacion habitacion, RoomType tipo, long totalCents, String moneda,
-                            int noches, PlanTarifario plan) {}
+                            int noches, PlanTarifario plan, long totalSinDescuentoCents,
+                            int descuentoPct) {}

@@ -43,7 +43,8 @@ class ReservaServiceTest {
         UNIQUE(idempotencia, email));
       CREATE TABLE rate_plans(
         id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL,
-        nombre TEXT NOT NULL, moneda TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1);
+        nombre TEXT NOT NULL, moneda TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1,
+        descuento_pct INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE rates(
         id INTEGER PRIMARY KEY AUTOINCREMENT, rate_plan_id INTEGER NOT NULL,
         room_type_id INTEGER NOT NULL, fecha TEXT NOT NULL, precio_cents INTEGER NOT NULL,

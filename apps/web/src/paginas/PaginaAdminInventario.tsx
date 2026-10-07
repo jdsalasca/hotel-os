@@ -7,7 +7,7 @@ import { fechaCorta } from '../api/formato';
 
 type Habitacion = { id: number; codigo: string; roomTypeId: number; nombre: string; estado: string };
 type Tipo = { id: number; codigo: string; nombre: string; capacidadMax: number };
-type Plan = { id: number; codigo: string; nombre: string; moneda: string };
+type Plan = { id: number; codigo: string; nombre: string; moneda: string; descuentoPct: number };
 type Noche = { fecha: string; precioCents: number; minEstancia: number | null; maxEstancia: number | null; cerrado: boolean };
 /** Fila del calendario: una habitación con una entrada por noche del mes. */
 type CalendarioDia = {
@@ -59,7 +59,7 @@ export function PaginaAdminInventario() {
   const [nuevoTipo, setNuevoTipo] = useState({ codigo: '', nombre: '', capacidadMax: 2 });
   const [nuevaHabitacion, setNuevaHabitacion] = useState({ codigo: '', roomTypeId: '', nombre: '' });
   const [bloqueo, setBloqueo] = useState({ roomId: '', desde: '', hasta: '', motivo: '' });
-  const [nuevoPlan, setNuevoPlan] = useState({ codigo: '', nombre: '', moneda: 'COP' });
+  const [nuevoPlan, setNuevoPlan] = useState({ codigo: '', nombre: '', moneda: 'COP', descuentoPct: '' });
 
   // Precios por noche: qué hay guardado y qué está escribiendo el hotel ahora mismo.
   const [tarifas, setTarifas] = useState<{ planId: string; tipoId: string }>({ planId: '', tipoId: '' });
@@ -428,6 +428,7 @@ export function PaginaAdminInventario() {
                   codigo: nuevoPlan.codigo,
                   nombre: nuevoPlan.nombre,
                   moneda: nuevoPlan.moneda,
+                  descuentoPct: nuevoPlan.descuentoPct === '' ? null : Number(nuevoPlan.descuentoPct),
                 }),
               );
             }}
@@ -456,8 +457,34 @@ export function PaginaAdminInventario() {
                 onChange={(e) => setNuevoPlan({ ...nuevoPlan, moneda: e.target.value.toUpperCase() })}
               />
             </div>
+            <div className="campo">
+              <label className="campo__etiqueta" htmlFor="plan-descuento">Descuento % (opcional)</label>
+              <input
+                id="plan-descuento"
+                type="number"
+                min={0}
+                max={100}
+                placeholder="0"
+                value={nuevoPlan.descuentoPct}
+                onChange={(e) => setNuevoPlan({ ...nuevoPlan, descuentoPct: e.target.value })}
+              />
+            </div>
             <button className="boton boton--primario" type="submit">Crear plan</button>
           </form>
+
+          {planes && planes.length > 0 ? (
+            <div className="tarjeta pila">
+              <h2 className="t-lg mb-0">Planes y descuentos</h2>
+              <p className="campo__ayuda sin-margen">
+                El descuento se aplica al totalizar. Las reservas ya guardadas no cambian.
+              </p>
+              <ul className="lista-marcada">
+                {planes.map((plan) => (
+                  <FilaPlan key={plan.id} plan={plan} alGuardar={cargar} />
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
 
         <h2 className="t-xl mt-e6">Precios por noche</h2>
@@ -622,4 +649,46 @@ function diasDelMes(mes: string): string[] {
     dias.push(isoLocal(dia));
   }
   return dias;
+}
+
+/** Descuento de un plan: número, guardar y recargar la lista que manda el padre. */
+function FilaPlan({ plan, alGuardar }: { plan: Plan; alGuardar: () => Promise<void> }) {
+  const [pct, setPct] = useState(String(plan.descuentoPct ?? 0));
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  async function guardar() {
+    setAviso(null);
+    try {
+      await api.post(`/api/admin/planes/${plan.id}/descuento`, { descuentoPct: Number(pct) });
+      await alGuardar();
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : 'No se pudo guardar el descuento');
+    }
+  }
+
+  return (
+    <li>
+      <strong>{plan.codigo}</strong> · {plan.nombre} ({plan.moneda})
+      {plan.descuentoPct > 0 ? <> · −{plan.descuentoPct} %</> : null}
+      <div className="campos">
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor={`descuento-${plan.id}`}>
+            Descuento %
+          </label>
+          <input
+            id={`descuento-${plan.id}`}
+            type="number"
+            min={0}
+            max={100}
+            value={pct}
+            onChange={(e) => setPct(e.target.value)}
+          />
+        </div>
+        <button className="boton boton--secundario boton--chico" type="button" onClick={() => void guardar()}>
+          Guardar descuento
+        </button>
+      </div>
+      {aviso ? <p className="campo__error">{aviso}</p> : null}
+    </li>
+  );
 }

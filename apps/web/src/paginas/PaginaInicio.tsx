@@ -11,6 +11,8 @@ type Oferta = {
   moneda: string;
   noches: number;
   plan: { id: number; codigo: string; nombre: string };
+  descuentoPct: number;
+  totalSinDescuentoCents: number;
 };
 
 type RespuestaDisponibilidad = {
@@ -42,6 +44,8 @@ type DetalleOferta = {
   noches: { fecha: string; precioCents: number }[];
   totalCents: number;
   moneda: string;
+  descuentoPct: number;
+  totalSinDescuentoCents: number;
 };
 
 /** Suma días a un ISO YYYY-MM-DD sin pelear con la zona horaria. */
@@ -353,15 +357,27 @@ export function PaginaInicio() {
                   <article className="tarjeta pila" key={id}>
                   <HuecoImagen texto="Fotografía de la habitación" />
                   <h3>{oferta.tipo.nombre}</h3>
+                  {oferta.descuentoPct > 0 ? (
+                    <p className="sin-margen">
+                      <span className="etiqueta etiqueta--exito">−{oferta.descuentoPct} %</span>
+                    </p>
+                  ) : null}
                   <p className="campo__ayuda">
                     {oferta.habitacion.nombre || oferta.habitacion.codigo} · Hasta{' '}
                     {oferta.tipo.capacidadMax} huéspedes · Plan {oferta.plan.nombre}
                   </p>
                   <p className="precio">
                     {monto(oferta.totalCents, oferta.moneda)}
-                    <span className="precio__detalle">
-                      total por {oferta.noches} {oferta.noches === 1 ? 'noche' : 'noches'}
-                    </span>
+                    {oferta.descuentoPct > 0 ? (
+                      <span className="precio__detalle">
+                        antes {monto(oferta.totalSinDescuentoCents, oferta.moneda)} · total por{' '}
+                        {oferta.noches} {oferta.noches === 1 ? 'noche' : 'noches'}
+                      </span>
+                    ) : (
+                      <span className="precio__detalle">
+                        total por {oferta.noches} {oferta.noches === 1 ? 'noche' : 'noches'}
+                      </span>
+                    )}
                   </p>
                   <button
                     className="boton boton--fantasma boton--chico"
@@ -379,6 +395,9 @@ export function PaginaInicio() {
                     <div className="desglose">
                       <p className="campo__ayuda sin-margen">
                         Plan {detalle.plan.nombre}
+                        {detalle.descuentoPct > 0 ? (
+                          <> · −{detalle.descuentoPct} % (antes {monto(detalle.totalSinDescuentoCents, detalle.moneda)})</>
+                        ) : null}
                       </p>
                       <dl className="desglose__noches">
                         {detalle.noches.map((noche) => (

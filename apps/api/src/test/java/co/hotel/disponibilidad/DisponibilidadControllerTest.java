@@ -122,7 +122,46 @@ class DisponibilidadControllerTest {
       .andExpect(jsonPath("$.ofertas[0].totalCents").value(300000))
       .andExpect(jsonPath("$.ofertas[0].moneda").value("COP"))
       .andExpect(jsonPath("$.ofertas[0].plan.id").value(planId))
-      .andExpect(jsonPath("$.ofertas[0].plan.codigo").value("PES_T"));
+      .andExpect(jsonPath("$.ofertas[0].plan.codigo").value("PES_T"))
+      .andExpect(jsonPath("$.ofertas[0].descuentoPct").value(0))
+      .andExpect(jsonPath("$.ofertas[0].totalSinDescuentoCents").value(300000));
+  }
+
+  @Test
+  @DisplayName("el hotel fija el descuento del plan por API y la oferta lo refleja")
+  void descuentoPorApiLlegaALaOferta() throws Exception {
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "DOBLE_W", "nombre", "Habitación doble", "capacidadMax", 2))).get("id").asLong();
+    admin("/api/admin/habitaciones", Map.of("codigo", "701", "roomTypeId", tipoId, "nombre", "Habitación 701"));
+    long planId = JSON.readTree(admin("/api/admin/planes",
+      Map.of("codigo", "PES_W", "nombre", "Plan pesos", "moneda", "COP"))).get("id").asLong();
+    for (String fecha : new String[] { "2027-02-01", "2027-02-02" }) {
+      mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(JSON.writeValueAsString(Map.of("ratePlanId", planId, "roomTypeId", tipoId,
+            "fecha", fecha, "precioCents", 200_000))))
+        .andExpect(status().isCreated());
+    }
+
+    mvc.perform(post("/api/admin/planes/" + planId + "/descuento").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("descuentoPct", 25))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.descuentoPct").value(25));
+
+    mvc.perform(post("/api/admin/planes/" + planId + "/descuento").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("descuentoPct", 101))))
+      .andExpect(status().isBadRequest());
+
+    mvc.perform(get("/api/disponibilidad")
+        .param("llegada", "2027-02-01").param("salida", "2027-02-03").param("huespedes", "2"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.ofertas.length()").value(1))
+      .andExpect(jsonPath("$.ofertas[0].habitacion.codigo").value("701"))
+      .andExpect(jsonPath("$.ofertas[0].totalCents").value(300000))
+      .andExpect(jsonPath("$.ofertas[0].totalSinDescuentoCents").value(400000))
+      .andExpect(jsonPath("$.ofertas[0].descuentoPct").value(25));
   }
 
   @Test

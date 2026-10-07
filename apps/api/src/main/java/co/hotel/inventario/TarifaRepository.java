@@ -14,15 +14,20 @@ public class TarifaRepository {
 
   public TarifaRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
-  public long insertarPlan(String codigo, String nombre, String moneda) {
-    jdbc.update("INSERT INTO rate_plans(codigo,nombre,moneda,activo) VALUES(?,?,?,1)", codigo, nombre, moneda);
+  public long insertarPlan(String codigo, String nombre, String moneda, int descuentoPct) {
+    jdbc.update("INSERT INTO rate_plans(codigo,nombre,moneda,activo,descuento_pct) VALUES(?,?,?,1,?)",
+      codigo, nombre, moneda, descuentoPct);
     return jdbc.queryForObject("SELECT id FROM rate_plans WHERE codigo=?", Long.class, codigo);
   }
 
+  public void fijarDescuento(long planId, int descuentoPct) {
+    jdbc.update("UPDATE rate_plans SET descuento_pct=? WHERE id=?", descuentoPct, planId);
+  }
+
   public Optional<PlanTarifario> planPorId(long id) {
-    return jdbc.query("SELECT id,codigo,nombre,moneda,activo FROM rate_plans WHERE id=?",
+    return jdbc.query("SELECT id,codigo,nombre,moneda,activo,descuento_pct FROM rate_plans WHERE id=?",
       (rs, n) -> new PlanTarifario(rs.getLong("id"), rs.getString("codigo"), rs.getString("nombre"),
-        rs.getString("moneda"), rs.getInt("activo") == 1), id).stream().findFirst();
+        rs.getString("moneda"), rs.getInt("activo") == 1, rs.getInt("descuento_pct")), id).stream().findFirst();
   }
 
   public void fijarPrecio(long planId, long tipoId, LocalDate fecha, long precioCents) {
@@ -53,9 +58,9 @@ public class TarifaRepository {
 
   /** Planes con los que el hotel ofrece inventario. El primero con tarifa completa gana. */
   public List<PlanTarifario> planesActivos() {
-    return jdbc.query("SELECT id,codigo,nombre,moneda,activo FROM rate_plans WHERE activo=1 ORDER BY id",
+    return jdbc.query("SELECT id,codigo,nombre,moneda,activo,descuento_pct FROM rate_plans WHERE activo=1 ORDER BY id",
       (rs, n) -> new PlanTarifario(rs.getLong("id"), rs.getString("codigo"), rs.getString("nombre"),
-        rs.getString("moneda"), rs.getInt("activo") == 1));
+        rs.getString("moneda"), rs.getInt("activo") == 1, rs.getInt("descuento_pct")));
   }
 
   /**

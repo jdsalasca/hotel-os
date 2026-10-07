@@ -14,12 +14,34 @@ public class TarifaService {
   public TarifaService(TarifaRepository repo) { this.repo = repo; }
 
   public PlanTarifario crearPlan(String codigo, String nombre, String moneda) {
+    return crearPlan(codigo, nombre, moneda, 0);
+  }
+
+  /**
+   * Plan con descuento porcentual desde el alta ("Flexible -15%"). Sin descuento declarado no hay
+   * rebaja: el 0 por defecto no es una suposición, es ausencia de descuento.
+   */
+  public PlanTarifario crearPlan(String codigo, String nombre, String moneda, int descuentoPct) {
     if (codigo == null || codigo.isBlank()) throw new DatosInvalidosException("código de plan requerido");
     if (nombre == null || nombre.isBlank()) throw new DatosInvalidosException("nombre de plan requerido");
     if (moneda == null || !moneda.matches("[A-Z]{3}"))
       throw new DatosInvalidosException("moneda inválida: use el código ISO 4217, p.ej. COP");
-    return repo.planPorId(repo.insertarPlan(codigo.trim(), nombre.trim(), moneda.trim()))
+    validarDescuento(descuentoPct);
+    return repo.planPorId(repo.insertarPlan(codigo.trim(), nombre.trim(), moneda.trim(), descuentoPct))
       .orElseThrow(() -> new DatosInvalidosException("no se pudo crear el plan"));
+  }
+
+  /** Cambia el descuento de un plan existente. Las reservas ya guardadas no se tocan. */
+  public PlanTarifario fijarDescuento(long planId, int descuentoPct) {
+    validarDescuento(descuentoPct);
+    PlanTarifario plan = planPorId(planId);
+    repo.fijarDescuento(plan.id(), descuentoPct);
+    return planPorId(plan.id());
+  }
+
+  private static void validarDescuento(int descuentoPct) {
+    if (descuentoPct < 0 || descuentoPct > 100)
+      throw new DatosInvalidosException("el descuento debe estar entre 0 y 100");
   }
 
   public PlanTarifario planPorId(long id) {

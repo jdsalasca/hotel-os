@@ -59,6 +59,8 @@ public class DisponibilidadController {
       "totalCents", o.totalCents(),
       "moneda", o.moneda(),
       "noches", o.noches(),
+      "descuentoPct", o.descuentoPct(),
+      "totalSinDescuentoCents", o.totalSinDescuentoCents(),
       "plan", Map.of("id", o.plan().id(), "codigo", o.plan().codigo(), "nombre", o.plan().nombre()));
   }
 
@@ -142,7 +144,9 @@ public class DisponibilidadController {
           "noches", d.noches().stream()
             .map(n -> Map.of("fecha", n.fecha().toString(), "precioCents", n.precioCents())).toList(),
           "totalCents", d.totalCents(),
-          "moneda", d.moneda())))
+          "moneda", d.moneda(),
+          "descuentoPct", d.descuentoPct(),
+          "totalSinDescuentoCents", d.totalSinDescuentoCents())))
         .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error",
           "esa habitación no está a la venta para esas fechas y huéspedes")));
     } catch (DatosInvalidosException e) {

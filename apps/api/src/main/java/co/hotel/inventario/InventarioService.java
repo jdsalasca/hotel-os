@@ -188,7 +188,7 @@ public class InventarioService {
       PrecioTotalizado precio = calcularPrecio(tipo.get(), desde, hasta);
       if (precio != null) {
         ofertas.add(new OpcionOferta(habitacion, tipo.get(), precio.totalCents(), precio.moneda(),
-          precio.noches(), precio.plan()));
+          precio.noches(), precio.plan(), precio.totalSinDescuento(), precio.plan().descuentoPct()));
       }
     }
     return ofertas;
@@ -226,7 +226,8 @@ public class InventarioService {
    */
   public record NochePrecio(LocalDate fecha, long precioCents) {}
   public record DetalleOferta(Habitacion habitacion, RoomType tipo, PlanTarifario plan,
-                              List<NochePrecio> noches, long totalCents, String moneda) {}
+                              List<NochePrecio> noches, long totalCents, String moneda,
+                              long totalSinDescuentoCents, int descuentoPct) {}
 
   public java.util.Optional<DetalleOferta> detalleOferta(long roomId, LocalDate desde, LocalDate hasta,
       int huespedes) {
@@ -237,11 +238,13 @@ public class InventarioService {
       .filter(t -> t.capacidadMax() >= huespedes);
     if (tipo.isEmpty()) return java.util.Optional.empty();
     return precioDetallado(tipo.get(), desde, hasta).map(p -> new DetalleOferta(
-      habitacion.orElseThrow(), tipo.get(), p.plan(), p.noches(), p.total(), p.plan().moneda()));
+      habitacion.orElseThrow(), tipo.get(), p.plan(), p.noches(), p.total(), p.plan().moneda(),
+      p.totalSinDescuento(), p.plan().descuentoPct()));
   }
 
   /** Plan con el que un tipo cubre el periodo, noche por noche con su precio. */
-  private record PrecioDetallado(PlanTarifario plan, List<NochePrecio> noches, long total) {}
+  private record PrecioDetallado(PlanTarifario plan, List<NochePrecio> noches, long total,
+                                 long totalSinDescuento) {}
 
   /**
    * Núcleo común de la oferta: primer plan activo con tarifa completa. Lo usan la búsqueda, el
@@ -263,9 +266,21 @@ public class InventarioService {
         detalle.add(new NochePrecio(noche.fecha(), noche.precioCents()));
         total += noche.precioCents();
       }
-      if (completa) return java.util.Optional.of(new PrecioDetallado(plan, detalle, total));
+      if (completa) {
+        long conDescuento = aplicarDescuento(total, plan.descuentoPct());
+        return java.util.Optional.of(new PrecioDetallado(plan, detalle, conDescuento, total));
+      }
     }
     return java.util.Optional.empty();
+  }
+
+  /**
+   * El descuento del plan se aplica al total y se redondea al céntimo: las noches no se
+   * fraccionan y el desglose sigue sumando el precio de lista. Sin descuento no se toca nada.
+   */
+  static long aplicarDescuento(long totalCents, int descuentoPct) {
+    if (descuentoPct <= 0) return totalCents;
+    return Math.round(totalCents * (100L - descuentoPct) / 100.0);
   }
 
   /**
@@ -276,7 +291,8 @@ public class InventarioService {
   private PrecioTotalizado calcularPrecio(RoomType tipo, LocalDate desde, LocalDate hasta) {
     long noches = java.time.temporal.ChronoUnit.DAYS.between(desde, hasta);
     return precioDetallado(tipo, desde, hasta)
-      .map(p -> new PrecioTotalizado(p.total(), p.plan().moneda(), (int) noches, p.plan()))
+      .map(p -> new PrecioTotalizado(p.total(), p.plan().moneda(), (int) noches, p.plan(),
+        p.totalSinDescuento()))
       .orElse(null);
   }
 
@@ -286,5 +302,6 @@ public class InventarioService {
   }
 
   /** Total del periodo solo si todas las noches tienen tarifa válida. */
-  private record PrecioTotalizado(long totalCents, String moneda, int noches, PlanTarifario plan) {}
+  private record PrecioTotalizado(long totalCents, String moneda, int noches, PlanTarifario plan,
+                                   long totalSinDescuento) {}
 }

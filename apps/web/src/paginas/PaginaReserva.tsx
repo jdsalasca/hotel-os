@@ -12,6 +12,8 @@ type EnCurso = {
   moneda: string;
   noches: number;
   plan?: { id: number; codigo: string; nombre: string };
+  descuentoPct?: number;
+  totalSinDescuentoCents?: number;
   llegada: string;
   salida: string;
   huespedes: number;
@@ -244,6 +246,14 @@ export function PaginaReserva() {
             </p>
             {eleccion.plan ? (
               <p className="campo__ayuda sin-margen">Plan {eleccion.plan.nombre}</p>
+            ) : null}
+            {(eleccion.descuentoPct ?? 0) > 0 ? (
+              <p className="sin-margen">
+                <span className="etiqueta etiqueta--exito">−{eleccion.descuentoPct} %</span>{' '}
+                <span className="campo__ayuda">
+                  antes {monto(eleccion.totalSinDescuentoCents ?? eleccion.totalCents, eleccion.moneda)}
+                </span>
+              </p>
             ) : null}
             <p className="precio">
               {monto(esperado.totalCents, esperado.moneda)}

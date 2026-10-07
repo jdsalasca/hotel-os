@@ -30,7 +30,8 @@ public class InventarioAdminController {
   public record TipoReq(String codigo, String nombre, Integer capacidadMax) {}
   public record HabitacionReq(String codigo, Long roomTypeId, String nombre) {}
   public record EstadoReq(String estado) {}
-  public record PlanReq(String codigo, String nombre, String moneda) {}
+  public record PlanReq(String codigo, String nombre, String moneda, Integer descuentoPct) {}
+  public record DescuentoReq(Integer descuentoPct) {}
   public record TarifaReq(Long ratePlanId, Long roomTypeId, String fecha, Long precioCents,
                           Integer minEstancia, Integer maxEstancia, Boolean cerrado) {}
   public record BloqueoReq(Long roomId, String desde, String hasta, String motivo) {}
@@ -60,7 +61,21 @@ public class InventarioAdminController {
 
   @PostMapping("/api/admin/planes")
   public ResponseEntity<?> crearPlan(@RequestBody PlanReq req) {
-    return ok(() -> tarifas.crearPlan(req.codigo(), req.nombre(), req.moneda()));
+    return ok(() -> tarifas.crearPlan(req.codigo(), req.nombre(), req.moneda(),
+      req.descuentoPct() == null ? 0 : req.descuentoPct()));
+  }
+
+  /** Descuento del plan (0-100). Las reservas ya guardadas no se tocan: solo las nuevas. */
+  @PostMapping("/api/admin/planes/{id}/descuento")
+  public ResponseEntity<?> fijarDescuento(@PathVariable long id, @RequestBody DescuentoReq req) {
+    if (req.descuentoPct() == null)
+      return ResponseEntity.badRequest().body(Map.of("error", "descuentoPct es obligatorio"));
+    try {
+      // 200 y no 201: esto modifica, no crea. El ok() de este controlador es para altas.
+      return ResponseEntity.ok(tarifas.fijarDescuento(id, req.descuentoPct()));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
   }
 
   @GetMapping("/api/admin/planes")
