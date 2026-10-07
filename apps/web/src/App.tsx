@@ -10,6 +10,7 @@ import { PaginaAdminInventario } from './paginas/PaginaAdminInventario';
 import { PaginaAdminIntegraciones } from './paginas/PaginaAdminIntegraciones';
 import { PaginaAdminHotel } from './paginas/PaginaAdminHotel';
 import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
+import { PaginaAdminAuditoria } from './paginas/PaginaAdminAuditoria';
 
 function texto(valor?: string): string {
   return valor?.trim() ?? '';
@@ -63,6 +64,7 @@ export function App() {
         <Route path="/admin/hotel" element={<PaginaAdminHotel />} />
         <Route path="/admin/integraciones" element={<PaginaAdminIntegraciones />} />
         <Route path="/admin/indicadores" element={<PaginaAdminIndicadores />} />
+        <Route path="/admin/auditoria" element={<PaginaAdminAuditoria />} />
       </Routes>
 
       <footer className="pie no-imprimir">
@@ -78,6 +80,7 @@ export function App() {
             <NavLink to="/admin/hotel">Hotel</NavLink>
             <NavLink to="/admin/integraciones">Integraciones</NavLink>
             <NavLink to="/admin/indicadores">Indicadores</NavLink>
+            <NavLink to="/admin/auditoria">Actividad</NavLink>
           </nav>
         </div>
       </footer>

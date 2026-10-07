@@ -50,9 +50,21 @@ cuerpo; si no llega, el servicio genera una. Repetir la misma clave devuelve el 
 crear una segunda reserva. La clave **no** evita el choque de inventario: dos huéspedes distintos con
 la misma habitación y fechas reciben 409.
 
+## Auditoría de acciones del panel
+
+Dos rastros distintos, con alcances distintos:
+
+- **`reservation_history`** (V1): solo cambios de estado de una reserva. `actor` es el correo de la
+  sesión que hizo el cambio; la creación de una reserva pública usa el canal de origen
+  (`WEB`, `BOOKING`...), porque ahí no hay una persona autenticada que atribuir.
+- **`admin_actions`** (V5): todo `POST /api/admin/**`, con método, ruta y estado HTTP, también lo
+  que falló. Se escribe en un filtro de servlet, no desde cada controlador: así un endpoint nuevo
+  no puede quedarse sin auditar por olvido. **No guarda el cuerpo de la petición**, porque ahí
+  viajan contraseñas y el token de arranque.
+
 ## Pendiente (no existe todavía)
 
-`rate_plans`, `rates` (tarifas y restricciones por fecha), `channels`, `channel_mappings` (mapeos
-habitación/tipo/plan ↔ unidad de cada OTA), `ota_syncs` (bitácora de sincronización),
-`indicators`, `indicator_results`, `audit`, `receipts`. Nada de esto está en el esquema actual: la
-pantalla de tarifas e indicadores no puede mostrar datos que no existan.
+`receipts`: el comprobante se deriva de la reserva y su precio congelado, no tiene tabla propia.
+El resto de lo previsto ya está en el esquema: `rate_plans`, `rates`, `channels`,
+`channel_mappings`, `ota_syncs`, `indicator_definitions`, `indicator_results`,
+`adoption_activities`, `hotel_config` y las columnas de precio acordado en `reservations`.

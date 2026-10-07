@@ -124,6 +124,16 @@ for (const [nombre, opciones] of [
   await esperar(pagina, '.tabla, .vacio', `${nombre}-06-panel`);
   await guardar(pagina, `${nombre}-06-panel-reservas`);
 
+  // Una confirmación real: deja historial con el usuario de la sesión y una fila en el rastro de
+  // acciones, que es lo que hacen las secciones siguientes. Sin esto la evidencia sale vacía.
+  const confirmar = pagina.locator('button[aria-label^="Confirmar la reserva"]');
+  if ((await confirmar.count()) > 0) {
+    await confirmar.first().click();
+    await pagina.waitForResponse((r) => r.url().includes('/api/admin/reservas/') && r.url().endsWith('/estado'));
+    await esperar(pagina, 'table', `${nombre}-06c-confirmada`);
+    await guardar(pagina, `${nombre}-06c-confirmada`);
+  }
+
   // El detalle del panel usa el comprobante: habitación y total acordado visibles.
   const detalles = pagina.locator('button:text-is("Ver detalle")');
   if ((await detalles.count()) > 0) {
@@ -187,6 +197,11 @@ for (const [nombre, opciones] of [
   await pagina.goto(`${BASE}/admin/hotel`);
   await esperar(pagina, '#hotel-nombre', `${nombre}-10-hotel`);
   await guardar(pagina, `${nombre}-10-hotel`);
+
+  // 8. Actividad del panel. Antes del goto hay acciones reales de las secciones anteriores.
+  await pagina.goto(`${BASE}/admin/auditoria`);
+  await esperar(pagina, 'table', `${nombre}-11-auditoria`);
+  await guardar(pagina, `${nombre}-11-auditoria`);
 
   await contexto.close();
 }

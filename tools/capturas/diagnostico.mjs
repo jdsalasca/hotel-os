@@ -14,7 +14,7 @@ await pagina.fill('#admin-clave', 'admin');
 await pagina.click('button[type=submit]');
 await pagina.waitForResponse((r) => r.url().includes('/api/admin/login'));
 
-const rutas = ['/admin/reservas', '/admin/inventario', '/admin/integraciones', '/admin/indicadores', '/'];
+const rutas = ['/admin/reservas', '/admin/inventario', '/admin/integraciones', '/admin/indicadores', '/admin/auditoria', '/'];
 
 for (const ruta of rutas) {
   await pagina.goto(BASE + ruta);

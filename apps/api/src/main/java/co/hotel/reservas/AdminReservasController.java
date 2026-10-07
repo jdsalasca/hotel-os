@@ -1,5 +1,6 @@
 package co.hotel.reservas;
 
+import co.hotel.auditoria.ActorActual;
 import co.hotel.auditoria.AuditoriaRepository;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,12 @@ public class AdminReservasController {
     this.comprobantes = comprobantes;
   }
 
-  public record CambioEstadoReq(String estado, String actor) {}
+  /**
+   * El actor no viene en el cuerpo a propósito: lo fija la sesión. Antes este endpoint guardaba el
+   * campo `actor` del JSON, así que el panel escribía el literal "panel" y cualquier sesión podía
+   * atribuir un cambio a otro.
+   */
+  public record CambioEstadoReq(String estado) {}
 
   @GetMapping("/api/admin/reservas")
   public List<Map<String, Object>> listar(@RequestParam(defaultValue = "50") int limite) {
@@ -56,7 +62,7 @@ public class AdminReservasController {
   public ResponseEntity<?> cambiar(@PathVariable String codigo, @RequestBody CambioEstadoReq req) {
     try {
       EstadoReserva nuevo = EstadoReserva.valueOf(req.estado().toUpperCase());
-      Reserva actualizada = svc.cambiarEstado(codigo, nuevo, req.actor());
+      Reserva actualizada = svc.cambiarEstado(codigo, nuevo, ActorActual.correo());
       return ResponseEntity.ok(fila(actualizada));
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(Map.of("error", "estado no válido: " + req.estado()));

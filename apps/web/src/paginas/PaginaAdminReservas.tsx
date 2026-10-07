@@ -66,7 +66,8 @@ export function PaginaAdminReservas() {
   async function cambiar(codigo: string, estado: string) {
     setError(null);
     try {
-      await api.post(`/api/admin/reservas/${codigo}/estado`, { estado, actor: 'panel' });
+      // Sin `actor`: el servidor usa el correo de la sesión. Mandarlo aquí solo permitiría firmarlo.
+      await api.post(`/api/admin/reservas/${codigo}/estado`, { estado });
       await cargar();
       await abrir(codigo);
     } catch (e) {
