@@ -195,6 +195,29 @@ public class InventarioService {
   }
 
   /**
+   * Un día del calendario público: cuántas habitaciones se pueden vender esa noche y desde qué
+   * precio. Sin precio no hay oferta: el día sale con cero, igual que en la búsqueda.
+   */
+  public record DiaCalendario(LocalDate fecha, int disponibles, Long desdeCents, String moneda) {}
+
+  /**
+   * Calendario de disponibilidad de un mes para unos huéspedes: una entrada por día con su
+   * oferta de una noche. Es una sola petición en vez de treinta búsquedas, y usa las mismas
+   * reglas que la búsqueda para no mostrar dos verdades distintas.
+   */
+  public List<DiaCalendario> calendarioMensual(java.time.YearMonth mes, int huespedes) {
+    if (huespedes < 1) throw new DatosInvalidosException("número de huéspedes inválido");
+    List<DiaCalendario> dias = new java.util.ArrayList<>();
+    for (LocalDate dia = mes.atDay(1); !dia.isAfter(mes.atEndOfMonth()); dia = dia.plusDays(1)) {
+      var ofertas = disponiblesConPrecio(dia, dia.plusDays(1), huespedes);
+      Long desde = ofertas.stream().map(OpcionOferta::totalCents).min(Long::compare).orElse(null);
+      String moneda = ofertas.isEmpty() ? null : ofertas.get(0).moneda();
+      dias.add(new DiaCalendario(dia, ofertas.size(), desde, moneda));
+    }
+    return dias;
+  }
+
+  /**
    * Suma las noches del periodo en el primer plan activo con tarifa completa.
    * Devuelve null si ninguna noche está configurada, alguna está cerrada o incumple la estancia:
    * la ausencia de precio es un dato, no un cero.

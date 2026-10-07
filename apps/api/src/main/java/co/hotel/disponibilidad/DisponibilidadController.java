@@ -60,4 +60,47 @@ public class DisponibilidadController {
       "moneda", o.moneda(),
       "noches", o.noches());
   }
+
+  /**
+   * Calendario público del mes: qué días tienen habitaciones a la venta y desde qué precio.
+   * Una sola petición en vez de treinta búsquedas, con las mismas reglas que la búsqueda para no
+   * mostrar dos verdades distintas. El precio es el de una noche; el total del viaje lo da la
+   * búsqueda con las fechas elegidas.
+   */
+  @GetMapping("/api/disponibilidad/calendario")
+  public ResponseEntity<?> calendario(@RequestParam String mes,
+                                      @RequestParam(defaultValue = "2") int huespedes,
+                                      HttpServletRequest peticion) {
+    if (!lecturas.permitir(peticion.getRemoteAddr())) {
+      return ResponseEntity.status(429).body(Map.of("error",
+        "demasiadas consultas desde esta conexión. Espera un minuto e inténtalo de nuevo.",
+        "dias", List.of()));
+    }
+    final java.time.YearMonth periodo;
+    try {
+      periodo = java.time.YearMonth.parse(mes);
+    } catch (java.time.format.DateTimeParseException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "el mes debe tener formato YYYY-MM",
+        "dias", List.of()));
+    }
+    if (huespedes < 1) {
+      return ResponseEntity.badRequest().body(Map.of("error", "número de huéspedes inválido",
+        "dias", List.of()));
+    }
+    try {
+      var dias = inventario.calendarioMensual(periodo, huespedes).stream().map(d -> {
+        var dia = new java.util.LinkedHashMap<String, Object>();
+        dia.put("fecha", d.fecha().toString());
+        dia.put("disponibles", d.disponibles());
+        if (d.disponibles() > 0) {
+          dia.put("desdeCents", d.desdeCents());
+          dia.put("moneda", d.moneda());
+        }
+        return dia;
+      }).toList();
+      return ResponseEntity.ok(Map.of("mes", periodo.toString(), "huespedes", huespedes, "dias", dias));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "dias", List.of()));
+    }
+  }
 }

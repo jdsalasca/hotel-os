@@ -512,6 +512,72 @@
   }
 }
 
+// --- Calendario público del mes: qué noches tienen habitaciones y desde qué precio ---
+.calendario-mes {
+  &__navegacion {
+    display: flex;
+    align-items: center;
+    gap: $e-3;
+    margin-bottom: $e-3;
+  }
+
+  &__titulo {
+    margin: 0;
+    font-size: $texto-lg;
+    font-weight: $peso-medio;
+    flex: 1;
+    text-align: center;
+  }
+
+  &__rejilla {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: $e-1;
+  }
+
+  &__semana {
+    font-size: $texto-xs;
+    font-weight: $peso-medio;
+    color: $tinta-suave;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  &__dia {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-height: 3.5rem;
+    padding: $e-1;
+    border: 1px solid $borde;
+    border-radius: $radio-sm;
+    background: #fff;
+    font-family: $fuente-texto;
+    font-size: $texto-sm;
+    color: $tinta-suave;
+
+    &--libre {
+      cursor: pointer;
+      border-color: $borde-fuerte;
+      color: $tinta;
+      @include focusable;
+
+      &:hover { background: $piedra-clara; }
+    }
+
+    &--pasado { background: $piedra-clara; }
+  }
+
+  &__numero { font-weight: $peso-medio; }
+
+  &__detalle {
+    font-size: $texto-xs;
+    color: $tinta-suave;
+    text-align: center;
+  }
+}
+
 // --- Calendario de disponibilidad ---
 .calendario {
   display: grid;

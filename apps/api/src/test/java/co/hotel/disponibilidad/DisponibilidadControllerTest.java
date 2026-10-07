@@ -1,5 +1,6 @@
 package co.hotel.disponibilidad;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -146,6 +147,41 @@ class DisponibilidadControllerTest {
         .param("llegada", "2027-01-01").param("salida", "2027-01-03").param("huespedes", "2"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.ofertas").isEmpty());
+  }
+
+  @Test
+  @DisplayName("el calendario del mes dice qué días tienen habitaciones y desde qué precio")
+  void calendarioMensualMuestraDisponibilidadPorDia() throws Exception {
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "DOBLE_C", "nombre", "Habitación doble", "capacidadMax", 2))).get("id").asLong();
+    admin("/api/admin/habitaciones", Map.of("codigo", "501", "roomTypeId", tipoId, "nombre", "Habitación 501"));
+    long planId = JSON.readTree(admin("/api/admin/planes",
+      Map.of("codigo", "PES_C", "nombre", "Plan pesos", "moneda", "COP"))).get("id").asLong();
+    for (String fecha : new String[] { "2026-12-01", "2026-12-02" }) {
+      mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(JSON.writeValueAsString(Map.of("ratePlanId", planId, "roomTypeId", tipoId,
+            "fecha", fecha, "precioCents", 150_000))))
+        .andExpect(status().isCreated());
+    }
+
+    mvc.perform(get("/api/disponibilidad/calendario").param("mes", "2026-12").param("huespedes", "2"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.mes").value("2026-12"))
+      .andExpect(jsonPath("$.dias.length()").value(31))
+      .andExpect(jsonPath("$.dias[0].fecha").value("2026-12-01"))
+      .andExpect(jsonPath("$.dias[0].disponibles", greaterThanOrEqualTo(1)))
+      .andExpect(jsonPath("$.dias[0].desdeCents").value(150000))
+      .andExpect(jsonPath("$.dias[0].moneda").value("COP"))
+      .andExpect(jsonPath("$.dias[2].fecha").value("2026-12-03"))
+      .andExpect(jsonPath("$.dias[2].disponibles").value(0));
+  }
+
+  @Test
+  @DisplayName("el calendario con mes mal formado es un 400, no un 500")
+  void calendarioConMesInvalidoEs400() throws Exception {
+    mvc.perform(get("/api/disponibilidad/calendario").param("mes", "12-2026").param("huespedes", "2"))
+      .andExpect(status().isBadRequest());
   }
 
   @Test

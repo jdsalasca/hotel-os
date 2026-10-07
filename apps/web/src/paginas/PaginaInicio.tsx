@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, nuevaClaveIdempotencia } from '../api/cliente';
-import { fechaCorta, mananaIso, monto } from '../api/formato';
+import { fechaCorta, hoyIso, mananaIso, monto } from '../api/formato';
 import { HuecoImagen, MensajeError } from '../componentes/Estado';
 
 type Oferta = {
@@ -20,6 +20,34 @@ type RespuestaDisponibilidad = {
   error?: string;
 };
 
+type DiaCalendario = {
+  fecha: string;
+  disponibles: number;
+  desdeCents?: number;
+  moneda?: string;
+};
+
+type RespuestaCalendario = {
+  mes: string;
+  huespedes: number;
+  dias: DiaCalendario[];
+  error?: string;
+};
+
+/** Suma días a un ISO YYYY-MM-DD sin pelear con la zona horaria. */
+function sumarIso(iso: string, dias: number): string {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + dias);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Desplaza un mes YYYY-MM. Sin límite: el pasado se muestra apagado y sin clic. */
+function desplazarMes(mesIso: string, delta: number): string {
+  const [anio = 0, mes = 1] = mesIso.split('-').map(Number);
+  const d = new Date(anio, mes - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 /** Paso 1 del flujo público: fechas, huéspedes y habitaciones disponibles con su precio. */
 export function PaginaInicio() {
   const navegar = useNavigate();
@@ -30,13 +58,43 @@ export function PaginaInicio() {
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [buscado, setBuscado] = useState(false);
+  const [mes, setMes] = useState(() => hoyIso().slice(0, 7));
+  const [dias, setDias] = useState<DiaCalendario[]>([]);
+  const [errorCal, setErrorCal] = useState<string | null>(null);
+  const [cargandoCal, setCargandoCal] = useState(false);
+  const peticionCal = useRef(0);
 
-  async function buscar(evento: React.FormEvent) {
-    evento.preventDefault();
+  // El calendario es una sola petición por mes: si el huésped cambia de mes o de huéspedes antes
+  // de que vuelva, la respuesta vieja se ignora en vez de pintar otro mes.
+  useEffect(() => {
+    if (!huespedes || huespedes < 1) {
+      setDias([]);
+      return;
+    }
+    const id = ++peticionCal.current;
+    setCargandoCal(true);
+    api
+      .get<RespuestaCalendario>(`/api/disponibilidad/calendario?mes=${mes}&huespedes=${huespedes}`)
+      .then((r) => {
+        if (peticionCal.current !== id) return;
+        setDias(r.dias ?? []);
+        setErrorCal(r.error ?? null);
+      })
+      .catch(() => {
+        if (peticionCal.current !== id) return;
+        setDias([]);
+        setErrorCal('No se pudo cargar el calendario de este mes');
+      })
+      .finally(() => {
+        if (peticionCal.current === id) setCargandoCal(false);
+      });
+  }, [mes, huespedes]);
+
+  async function buscarCon(llegadaIso: string, salidaIso: string, huespedesN: number) {
     setError(null);
     setCargando(true);
     try {
-      const consulta = new URLSearchParams({ llegada, salida, huespedes: String(huespedes) });
+      const consulta = new URLSearchParams({ llegada: llegadaIso, salida: salidaIso, huespedes: String(huespedesN) });
       const r = await api.get<RespuestaDisponibilidad>(`/api/disponibilidad?${consulta}`);
       if (r.error) setError(r.error);
       setOfertas(r.ofertas ?? []);
@@ -48,6 +106,11 @@ export function PaginaInicio() {
     }
   }
 
+  async function buscar(evento: React.FormEvent) {
+    evento.preventDefault();
+    await buscarCon(llegada, salida, huespedes);
+  }
+
   function elegir(oferta: Oferta) {
     // Clave de idempotencia por intento: el respaldo cubre entornos sin secure context (HTTP local).
     const clave = nuevaClaveIdempotencia();
@@ -55,7 +118,20 @@ export function PaginaInicio() {
     navegar('/reserva');
   }
 
+  /** Elegir un día del calendario busca esa noche directamente: lo elegido queda en el formulario. */
+  function elegirDia(dia: DiaCalendario) {
+    const siguiente = sumarIso(dia.fecha, 1);
+    setLlegada(dia.fecha);
+    setSalida(siguiente);
+    void buscarCon(dia.fecha, siguiente, huespedes);
+    document.getElementById('titulo-habitaciones')?.scrollIntoView({ block: 'start' });
+  }
+
   const fechasInvalidas = llegada && salida && salida <= llegada;
+  const hoy = hoyIso();
+  const [anioCal = 0, mesCal = 1] = mes.split('-').map(Number);
+  const huecoInicial = (new Date(anioCal, mesCal - 1, 1).getDay() + 6) % 7;
+  const nombreMes = new Date(`${mes}-01T12:00:00`).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
 
   return (
     <main id="contenido">
@@ -128,6 +204,89 @@ export function PaginaInicio() {
               </button>
             </div>
           </form>
+        </section>
+
+        <section className="seccion" aria-labelledby="titulo-calendario">
+          <h2 id="titulo-calendario" className="seccion__titulo">
+            Calendario de disponibilidad
+          </h2>
+          <p className="seccion__intro">
+            Qué noches tienen habitaciones libres para {huespedes}{' '}
+            {huespedes === 1 ? 'huésped' : 'huéspedes'} y desde qué precio. Toca un día libre para
+            buscar esa noche.
+          </p>
+
+          <div className="calendario-mes__navegacion">
+            <button
+              type="button"
+              className="boton boton--secundario boton--chico"
+              onClick={() => setMes(desplazarMes(mes, -1))}
+              aria-label="Mes anterior"
+            >
+              ‹ Anterior
+            </button>
+            <h3 className="calendario-mes__titulo">{nombreMes}</h3>
+            <button
+              type="button"
+              className="boton boton--secundario boton--chico"
+              onClick={() => setMes(desplazarMes(mes, 1))}
+              aria-label="Mes siguiente"
+            >
+              Siguiente ›
+            </button>
+          </div>
+
+          {errorCal ? <MensajeError texto={errorCal} /> : null}
+          {cargandoCal ? <p className="cargando" role="status">Cargando el mes…</p> : null}
+
+          {!cargandoCal && !errorCal ? (
+            <div className="calendario-mes__rejilla" role="list" aria-label={`Disponibilidad de ${nombreMes}`}>
+              {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => (
+                <span key={d} className="calendario-mes__semana" aria-hidden="true">{d}</span>
+              ))}
+              {Array.from({ length: huecoInicial }).map((_, i) => (
+                <span key={`hueco-${i}`} className="calendario-mes__hueco" aria-hidden="true" />
+              ))}
+              {dias.map((dia) => {
+                const numero = Number(dia.fecha.slice(8, 10));
+                const pasado = dia.fecha < hoy;
+                const libre = !pasado && dia.disponibles > 0;
+                const etiqueta = pasado
+                  ? `${numero}: fecha pasada`
+                  : dia.disponibles > 0
+                    ? `${fechaCorta(dia.fecha)}: ${dia.disponibles} ${dia.disponibles === 1 ? 'habitación libre' : 'habitaciones libres'} desde ${monto(dia.desdeCents ?? 0, dia.moneda ?? 'COP')}`
+                    : `${fechaCorta(dia.fecha)}: sin habitaciones`;
+                return libre ? (
+                  <button
+                    key={dia.fecha}
+                    type="button"
+                    role="listitem"
+                    className="calendario-mes__dia calendario-mes__dia--libre"
+                    aria-label={etiqueta}
+                    onClick={() => elegirDia(dia)}
+                  >
+                    <span className="calendario-mes__numero" aria-hidden="true">{numero}</span>
+                    <span className="calendario-mes__detalle" aria-hidden="true">
+                      {dia.disponibles} · {monto(dia.desdeCents ?? 0, dia.moneda ?? 'COP')}
+                    </span>
+                  </button>
+                ) : (
+                  <span
+                    key={dia.fecha}
+                    role="listitem"
+                    aria-label={etiqueta}
+                    className={`calendario-mes__dia${pasado ? ' calendario-mes__dia--pasado' : ''}`}
+                  >
+                    <span className="calendario-mes__numero" aria-hidden="true">{numero}</span>
+                    <span className="calendario-mes__detalle" aria-hidden="true">
+                      {pasado ? '—' : 'Lleno'}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          ) : null}
+          <p className="campo__ayuda">El precio del día es el de una noche; el total del viaje lo confirma la búsqueda.</p>
         </section>
 
         {error ? <MensajeError texto={error} /> : null}
