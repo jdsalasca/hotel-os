@@ -106,6 +106,8 @@ export const api = {
   get: <T>(ruta: string) => peticion<T>(ruta),
   post: <T>(ruta: string, cuerpo?: unknown) =>
     peticion<T>(ruta, { method: 'POST', body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) }),
+  put: <T>(ruta: string, cuerpo?: unknown) =>
+    peticion<T>(ruta, { method: 'PUT', body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) }),
 };
 
 /**

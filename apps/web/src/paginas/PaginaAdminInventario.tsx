@@ -10,7 +10,22 @@ type Tipo = { id: number; codigo: string; nombre: string; capacidadMax: number }
 type Plan = { id: number; codigo: string; nombre: string; moneda: string; descuentoPct: number };
 type Noche = { fecha: string; precioCents: number; minEstancia: number | null; maxEstancia: number | null; cerrado: boolean };
 
+/** Monedas que el hotel puede usar en sus planes. El backend acepta cualquier ISO 4217;
+ * esta lista cerrada es para no escribir COP como "cop", "Cop" o "COL" en un campo abierto. */
+const MONEDAS = [
+  { codigo: 'COP', nombre: 'Peso colombiano' },
+  { codigo: 'USD', nombre: 'Dólar estadounidense' },
+  { codigo: 'EUR', nombre: 'Euro' },
+  { codigo: 'MXN', nombre: 'Peso mexicano' },
+  { codigo: 'BRL', nombre: 'Real brasileño' },
+  { codigo: 'PEN', nombre: 'Sol peruano' },
+  { codigo: 'ARS', nombre: 'Peso argentino' },
+  { codigo: 'CLP', nombre: 'Peso chileno' },
+  { codigo: 'GBP', nombre: 'Libra esterlina' },
+];
+
 type Bloqueo = { id: number; habitacion: string; desde: string; hasta: string; motivo: string };
+type Amenidad = { id: number; codigo: string; nombre: string };
 /** Fila del calendario: una habitación con una entrada por noche del mes. */
 type CalendarioDia = {
   id: number;
@@ -63,6 +78,39 @@ export function PaginaAdminInventario() {
   const [nuevaHabitacion, setNuevaHabitacion] = useState({ codigo: '', roomTypeId: '', nombre: '' });
   const [bloqueo, setBloqueo] = useState({ roomId: '', desde: '', hasta: '', motivo: '' });
   const [nuevoPlan, setNuevoPlan] = useState({ codigo: '', nombre: '', moneda: 'COP', descuentoPct: '' });
+  const [catalogoServicios, setCatalogoServicios] = useState<Amenidad[] | null>(null);
+  const [tipoServicios, setTipoServicios] = useState('');
+  const [marcados, setMarcados] = useState<number[]>([]);
+
+  useEffect(() => {
+    void api
+      .get<{ amenidades: Amenidad[] }>('/api/amenidades')
+      .then((datos) => setCatalogoServicios(datos.amenidades))
+      .catch(() => setCatalogoServicios([]));
+  }, []);
+
+  async function elegirTipoServicios(id: string) {
+    setTipoServicios(id);
+    if (!id) {
+      setMarcados([]);
+      return;
+    }
+    try {
+      const datos = await api.get<{ porTipo: Record<string, Amenidad[]> }>(
+        `/api/amenidades/por-tipo?ids=${id}`,
+      );
+      setMarcados((datos.porTipo[id] ?? []).map((a) => a.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudieron leer los servicios');
+      setMarcados([]);
+    }
+  }
+
+  function alternarServicio(id: number) {
+    setMarcados((previos) =>
+      previos.includes(id) ? previos.filter((m) => m !== id) : [...previos, id],
+    );
+  }
 
   // Precios por noche: qué hay guardado y qué está escribiendo el hotel ahora mismo.
   const [tarifas, setTarifas] = useState<{ planId: string; tipoId: string }>({ planId: '', tipoId: '' });
@@ -389,6 +437,56 @@ export function PaginaAdminInventario() {
             className="tarjeta pila"
             onSubmit={(e) => {
               e.preventDefault();
+              if (!tipoServicios) return;
+              void accion(() =>
+                api.put(`/api/admin/tipos/${tipoServicios}/amenidades`, { ids: marcados }),
+              );
+            }}
+          >
+            <h2 className="t-lg mb-0">Servicios del tipo</h2>
+            <p className="campo__ayuda sin-margen">
+              Marca lo que tiene cada tipo: la web lo muestra en cada oferta.
+            </p>
+            <div className="campo">
+              <label className="campo__etiqueta" htmlFor="serv-tipo">Tipo</label>
+              <select
+                id="serv-tipo"
+                value={tipoServicios}
+                onChange={(e) => void elegirTipoServicios(e.target.value)}
+              >
+                <option value="">Selecciona un tipo</option>
+                {tipos?.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {catalogoServicios === null ? <p className="cargando">Cargando servicios…</p> : null}
+            {catalogoServicios !== null && tipoServicios ? (
+              <fieldset className="grupo-chequeos">
+                <legend className="campo__etiqueta">Servicios incluidos</legend>
+                {catalogoServicios.map((a) => (
+                  <label key={a.id} className="chequeo">
+                    <input
+                      type="checkbox"
+                      checked={marcados.includes(a.id)}
+                      onChange={() => alternarServicio(a.id)}
+                    />
+                    {a.nombre}
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
+            <button className="boton boton--primario" type="submit" disabled={!tipoServicios}>
+              Guardar servicios
+            </button>
+          </form>
+
+          <form
+            className="tarjeta pila"
+            onSubmit={(e) => {
+              e.preventDefault();
               void accion(() =>
                 api.post('/api/admin/bloqueos', {
                   roomId: bloqueo.roomId ? Number(bloqueo.roomId) : null,
@@ -454,15 +552,18 @@ export function PaginaAdminInventario() {
             </div>
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="plan-moneda">Moneda</label>
-              <input
+              <select
                 id="plan-moneda"
                 required
-                maxLength={3}
-                pattern="[A-Za-z]{3}"
-                title="Código ISO 4217 de tres letras, por ejemplo COP"
                 value={nuevoPlan.moneda}
-                onChange={(e) => setNuevoPlan({ ...nuevoPlan, moneda: e.target.value.toUpperCase() })}
-              />
+                onChange={(e) => setNuevoPlan({ ...nuevoPlan, moneda: e.target.value })}
+              >
+                {MONEDAS.map((m) => (
+                  <option key={m.codigo} value={m.codigo}>
+                    {m.codigo} — {m.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="plan-descuento">Descuento % (opcional)</label>

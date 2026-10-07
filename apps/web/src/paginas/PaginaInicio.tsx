@@ -73,6 +73,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   const [cargando, setCargando] = useState(false);
   const [buscado, setBuscado] = useState(false);
   const [detalles, setDetalles] = useState<Record<number, DetalleOferta>>({});
+  const [servicios, setServicios] = useState<Record<number, string[]>>({});
   const [detalleCargando, setDetalleCargando] = useState<Record<number, boolean>>({});
   const [detalleAbierto, setDetalleAbierto] = useState<Record<number, boolean>>({});
   const [mes, setMes] = useState(() => hoyIso().slice(0, 7));
@@ -133,6 +134,24 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
     sessionStorage.setItem('reserva-en-curso', JSON.stringify({ ...oferta, llegada, salida, huespedes, clave }));
     navegar('/reserva');
   }
+
+  /** Servicios de los tipos en pantalla: una sola lectura para todas las ofertas. */
+  useEffect(() => {
+    const ids = [...new Set((ofertas ?? []).map((o) => o.tipo.id))];
+    if (ids.length === 0) return;
+    void api
+      .get<{ porTipo: Record<string, { nombre: string }[]> }>(
+        `/api/amenidades/por-tipo?ids=${ids.join(',')}`,
+      )
+      .then((datos) => {
+        const mapa: Record<number, string[]> = {};
+        for (const [tipoId, lista] of Object.entries(datos.porTipo ?? {})) {
+          mapa[Number(tipoId)] = (lista ?? []).map((a) => a.nombre);
+        }
+        setServicios(mapa);
+      })
+      .catch(() => setServicios({}));
+  }, [ofertas]);
 
   /** Desglose noche por noche de una oferta: el plan que la respalda y cada importe. */
   async function verDetalle(oferta: Oferta) {
@@ -498,6 +517,13 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
                     {oferta.habitacion.nombre || oferta.habitacion.codigo} · Hasta{' '}
                     {oferta.tipo.capacidadMax} huéspedes · Plan {oferta.plan.nombre}
                   </p>
+                  {(servicios[oferta.tipo.id] ?? []).length > 0 ? (
+                    <ul className="servicios" aria-label={`Servicios de ${oferta.tipo.nombre}`}>
+                      {(servicios[oferta.tipo.id] ?? []).map((s) => (
+                        <li key={s} className="servicios__item">{s}</li>
+                      ))}
+                    </ul>
+                  ) : null}
                   <p className="precio">
                     {monto(oferta.totalCents, oferta.moneda)}
                     {oferta.descuentoPct > 0 ? (

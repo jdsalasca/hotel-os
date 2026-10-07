@@ -538,6 +538,49 @@
   }
 }
 
+// --- Grupos de casillas: fieldset con checkboxes legibles, sin depender del orden ---
+.grupo-chequeos {
+  border: 1px solid $borde;
+  border-radius: $radio-sm;
+  padding: $e-3 $e-4;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: $e-2;
+}
+
+.chequeo {
+  display: flex;
+  align-items: center;
+  gap: $e-2;
+  font-size: $texto-sm;
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: $teja;
+  }
+}
+
+// --- Servicios de la oferta: pastillas con lo que trae el tipo ---
+.servicios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $e-1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__item {
+    font-size: $texto-xs;
+    color: $tinta-suave;
+    background: $piedra-clara;
+    border-radius: 999px;
+    padding: $e-1 $e-2;
+  }
+}
+
 // --- Portada: foto de Boyacá a todo ancho con el nombre, el propósito y las acciones ---
 .portada {
   position: relative;

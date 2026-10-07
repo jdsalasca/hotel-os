@@ -54,7 +54,7 @@ public class SecurityConfig {
         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
         .requestMatchers("/api/health", "/api/hotel", "/api/reservas", "/api/reservas/**",
           "/api/disponibilidad", "/api/disponibilidad/calendario",
-          "/api/disponibilidad/detalle").permitAll()
+          "/api/disponibilidad/detalle", "/api/amenidades", "/api/amenidades/**").permitAll()
         .requestMatchers("/api/admin/init", "/api/admin/login", "/api/admin/password").permitAll()
         // Sin estas dos, el flujo de Google caería en el denyAll de abajo: la ida a Google y la
         // vuelta con el código son peticiones sin sesión por definición.
