@@ -113,6 +113,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   guardaban el resultado en `indicator_results` en cada lectura, y esa tabla no la consulta nadie:
   el navegador prefetchea el enlace del CSV, así que se escribía solo. `calcular` deja de
   persistir y se borra el método muerto. Evidencia: `docs/evidence/round-28/verificacion.md`.
+- [x] **Ronda 29 - La instrucción de despliegue de Vercel rompía el panel.** La guía mandaba poner
+  `VITE_API_BASE` con la URL del backend, lo que anula el rewrite de `/api` y deja el panel sin
+  sesión por cuatro razones a la vez. Ahora la guía dice que no se define, y el cliente avisa si
+  la base cruza orígenes. Evidencia: `docs/evidence/round-29/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

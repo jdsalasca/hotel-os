@@ -35,13 +35,25 @@ cd apps/web && vercel    # o desde la raíz del repositorio
   Router. Sin ese fallback, `/admin/reservas` daría 404 al recargar.
 - Cabeceras de seguridad y caché inmutable de `/assets`.
 
-En Vercel, configura la variable de entorno con la URL del backend y ajústala en `vercel.json`:
+**No definas `VITE_API_BASE`.** Déjala vacía en todas partes, también en Vercel. La reescritura de
+`/api/*` de `vercel.json` ya hace que el navegador hable con el frontend, que es lo que permite que
+la cookie de sesión llegue.
 
-| Variable en Vercel | Valor |
+Ponerla con la URL del backend rompe el panel, y por cuatro razones a la vez:
+
+| Qué pasa | Por qué |
 |---|---|
-| `VITE_API_BASE` | `https://api.tu-dominio.com` |
+| La sesión no viaja | `credentials: same-origin` no manda cookies entre sitios distintos |
+| La llamada se bloquea | la CSP es `connect-src 'self'` |
+| La cookie no se guarda | es `SameSite=Strict`, que es lo correcto y no se arregla solo |
+| El navegador la corta | la API no permite ese origen con CORS, y no debería |
 
-Y en el frontend, el cliente debe usar esa base cuando no esté en el mismo origen.
+El cliente avisa en consola si detecta la base cruzada, en vez de dejar un panel que entra y se cae
+al pedir datos.
+
+En el build de Docker la variable **no existe**: el `Dockerfile` no declara `ARG VITE_API_BASE`, y es
+a propósito. Si algún día hiciera falta fijarla en un build, hay que declarar el `ARG` y pasarlo
+en el `build`, que hoy no hacen los compose.
 
 ## Backend: dónde sí (y dónde no)
 

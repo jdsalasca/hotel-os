@@ -8,14 +8,30 @@
  */
 
 /**
- * Base de la API. Vacía = mismo origen (docker compose, o Vercel con la reescritura /api).
- * Con VITE_API_BASE definida (frontend en Vercel y backend en otro dominio) se prepende.
+ * Base de la API. Vacía = mismo origen, que es lo correcto en todos los despliegues: docker
+ * compose y Vercel con la reescritura de `/api` (ver `vercel.json`).
  *
- * `same-origin` deja de servir cuando la API está en otro dominio: las cookies de sesión no
- * viajan entre sitios distintos. En ese caso el backend debe permitir el origen con credenciales,
- * y es una decisión de configuración, no un ajuste de estilo.
+ * Si se rellena con OTRO origen, el panel deja de funcionar, y no por una razón sino por cuatro a
+ * la vez: el navegador no manda la cookie de sesión entre sitios distintos con
+ * `credentials: same-origin`, la CSP `connect-src 'self'` bloquea la llamada, la cookie
+ * SameSite=Strict tampoco viaja, y la API no permite ese origen con CORS. Por eso aquí se avisa en
+ * voz alta en vez de dejar un panel que entra pero se cae al pedir datos.
  */
 const BASE_API = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+
+const CRUZANDO_ORIGEN =
+  BASE_API !== '' &&
+  typeof window !== 'undefined' &&
+  !BASE_API.startsWith(window.location.origin) &&
+  !BASE_API.startsWith('/');
+
+if (CRUZANDO_ORIGEN && typeof window !== 'undefined') {
+  console.error(
+    `[cliente] VITE_API_BASE=${BASE_API} apunta a otro origen y el panel no va a funcionar: ` +
+      'la cookie de sesión no se envía, la CSP bloquea la llamada y la API no permite el origen. ' +
+      'Déjala vacía y deja que la reescritura de /api de vercel.json haga su trabajo.',
+  );
+}
 
 function urlApi(ruta: string): string {
   return `${BASE_API}${ruta}`;
