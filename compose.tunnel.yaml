@@ -28,6 +28,9 @@ services:
       HOTEL_AMBIENTE: ${HOTEL_AMBIENTE:-produccion}
       HOTEL_DEMO_ADMIN: ${HOTEL_DEMO_ADMIN:-false}
       ADMIN_INIT_TOKEN: ${ADMIN_INIT_TOKEN:?define ADMIN_INIT_TOKEN para crear el primer administrador}
+      # Superusuarios sembrados al arrancar ("email:clave,email:clave"). Solo crea los que
+      # faltan y jamás toca una contraseña ya guardada; la clave sembrada es de un solo uso.
+      HOTEL_SEED_ADMINS: ${HOTEL_SEED_ADMINS:-}
       CORREO_HABILITADO: ${CORREO_HABILITADO:-false}
       CORREO_REMITENTE: ${CORREO_REMITENTE:-}
       CORREO_REMITENTE_NOMBRE: ${CORREO_REMITENTE_NOMBRE:-Hotel}

@@ -11,12 +11,15 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param correo          configuración del envío de correo (OAuth2 de Google, sin valores por defecto)
  * @param oauth2          login con Google: mismo Client ID que el correo, allowlist del panel
  * @param adminInitToken  secreto de arranque del primer administrador
+ * @param seedAdmins      superusuarios sembrados al arrancar, formato "email:clave,email:clave".
+ *                        Solo crea los que faltan: jamás toca una contraseña ya guardada.
  */
 @ConfigurationProperties(prefix = "hotel")
 public record HotelProperties(
     @DefaultValue("./data/hotel.sqlite3") String jdbcPath,
     @DefaultValue("dev") String ambiente,
     @DefaultValue("") String adminInitToken,
+    @DefaultValue("") String seedAdmins,
     @DefaultValue("es") String idioma,
     @DefaultValue("America/Bogota") String zonaHoraria,
     @DefaultValue CorreoProperties correo,

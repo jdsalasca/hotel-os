@@ -24,7 +24,7 @@ export function useSesion() {
   return {
     haySesion,
     comprobar,
-    async entrar(email: string, clave: string) {
+    async entrar(email: string, clave: string): Promise<'autenticado' | 'cambio_requerido'> {
       const r = await fetch(urlApi('/api/admin/login'), {
         method: 'POST',
         headers: {
@@ -36,7 +36,22 @@ export function useSesion() {
       });
       const cuerpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(cuerpo.error ?? 'Credenciales inválidas');
+      if (cuerpo.estado === 'cambio_requerido') return 'cambio_requerido';
       setHaySesion(true);
+      return 'autenticado';
+    },
+    async cambiarClave(email: string, actual: string, nueva: string) {
+      const r = await fetch(urlApi('/api/admin/password'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': leerCsrf(),
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ email, actual, nueva }),
+      });
+      const cuerpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(cuerpo.error ?? 'No se pudo cambiar la contraseña');
     },
     async salir() {
       const csrf = leerCsrf();

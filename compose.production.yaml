@@ -41,6 +41,8 @@ services:
       HOTEL_AMBIENTE: ${HOTEL_AMBIENTE:-produccion}
       HOTEL_DEMO_ADMIN: ${HOTEL_DEMO_ADMIN:-false}
       ADMIN_INIT_TOKEN: ${ADMIN_INIT_TOKEN:?define ADMIN_INIT_TOKEN para crear el primer administrador}
+      # Superusuarios sembrados ("email:clave,..."). Solo crea faltantes, no toca claves guardadas.
+      HOTEL_SEED_ADMINS: ${HOTEL_SEED_ADMINS:-}
       CORREO_HABILITADO: ${CORREO_HABILITADO:-false}
       CORREO_REMITENTE: ${CORREO_REMITENTE:-}
       CORREO_REMITENTE_NOMBRE: ${CORREO_REMITENTE_NOMBRE:-Hotel}
@@ -88,6 +90,21 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
+
+  # Respaldos programados: una copia consistente al día con retención configurable. El volumen
+  # de datos va sin :ro a propósito: SQLite necesita sus archivos de bloqueo hasta para la copia
+  # de lectura. El destino externo (copia fuera de la VM) sigue pendiente de decidir con el
+  # hotel: ver docs/operations/despliegue-respaldos.md.
+  respaldo:
+    build: ./tools/operacion
+    command: ["/usr/local/bin/programar.sh"]
+    environment:
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - hotel-data:/data
+      - hotel-backups:/backups
     restart: unless-stopped
 
 volumes:

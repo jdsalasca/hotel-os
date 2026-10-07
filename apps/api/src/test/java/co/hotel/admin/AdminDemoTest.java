@@ -65,8 +65,8 @@ class AdminDemoTest {
   @DisplayName("el arranque en producción con usuario demo habilitado se niega")
   void enProduccionSeNiegaElArranque() {
     // Se comprueba la regla, no el arranque completo: la condición es lo que hay que fijar.
-    var propsProd = new co.hotel.config.HotelProperties("./x.sqlite3", "produccion", "token", "es",
-      "America/Bogota", new co.hotel.config.CorreoProperties(false, "", "", "", "", "", "", ""),
+    var propsProd = new co.hotel.config.HotelProperties("./x.sqlite3", "produccion", "token", "",
+      "es", "America/Bogota", new co.hotel.config.CorreoProperties(false, "", "", "", "", "", "", ""),
       new co.hotel.config.Oauth2Properties("", "", ""));
     assertTrue(propsProd.esProduccion());
     assertFalse(propsProd.permiteAtajosDeDesarrollo(),

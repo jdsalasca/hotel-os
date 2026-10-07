@@ -3,8 +3,7 @@ package co.hotel.admin;
 import co.hotel.seguridad.LoginThrottle;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.Map;
-import org.slf4j.Logger;
+import java.util.Map;import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -31,14 +30,17 @@ public class AdminAuthController {
   private final AuthenticationManager autenticacion;
   private final LoginThrottle throttle;
   private final LoginThrottle throttleIp;
+  private final org.springframework.jdbc.core.JdbcTemplate jdbc;
   private final HttpSessionSecurityContextRepository repoSesion = new HttpSessionSecurityContextRepository();
 
   public AdminAuthController(AuthenticationManager autenticacion,
                              @Qualifier("throttlePorCuenta") LoginThrottle throttle,
-                             @Qualifier("throttlePorIp") LoginThrottle throttleIp) {
+                             @Qualifier("throttlePorIp") LoginThrottle throttleIp,
+                             org.springframework.jdbc.core.JdbcTemplate jdbc) {
     this.autenticacion = autenticacion;
     this.throttle = throttle;
     this.throttleIp = throttleIp;
+    this.jdbc = jdbc;
   }
 
   public record LoginReq(String email, String password) {}
@@ -57,12 +59,19 @@ public class AdminAuthController {
     try {
       Authentication auth = autenticacion.authenticate(
         new UsernamePasswordAuthenticationToken(email, req.password()));
-      SecurityContextHolder.getContext().setAuthentication(auth);
-      repoSesion.saveContext(SecurityContextHolder.getContext(), peticion, respuesta);
-      peticion.getSession(true);
       throttle.exito(clave);
       throttleIp.exito(peticion.getRemoteAddr());
       log.info("inicio de sesión administrativo correcto");
+      Integer debe = jdbc.queryForObject(
+        "SELECT debe_cambiar_clave FROM users WHERE email = ?", Integer.class, email);
+      if (debe != null && debe == 1) {
+        // La clave del entorno es de un solo uso: se valida pero no se abre sesión hasta
+        // que el admin ponga la suya en /api/admin/password.
+        return ResponseEntity.ok(Map.of("estado", "cambio_requerido"));
+      }
+      SecurityContextHolder.getContext().setAuthentication(auth);
+      repoSesion.saveContext(SecurityContextHolder.getContext(), peticion, respuesta);
+      peticion.getSession(true);
       return ResponseEntity.ok(Map.of("estado", "autenticado", "rol", auth.getAuthorities()));
     } catch (AuthenticationException e) {
       throttle.fallo(clave);
