@@ -259,6 +259,43 @@ class InventarioServiceTest {
   }
 
   @Test
+  @DisplayName("con dos planes con tarifa completa se ofrecen los dos, no solo el primero")
+  void dosPlanesCompletosDanDosOfertas() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario flexible = tarifas.crearPlan("FLEX", "Flexible", "COP");
+    PlanTarifario promo = tarifas.crearPlan("PROMO", "Promo", "COP", 10);
+    LocalDate desde = LocalDate.parse("2026-11-01");
+    for (int i = 0; i < 2; i++) {
+      tarifas.fijarPrecio(flexible, tipo.id(), desde.plusDays(i), 150_000);
+      tarifas.fijarPrecio(promo, tipo.id(), desde.plusDays(i), 150_000);
+    }
+    svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+
+    List<OpcionOferta> ofertas = svc.disponiblesConPrecio(desde, desde.plusDays(2), 2);
+    assertEquals(2, ofertas.size(), "una oferta por plan válido, para que el huésped elija");
+    assertTrue(ofertas.stream().anyMatch(o -> o.plan().codigo().equals("FLEX")
+      && o.totalCents() == 300_000));
+    assertTrue(ofertas.stream().anyMatch(o -> o.plan().codigo().equals("PROMO")
+      && o.totalCents() == 270_000));
+  }
+
+  @Test
+  @DisplayName("el plan sin tarifa completa no se ofrece aunque otro sí la tenga")
+  void planIncompletoNoSeOfrece() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario completo = tarifas.crearPlan("FULL", "Completo", "COP");
+    PlanTarifario cojo = tarifas.crearPlan("COJO", "Cojo", "COP");
+    LocalDate desde = LocalDate.parse("2026-11-01");
+    for (int i = 0; i < 2; i++) tarifas.fijarPrecio(completo, tipo.id(), desde.plusDays(i), 150_000);
+    tarifas.fijarPrecio(cojo, tipo.id(), desde, 100_000);
+    svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+
+    List<OpcionOferta> ofertas = svc.disponiblesConPrecio(desde, desde.plusDays(2), 2);
+    assertEquals(1, ofertas.size());
+    assertEquals("FULL", ofertas.get(0).plan().codigo());
+  }
+
+  @Test
   @DisplayName("el hotel ve sus planes y las noches con precio del periodo que elija")
   void listaPlanesYNochesDelPeriodo() {
     RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);

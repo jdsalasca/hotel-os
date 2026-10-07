@@ -56,7 +56,7 @@ public class TarifaRepository {
       planId, tipoId, fecha.toString());
   }
 
-  /** Planes con los que el hotel ofrece inventario. El primero con tarifa completa gana. */
+  /** Planes con los que el hotel ofrece inventario, en orden de preferencia. */
   public List<PlanTarifario> planesActivos() {
     return jdbc.query("SELECT id,codigo,nombre,moneda,activo,descuento_pct FROM rate_plans WHERE activo=1 ORDER BY id",
       (rs, n) -> new PlanTarifario(rs.getLong("id"), rs.getString("codigo"), rs.getString("nombre"),

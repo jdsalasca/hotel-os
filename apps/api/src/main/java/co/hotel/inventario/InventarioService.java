@@ -187,9 +187,10 @@ public class InventarioService {
   }
 
   /**
-   * Habitaciones libres cuyo precio se puede totalizar. Quedan fuera las que no alcanzan la
-   * capacidad pedida, las que tienen una noche cerrada o sin tarifa, y las que incumplen una
-   * restricción de estancia.
+   * Habitaciones libres cuyo precio se puede totalizar. Cada habitación sale una vez por plan con
+   * tarifa completa: el huésped elige entre planes reales (flexible, promo…), no recibe solo el
+   * primero. Quedan fuera las que no alcanzan la capacidad, las noches cerradas o sin tarifa y
+   * las que incumplen una restricción.
    */
   public List<OpcionOferta> disponiblesConPrecio(LocalDate desde, LocalDate hasta, int huespedes) {
     validarPeriodo(desde, hasta);
@@ -200,10 +201,11 @@ public class InventarioService {
       Optional<RoomType> tipo = inventario.tipoPorId(habitacion.roomTypeId());
       if (tipo.isEmpty() || tipo.get().capacidadMax() < huespedes) continue;
 
-      PrecioTotalizado precio = calcularPrecio(tipo.get(), desde, hasta);
-      if (precio != null) {
-        ofertas.add(new OpcionOferta(habitacion, tipo.get(), precio.totalCents(), precio.moneda(),
-          precio.noches(), precio.plan(), precio.totalSinDescuento(), precio.plan().descuentoPct()));
+      for (PlanTarifario plan : tarifas.planesActivos()) {
+        detalleParaPlan(tipo.get(), plan, desde, hasta).ifPresent(p -> ofertas.add(
+          new OpcionOferta(habitacion, tipo.get(), p.total(), p.plan().moneda(),
+            (int) java.time.temporal.ChronoUnit.DAYS.between(desde, hasta), p.plan(),
+            p.totalSinDescuento(), p.plan().descuentoPct())));
       }
     }
     return ofertas;
@@ -262,29 +264,33 @@ public class InventarioService {
                                  long totalSinDescuento) {}
 
   /**
-   * Núcleo común de la oferta: primer plan activo con tarifa completa. Lo usan la búsqueda, el
-   * alta, el calendario y el detalle, para no tener cuatro versiones de la misma regla.
+   * Núcleo común de la oferta: precio de un tipo con un plan, noche por noche. Lo usan la
+   * búsqueda (todos los planes), el alta, el calendario y el detalle (el primero válido), para
+   * no tener varias versiones de la misma regla.
    */
+  private java.util.Optional<PrecioDetallado> detalleParaPlan(RoomType tipo, PlanTarifario plan,
+      LocalDate desde, LocalDate hasta) {
+    long noches = java.time.temporal.ChronoUnit.DAYS.between(desde, hasta);
+    var configuradas = tarifas.nochesDelPeriodo(plan.id(), tipo.id(), desde, hasta);
+    if (configuradas.size() != noches) return java.util.Optional.empty();
+    List<NochePrecio> detalle = new java.util.ArrayList<>();
+    long total = 0;
+    for (TarifaRepository.TarifaNoche noche : configuradas) {
+      if (noche.cerrado()) return java.util.Optional.empty();
+      if (noche.minEstancia() != null && noches < noche.minEstancia()) return java.util.Optional.empty();
+      if (noche.maxEstancia() != null && noches > noche.maxEstancia()) return java.util.Optional.empty();
+      detalle.add(new NochePrecio(noche.fecha(), noche.precioCents()));
+      total += noche.precioCents();
+    }
+    long conDescuento = aplicarDescuento(total, plan.descuentoPct());
+    return java.util.Optional.of(new PrecioDetallado(plan, detalle, conDescuento, total));
+  }
+
   private java.util.Optional<PrecioDetallado> precioDetallado(RoomType tipo, LocalDate desde,
       LocalDate hasta) {
-    long noches = java.time.temporal.ChronoUnit.DAYS.between(desde, hasta);
     for (PlanTarifario plan : tarifas.planesActivos()) {
-      var configuradas = tarifas.nochesDelPeriodo(plan.id(), tipo.id(), desde, hasta);
-      if (configuradas.size() != noches) continue;
-      List<NochePrecio> detalle = new java.util.ArrayList<>();
-      long total = 0;
-      boolean completa = true;
-      for (TarifaRepository.TarifaNoche noche : configuradas) {
-        if (noche.cerrado()) { completa = false; break; }
-        if (noche.minEstancia() != null && noches < noche.minEstancia()) { completa = false; break; }
-        if (noche.maxEstancia() != null && noches > noche.maxEstancia()) { completa = false; break; }
-        detalle.add(new NochePrecio(noche.fecha(), noche.precioCents()));
-        total += noche.precioCents();
-      }
-      if (completa) {
-        long conDescuento = aplicarDescuento(total, plan.descuentoPct());
-        return java.util.Optional.of(new PrecioDetallado(plan, detalle, conDescuento, total));
-      }
+      var precio = detalleParaPlan(tipo, plan, desde, hasta);
+      if (precio.isPresent()) return precio;
     }
     return java.util.Optional.empty();
   }
