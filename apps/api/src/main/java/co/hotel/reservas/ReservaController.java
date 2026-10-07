@@ -1,5 +1,6 @@
 package co.hotel.reservas;
 
+import co.hotel.seguridad.LimiteConsultasPublicas;
 import co.hotel.seguridad.LimiteReservas;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
@@ -15,13 +16,15 @@ public class ReservaController {
   private final RoomSelector rooms;
   private final ComprobanteService comprobantes;
   private final LimiteReservas limite;
+  private final LimiteConsultasPublicas lecturas;
 
   public ReservaController(ReservaService svc, RoomSelector rooms, ComprobanteService comprobantes,
-                           LimiteReservas limite) {
+                           LimiteReservas limite, LimiteConsultasPublicas lecturas) {
     this.svc = svc;
     this.rooms = rooms;
     this.comprobantes = comprobantes;
     this.limite = limite;
+    this.lecturas = lecturas;
   }
 
   /** Contrato de entrada del flujo público. El cliente envía ISO-8601 (YYYY-MM-DD). */
@@ -68,9 +71,11 @@ public class ReservaController {
     }
   }
 
-  /** Consulta segura: exige el correo con el que se reservó. */
+  /** Consulta segura: exige el correo con el que se reservó, y se topa por IP. */
   @GetMapping("/api/reservas/{codigo}")
-  public ResponseEntity<?> consultar(@PathVariable String codigo, @RequestParam String email) {
+  public ResponseEntity<?> consultar(@PathVariable String codigo, @RequestParam String email,
+                                     HttpServletRequest peticion) {
+    if (!lecturas.permitir(peticion.getRemoteAddr())) return Demasiadas();
     var reserva = svc.consultar(codigo, email);
     if (reserva.isEmpty()) {
       return ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada"));
@@ -83,9 +88,17 @@ public class ReservaController {
    * que la consulta (código + correo): nadie imprime reservas ajenas adivinando el código.
    */
   @GetMapping("/api/reservas/{codigo}/comprobante")
-  public ResponseEntity<?> comprobante(@PathVariable String codigo, @RequestParam String email) {
+  public ResponseEntity<?> comprobante(@PathVariable String codigo, @RequestParam String email,
+                                        HttpServletRequest peticion) {
+    if (!lecturas.permitir(peticion.getRemoteAddr())) return Demasiadas();
     return comprobantes.comprobante(codigo, email)
       .map(ResponseEntity::ok)
       .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada")));
+  }
+
+  /** 429 con un motivo que el huésped pueda entender. El frontend lo muestra tal cual. */
+  private static ResponseEntity<Map<String, String>> Demasiadas() {
+    return ResponseEntity.status(429).body(Map.of("error",
+      "demasiadas consultas seguidas desde esta conexión. Espera un minuto e inténtalo de nuevo."));
   }
 }

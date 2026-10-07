@@ -3,9 +3,12 @@ package co.hotel.disponibilidad;
 import co.hotel.inventario.DatosInvalidosException;
 import co.hotel.inventario.InventarioService;
 import co.hotel.inventario.OpcionOferta;
+import co.hotel.seguridad.LimiteConsultasPublicas;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,21 +20,33 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class DisponibilidadController {
   private final InventarioService inventario;
+  private final LimiteConsultasPublicas lecturas;
 
-  public DisponibilidadController(InventarioService inventario) { this.inventario = inventario; }
+  public DisponibilidadController(InventarioService inventario, LimiteConsultasPublicas lecturas) {
+    this.inventario = inventario;
+    this.lecturas = lecturas;
+  }
 
   @GetMapping("/api/disponibilidad")
-  public Map<String, Object> buscar(@RequestParam String llegada, @RequestParam String salida,
-                                    @RequestParam(defaultValue = "2") int huespedes) {
+  public ResponseEntity<?> buscar(@RequestParam String llegada, @RequestParam String salida,
+                                  @RequestParam(defaultValue = "2") int huespedes,
+                                  HttpServletRequest peticion) {
+    // Es la lectura más pesada y es pública: sin tope, basta un bucle para martillear la base.
+    if (!lecturas.permitir(peticion.getRemoteAddr())) {
+      return ResponseEntity.status(429).body(Map.of("error",
+        "demasiadas consultas desde esta conexión. Espera un minuto e inténtalo de nuevo.",
+        "ofertas", List.of()));
+    }
     try {
       List<Map<String, Object>> ofertas = inventario
         .disponiblesConPrecio(LocalDate.parse(llegada), LocalDate.parse(salida), huespedes)
         .stream().map(DisponibilidadController::oferta).toList();
-      return Map.of("llegada", llegada, "salida", salida, "huespedes", huespedes, "ofertas", ofertas);
+      return ResponseEntity.ok(
+        Map.of("llegada", llegada, "salida", salida, "huespedes", huespedes, "ofertas", ofertas));
     } catch (DatosInvalidosException e) {
-      return Map.of("error", e.getMessage(), "ofertas", List.of());
+      return ResponseEntity.ok(Map.of("error", e.getMessage(), "ofertas", List.of()));
     } catch (java.time.format.DateTimeParseException e) {
-      return Map.of("error", "las fechas deben tener formato YYYY-MM-DD", "ofertas", List.of());
+      return ResponseEntity.ok(Map.of("error", "las fechas deben tener formato YYYY-MM-DD", "ofertas", List.of()));
     }
   }
 
