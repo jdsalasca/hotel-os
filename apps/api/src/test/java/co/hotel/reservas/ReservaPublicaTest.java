@@ -177,6 +177,33 @@ class ReservaPublicaTest {
   }
 
   @Test
+  @DisplayName("el plan de la búsqueda viaja al alta: otro plan es un 409 con el vigente")
+  void planDistintoAlDeLaBusquedaEs409() throws Exception {
+    long planVigente = jdbc.queryForObject("SELECT id FROM rate_plans WHERE codigo='STD-PRUEBA'", Long.class);
+    var conOtroPlan = cuerpo("plan@example.com", "2026-11-26", "2026-11-28", 2, 1L);
+    conOtroPlan.put("totalEsperadoCents", 300000);
+    conOtroPlan.put("monedaEsperada", "COP");
+    conOtroPlan.put("ratePlanIdEsperado", planVigente + 1000);
+    var respuesta = mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(conOtroPlan)))
+      .andExpect(status().isConflict())
+      .andReturn().getResponse().getContentAsString();
+    assertEquals(planVigente,
+      JSON.readTree(respuesta).get("nuevoRatePlanId").asLong(),
+      "el 409 dice con qué plan sí sale: " + respuesta);
+
+    var conSuPlan = cuerpo("plan-ok@example.com", "2026-11-26", "2026-11-28", 2, 1L);
+    conSuPlan.put("totalEsperadoCents", 300000);
+    conSuPlan.put("monedaEsperada", "COP");
+    conSuPlan.put("ratePlanIdEsperado", planVigente);
+    mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(conSuPlan)))
+      .andExpect(status().isCreated());
+  }
+
+  @Test
   @DisplayName("sin fechas: 400 con motivo, no un 500 por un nulo")
   void sinFechasEs400() throws Exception {
     var sinLlegada = cuerpo("sin@example.com", "2026-11-05", "2026-11-07", 2, 1L);

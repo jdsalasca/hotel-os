@@ -168,7 +168,7 @@ public class InventarioService {
       .flatMap(h -> inventario.tipoPorId(h.roomTypeId())
         .filter(t -> t.capacidadMax() >= huespedes)
         .flatMap(t -> java.util.Optional.ofNullable(calcularPrecio(t, desde, hasta))
-          .map(p -> new PrecioAcordado(p.totalCents(), p.moneda(), p.planId()))));
+          .map(p -> new PrecioAcordado(p.totalCents(), p.moneda(), p.plan().id()))));
   }
 
   /**
@@ -188,7 +188,7 @@ public class InventarioService {
       PrecioTotalizado precio = calcularPrecio(tipo.get(), desde, hasta);
       if (precio != null) {
         ofertas.add(new OpcionOferta(habitacion, tipo.get(), precio.totalCents(), precio.moneda(),
-          precio.noches()));
+          precio.noches(), precio.plan()));
       }
     }
     return ofertas;
@@ -276,7 +276,7 @@ public class InventarioService {
   private PrecioTotalizado calcularPrecio(RoomType tipo, LocalDate desde, LocalDate hasta) {
     long noches = java.time.temporal.ChronoUnit.DAYS.between(desde, hasta);
     return precioDetallado(tipo, desde, hasta)
-      .map(p -> new PrecioTotalizado(p.total(), p.plan().moneda(), (int) noches, p.plan().id()))
+      .map(p -> new PrecioTotalizado(p.total(), p.plan().moneda(), (int) noches, p.plan()))
       .orElse(null);
   }
 
@@ -286,5 +286,5 @@ public class InventarioService {
   }
 
   /** Total del periodo solo si todas las noches tienen tarifa válida. */
-  private record PrecioTotalizado(long totalCents, String moneda, int noches, long planId) {}
+  private record PrecioTotalizado(long totalCents, String moneda, int noches, PlanTarifario plan) {}
 }

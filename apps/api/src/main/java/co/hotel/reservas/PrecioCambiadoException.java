@@ -11,14 +11,18 @@ public class PrecioCambiadoException extends RuntimeException {
 
   private final long nuevoTotalCents;
   private final String nuevaMoneda;
+  private final long nuevoRatePlanId;
 
-  public PrecioCambiadoException(long nuevoTotalCents, String nuevaMoneda) {
+  public PrecioCambiadoException(long nuevoTotalCents, String nuevaMoneda, long nuevoRatePlanId) {
     super("el precio cambió desde tu búsqueda: confirma de nuevo con el importe actualizado");
     this.nuevoTotalCents = nuevoTotalCents;
     this.nuevaMoneda = nuevaMoneda;
+    this.nuevoRatePlanId = nuevoRatePlanId;
   }
 
   public long nuevoTotalCents() { return nuevoTotalCents; }
 
   public String nuevaMoneda() { return nuevaMoneda; }
+
+  public long nuevoRatePlanId() { return nuevoRatePlanId; }
 }

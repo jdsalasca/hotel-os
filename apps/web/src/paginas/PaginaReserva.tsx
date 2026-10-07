@@ -11,6 +11,7 @@ type EnCurso = {
   totalCents: number;
   moneda: string;
   noches: number;
+  plan?: { id: number; codigo: string; nombre: string };
   llegada: string;
   salida: string;
   huespedes: number;
@@ -83,6 +84,7 @@ export function PaginaReserva() {
         idempotencia: eleccion.clave,
         totalEsperadoCents: esperado.totalCents,
         monedaEsperada: esperado.moneda,
+        ratePlanIdEsperado: eleccion.plan?.id ?? null,
       });
       setReserva(r);
       sessionStorage.removeItem('reserva-en-curso');
@@ -240,6 +242,9 @@ export function PaginaReserva() {
               {eleccion.huespedes} {eleccion.huespedes === 1 ? 'huésped' : 'huéspedes'} ·{' '}
               {eleccion.noches} {eleccion.noches === 1 ? 'noche' : 'noches'}
             </p>
+            {eleccion.plan ? (
+              <p className="campo__ayuda sin-margen">Plan {eleccion.plan.nombre}</p>
+            ) : null}
             <p className="precio">
               {monto(esperado.totalCents, esperado.moneda)}
               <span className="precio__detalle">total del periodo</span>

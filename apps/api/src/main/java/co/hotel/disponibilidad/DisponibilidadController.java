@@ -58,7 +58,8 @@ public class DisponibilidadController {
         "capacidadMax", o.tipo().capacidadMax()),
       "totalCents", o.totalCents(),
       "moneda", o.moneda(),
-      "noches", o.noches());
+      "noches", o.noches(),
+      "plan", Map.of("id", o.plan().id(), "codigo", o.plan().codigo(), "nombre", o.plan().nombre()));
   }
 
   /**

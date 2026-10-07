@@ -10,6 +10,7 @@ type Oferta = {
   totalCents: number;
   moneda: string;
   noches: number;
+  plan: { id: number; codigo: string; nombre: string };
 };
 
 type RespuestaDisponibilidad = {
@@ -354,7 +355,7 @@ export function PaginaInicio() {
                   <h3>{oferta.tipo.nombre}</h3>
                   <p className="campo__ayuda">
                     {oferta.habitacion.nombre || oferta.habitacion.codigo} · Hasta{' '}
-                    {oferta.tipo.capacidadMax} huéspedes
+                    {oferta.tipo.capacidadMax} huéspedes · Plan {oferta.plan.nombre}
                   </p>
                   <p className="precio">
                     {monto(oferta.totalCents, oferta.moneda)}

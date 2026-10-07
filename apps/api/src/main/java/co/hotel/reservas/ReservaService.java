@@ -34,7 +34,7 @@ public class ReservaService {
   }
 
   public String crear(CrearReserva datos) {
-    return crear(datos, null, null);
+    return crear(datos, null, null, null);
   }
 
   /**
@@ -44,6 +44,16 @@ public class ReservaService {
    * el alta, porque entre comprobar y escribir la tarifa podría volver a moverse.
    */
   public String crear(CrearReserva datos, Long totalEsperadoCents, String monedaEsperada) {
+    return crear(datos, totalEsperadoCents, monedaEsperada, null);
+  }
+
+  /**
+   * Alta con plan esperado además del importe: el plan que la búsqueda ofreció viaja hasta el
+   * alta y se verifica. Sin él, el primer plan activo se elegiría en silencio y el huésped no
+   * sabría con qué plan reservó.
+   */
+  public String crear(CrearReserva datos, Long totalEsperadoCents, String monedaEsperada,
+                      Long ratePlanIdEsperado) {
     validar(datos);
     String clave = (datos.claveIdempotencia() == null || datos.claveIdempotencia().isBlank())
         ? UUID.randomUUID().toString() : datos.claveIdempotencia();
@@ -81,10 +91,11 @@ public class ReservaService {
           "la habitación no está a la venta para esas fechas y huéspedes");
       }
       var acordado = precio.get();
-      if (totalEsperadoCents != null
+      if ((totalEsperadoCents != null
           && (totalEsperadoCents.longValue() != acordado.totalCents()
-            || (monedaEsperada != null && !monedaEsperada.equalsIgnoreCase(acordado.moneda())))) {
-        throw new PrecioCambiadoException(acordado.totalCents(), acordado.moneda());
+            || (monedaEsperada != null && !monedaEsperada.equalsIgnoreCase(acordado.moneda()))))
+          || (ratePlanIdEsperado != null && ratePlanIdEsperado.longValue() != acordado.ratePlanId())) {
+        throw new PrecioCambiadoException(acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
       }
       String codigo = generarCodigo();
       long id = repo.insertar(codigo, datos, clave,

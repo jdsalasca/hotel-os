@@ -120,7 +120,9 @@ class DisponibilidadControllerTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.ofertas[0].habitacion.codigo").value("301"))
       .andExpect(jsonPath("$.ofertas[0].totalCents").value(300000))
-      .andExpect(jsonPath("$.ofertas[0].moneda").value("COP"));
+      .andExpect(jsonPath("$.ofertas[0].moneda").value("COP"))
+      .andExpect(jsonPath("$.ofertas[0].plan.id").value(planId))
+      .andExpect(jsonPath("$.ofertas[0].plan.codigo").value("PES_T"));
   }
 
   @Test

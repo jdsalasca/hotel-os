@@ -35,7 +35,7 @@ public class ReservaController {
   /** Contrato de entrada del flujo público. El cliente envía ISO-8601 (YYYY-MM-DD). */
   public record CrearReq(String email, String nombre, String llegada, String salida,
                          Integer huespedes, Long roomId, String origen, String idempotencia,
-                         Long totalEsperadoCents, String monedaEsperada) {}
+                         Long totalEsperadoCents, String monedaEsperada, Long ratePlanIdEsperado) {}
 
   /** Respuesta pública. No expone datos internos ni datos de pago. */
   public record ReservaResp(String codigo, String email, String nombre, String llegada, String salida,
@@ -85,7 +85,8 @@ public class ReservaController {
         h, Origen.WEB, clave, habitacion);
       // El importe que el huésped vio en la búsqueda viaja con la petición: si la tarifa se
       // movió entre medias, el servicio lo rechaza con el vigente en vez de colarlo.
-      String codigo = svc.crear(datos, req.totalEsperadoCents(), req.monedaEsperada());
+      String codigo = svc.crear(datos, req.totalEsperadoCents(), req.monedaEsperada(),
+        req.ratePlanIdEsperado());
       // Si quien reserva tiene sesión de huésped, la reserva queda colgando de su cuenta para que
       // la vea en "Mis reservas". Si no, usuario_id queda NULL y sigue siendo consultable por
       // código + correo: nadie pierde su reserva por no haber entrado con Google.
@@ -103,7 +104,8 @@ public class ReservaController {
       return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     } catch (PrecioCambiadoException e) {
       return ResponseEntity.status(409).body(Map.of("error", e.getMessage(),
-        "nuevoTotalCents", e.nuevoTotalCents(), "nuevaMoneda", e.nuevaMoneda()));
+        "nuevoTotalCents", e.nuevoTotalCents(), "nuevaMoneda", e.nuevaMoneda(),
+        "nuevoRatePlanId", e.nuevoRatePlanId()));
     } catch (SinDisponibilidadException e) {
       return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     }
