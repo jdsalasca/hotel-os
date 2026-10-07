@@ -132,12 +132,13 @@ public class ReservaService {
 
   public List<Reserva> listar(int limite) { return repo.listar(limite); }
 
-  /** Parte del día para la recepción: quién llega y quién se va, con habitación. */
+  /** Parte del día para la recepción: quién llega, quién se va y quién duerme. */
   public record ParteDia(List<ReservaRepository.Movimiento> llegadas,
-                         List<ReservaRepository.Movimiento> salidas) {}
+                         List<ReservaRepository.Movimiento> salidas,
+                         List<ReservaRepository.Movimiento> enCasa) {}
 
   public ParteDia parteDelDia(LocalDate fecha) {
-    return new ParteDia(repo.llegadas(fecha), repo.salidas(fecha));
+    return new ParteDia(repo.llegadas(fecha), repo.salidas(fecha), repo.enCasa(fecha));
   }
 
   private void validar(CrearReserva datos) {

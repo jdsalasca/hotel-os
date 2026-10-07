@@ -89,7 +89,8 @@ public class AdminReservasController {
     return ResponseEntity.ok(Map.of(
       "fecha", dia.toString(),
       "llegadas", parte.llegadas().stream().map(AdminReservasController::movimiento).toList(),
-      "salidas", parte.salidas().stream().map(AdminReservasController::movimiento).toList()));
+      "salidas", parte.salidas().stream().map(AdminReservasController::movimiento).toList(),
+      "enCasa", parte.enCasa().stream().map(AdminReservasController::movimiento).toList()));
   }
 
   private static Map<String, Object> movimiento(ReservaRepository.Movimiento m) {

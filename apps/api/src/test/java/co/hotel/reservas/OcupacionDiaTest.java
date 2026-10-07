@@ -66,7 +66,7 @@ class OcupacionDiaTest {
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('101','ACTIVA','Habitación 101')");
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('102','ACTIVA','Habitación 102')");
     }
-    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-10"));
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-12-10"));
   }
 
   private String reservar(String email, String llegada, String salida, long roomId) throws Exception {
@@ -95,6 +95,21 @@ class OcupacionDiaTest {
       .andExpect(jsonPath("$.llegadas[0].huespedes").value(2))
       .andExpect(jsonPath("$.salidas.length()").value(1))
       .andExpect(jsonPath("$.salidas[0].codigo").value(seVa));
+  }
+
+  @Test
+  @DisplayName("el parte también dice quién duerme esa noche, aunque ni llegue ni se vaya")
+  void parteIncluyeEnCasa() throws Exception {
+    // Diciembre para no pisar las reservas de noviembre del otro test: la base se comparte.
+    String llega = reservar("llega@example.com", "2026-12-03", "2026-12-05", 1);
+    String sigue = reservar("sigue@example.com", "2026-12-01", "2026-12-06", 2);
+    reservar("sale@example.com", "2026-12-01", "2026-12-03", 1);
+
+    mvc.perform(get("/api/admin/ocupacion/dia").with(ADMIN).param("fecha", "2026-12-03"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.enCasa.length()").value(2))
+      .andExpect(jsonPath("$.enCasa[0].codigo").value(llega))
+      .andExpect(jsonPath("$.enCasa[1].codigo").value(sigue));
   }
 
   @Test

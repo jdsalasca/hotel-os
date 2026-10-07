@@ -17,6 +17,7 @@ type ParteDia = {
   fecha: string;
   llegadas: Movimiento[];
   salidas: Movimiento[];
+  enCasa: Movimiento[];
 };
 
 /**
@@ -99,6 +100,7 @@ export function PaginaAdminHoy() {
           <>
             <Movimientos titulo={`Llegadas (${parte.llegadas.length})`} movimientos={parte.llegadas} vacio="Nadie llega este día." />
             <Movimientos titulo={`Salidas (${parte.salidas.length})`} movimientos={parte.salidas} vacio="Nadie se va este día." />
+            <Movimientos titulo={`En casa (${parte.enCasa.length})`} movimientos={parte.enCasa} vacio="El hotel duerme vacío esta noche." />
           </>
         ) : null}
       </section>

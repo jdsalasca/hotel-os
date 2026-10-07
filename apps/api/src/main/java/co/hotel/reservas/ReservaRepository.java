@@ -92,6 +92,22 @@ public class ReservaRepository {
 
   public List<Movimiento> salidas(LocalDate fecha) { return movimientos("salida", fecha); }
 
+  /**
+   * Quién duerme esa noche: llegó ese día o antes y se va después. Intervalo semiabierto, como el
+   * resto del sistema: el día de salida ya no cuenta.
+   */
+  public List<Movimiento> enCasa(LocalDate fecha) {
+    return jdbc.query(
+      "SELECT r.codigo, r.email, r.nombre, r.huespedes, rm.codigo AS habitacion FROM reservations r "
+        + "JOIN reservation_items ri ON ri.reservation_id = r.id "
+        + "JOIN rooms rm ON rm.id = ri.room_id "
+        + "WHERE r.llegada <= ? AND ? < r.salida AND r.estado IN ('PENDIENTE','CONFIRMADA') "
+        + "ORDER BY rm.codigo",
+      (rs, n) -> new Movimiento(rs.getString("codigo"), rs.getString("email"),
+        rs.getString("nombre"), rs.getInt("huespedes"), rs.getString("habitacion")),
+      fecha.toString(), fecha.toString());
+  }
+
   private List<Movimiento> movimientos(String columnaFecha, LocalDate fecha) {
     // La columna se elige aquí dentro, nunca llega del exterior: no hay inyección posible.
     // Solo cuentan las vigentes: una cancelada no llega ni se va.
