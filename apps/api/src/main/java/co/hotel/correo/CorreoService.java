@@ -58,12 +58,20 @@ public class CorreoService {
     return m.find() ? ResultadoEnvio.ok(m.group(1)) : ResultadoEnvio.ok("sin-id");
   }
 
-  /** Canje refresh token -> access token. */
+  /**
+   * Canje refresh token -> access token. El endpoint /token de Google solo acepta formulario
+   * codificado (`application/x-www-form-urlencoded`): un JSON con la misma información lo rechaza.
+   */
   private HttpClienteOta.Respuesta accessToken() {
-    String cuerpo = """
-      {"client_id":"%s","client_secret":"%s","refresh_token":"%s","grant_type":"refresh_token"}"""
-      .formatted(config.clientId(), config.clientSecret(), config.refreshToken());
+    String cuerpo = "grant_type=refresh_token"
+      + "&client_id=" + codificarFormulario(config.clientId())
+      + "&client_secret=" + codificarFormulario(config.clientSecret())
+      + "&refresh_token=" + codificarFormulario(config.refreshToken());
     return http.post(endpointOAuth(), Map.of("Content-Type", "application/x-www-form-urlencoded"), cuerpo);
+  }
+
+  private static String codificarFormulario(String valor) {
+    return java.net.URLEncoder.encode(valor == null ? "" : valor, StandardCharsets.UTF_8);
   }
 
   /** Mensaje RFC 2822 mínimo: From, To, Subject, fecha y cuerpo. */

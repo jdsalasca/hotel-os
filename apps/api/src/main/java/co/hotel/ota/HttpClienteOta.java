@@ -46,10 +46,16 @@ public class HttpClienteOta {
           .timeout(timeout)
           .header("Accept", "application/json, application/xml");
         cabeceras.forEach(peticion::header);
-        peticion.method(metodo, cuerpo == null
-          ? HttpRequest.BodyPublishers.noBody()
-          : HttpRequest.BodyPublishers.ofString(cuerpo));
-        if (cuerpo != null) peticion.header("Content-Type", "application/json");
+        // El Content-Type lo manda quien llama: si se fuerza aquí otro, la petición sale con dos
+        // valores y el proveedor la rechaza (así se rompía el canje OAuth2 de Gmail). Solo hay
+        // valor por defecto cuando nadie lo fijó.
+        if (cuerpo == null) {
+          peticion.method(metodo, HttpRequest.BodyPublishers.noBody());
+        } else {
+          boolean sinTipo = cabeceras.keySet().stream().noneMatch(k -> k.equalsIgnoreCase("Content-Type"));
+          if (sinTipo) peticion.header("Content-Type", "application/json");
+          peticion.method(metodo, HttpRequest.BodyPublishers.ofString(cuerpo));
+        }
 
         HttpResponse<String> respuesta = http.send(peticion.build(), HttpResponse.BodyHandlers.ofString());
         Respuesta r = new Respuesta(respuesta.statusCode(), respuesta.body(),

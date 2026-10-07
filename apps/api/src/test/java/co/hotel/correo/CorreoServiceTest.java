@@ -29,6 +29,7 @@ class CorreoServiceTest {
   private final List<String> peticiones = new ArrayList<>();
   private final List<String> cuerpos = new ArrayList<>();
   private volatile String cabeceraAuth;
+  private volatile String contentTypeToken;
   private volatile int codigoToken = 200;
   private volatile int codigoEnvio = 200;
 
@@ -37,6 +38,7 @@ class CorreoServiceTest {
     servidor = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     servidor.createContext("/token", e -> {
       peticiones.add("token " + e.getRequestMethod());
+      contentTypeToken = e.getRequestHeaders().getFirst("Content-Type");
       cuerpo(e.getRequestBody().readAllBytes());
       responder(e, codigoToken, "{\"access_token\":\"access-de-prueba\",\"expires_in\":3600,"
         + "\"token_type\":\"Bearer\"}");
@@ -125,6 +127,21 @@ class CorreoServiceTest {
     var r = servicio(true).enviar("ana@example.com", "Asunto", "cuerpo");
     assertFalse(r.enviado());
     assertTrue(r.motivo().contains("403"));
+  }
+
+  @Test
+  @DisplayName("el canje OAuth2 va como formulario codificado, que es lo único que acepta Google")
+  void canjeOAuth2ComoFormulario() {
+    var r = servicio(true).enviar("ana@example.com", "Asunto", "cuerpo");
+    assertTrue(r.enviado(), "motivo del fallo: " + r.motivo());
+
+    // Google rechaza el canje si el cuerpo no es form-urlencoded: ni JSON ni doble Content-Type.
+    assertEquals("application/x-www-form-urlencoded", contentTypeToken,
+      "un solo Content-Type y el que espera el endpoint /token");
+    String canje = cuerpos.get(0);
+    assertTrue(canje.contains("grant_type=refresh_token"), "cuerpo=" + canje);
+    assertTrue(canje.contains("refresh_token=refresh-token-de-prueba"), "cuerpo=" + canje);
+    assertTrue(!canje.contains("{"), "el cuerpo no puede ser JSON: cuerpo=" + canje);
   }
 
   @Test

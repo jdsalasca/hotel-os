@@ -21,6 +21,8 @@ services:
       DOMAIN: ${DOMAIN:?define DOMAIN en el .env}
       ACME_EMAIL: ${ACME_EMAIL:?define ACME_EMAIL en el .env}
     volumes:
+      # La configuración del proxy versionada: sin ella Caddy no sabría a dónde mandar nada.
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # Certificados y claves TLS: también en disco persistente.
       - caddy-data:/data
       - caddy-config:/config
@@ -57,6 +59,10 @@ services:
       AIRBNB_LISTING_IDS: ${AIRBNB_LISTING_IDS:-}
       AIRBNB_ENV: ${AIRBNB_ENV:-sandbox}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      # La sesión solo viaja por HTTPS y solo en el mismo sitio: detrás de Caddy con TLS,
+      # la cookie sin Secure sería visible en texto plano y sin SameSite llegaría desde otros sitios.
+      SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
+      SERVER_SERVLET_SESSION_COOKIE_SAME_SITE: "strict"
     volumes:
       - hotel-data:/data
       - hotel-backups:/backups
