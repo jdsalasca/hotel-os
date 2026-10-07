@@ -283,7 +283,9 @@ docker run --rm -v hotel-os_hotel-backups:/backups rclone/rclone \
 rsync -az --delete user@otra-maquina:/respaldos/hotel-os/ /backups/
 ```
 
-Recomendación: copia diaria automática (`cron`) más rotación mensual en un destino distinto.
+Recomendación: el servicio `respaldo` del compose (una copia diaria con retención de 30 días,
+ajustable con `BACKUP_INTERVAL_SECONDS` y `BACKUP_RETENTION_DAYS`) más rotación mensual en un
+destino distinto.
 
 ## Actualización con respaldo previo
 

@@ -47,6 +47,21 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Respaldos programados: una copia consistente al día con retención de 30 días. El volumen
+  # de datos va sin :ro a propósito: SQLite necesita sus archivos de bloqueo hasta para la copia
+  # de lectura (.backup); con solo lectura falla con "unable to open database file". La API de
+  # respaldo solo lee; no escribe en la base.
+  respaldo:
+    build: ./tools/operacion
+    command: ["/usr/local/bin/programar.sh"]
+    environment:
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - hotel-data:/data
+      - hotel-backups:/backups
+    restart: unless-stopped
+
 volumes:
   hotel-data:
   hotel-backups:

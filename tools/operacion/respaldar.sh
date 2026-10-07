@@ -25,6 +25,16 @@ ARCHIVO="$DESTINO/hotel-$SELLO.sqlite3"
 # lock de lectura, copia de forma consistente y deja la base usable durante el proceso.
 sqlite3 "$ORIGEN" ".backup '$ARCHIVO'"
 
+# Comprobación: un respaldo que no se puede leer no es un respaldo. Ojo con el caso trampa:
+# un archivo vacío ES una base SQLite válida y pasa integrity_check, así que el tamaño y la
+# tabla de reservas se verifican aparte. Sin eso, un fallo de apertura dejaba un "respaldo"
+# de 0 bytes dado por bueno.
+if [ ! -s "$ARCHIVO" ]; then
+  echo "ERROR: el respaldo salió vacío (¿origen ilegible?): $ARCHIVO" >&2
+  rm -f "$ARCHIVO"
+  exit 1
+fi
+
 # Comprobación: un respaldo que no se puede leer no es un respaldo.
 INTEGRIDAD="$(sqlite3 "$ARCHIVO" 'PRAGMA integrity_check;' 2>&1)"
 if [ "$INTEGRIDAD" != "ok" ]; then
@@ -36,6 +46,12 @@ fi
 # Ojo: en SQL de SQLite el literal va con comillas simples. Con comillas dobles lo que hay
 # entrecomillado se interpreta como identificador y la consulta falla.
 TABLAS="$(sqlite3 "$ARCHIVO" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';")"
+RESERVAS_TABLA="$(sqlite3 "$ARCHIVO" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='reservations';")"
+if [ "$RESERVAS_TABLA" != "1" ]; then
+  echo "ERROR: el respaldo no trae la tabla reservations: $ARCHIVO" >&2
+  rm -f "$ARCHIVO"
+  exit 1
+fi
 TAMANO="$(du -h "$ARCHIVO" | cut -f1)"
 echo "respaldo creado: $ARCHIVO ($TAMANO, $TABLAS tablas, integridad ok)"
 
