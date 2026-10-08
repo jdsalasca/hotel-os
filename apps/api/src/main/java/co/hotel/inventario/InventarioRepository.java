@@ -131,6 +131,20 @@ public class InventarioRepository {
       hasta.toString(), desde.toString());
   }
 
+  /** La habitación no tiene reserva vigente ni bloqueo que cubra el intervalo. */
+  public boolean estaLibre(long roomId, LocalDate desde, LocalDate hasta) {
+    Integer libre = jdbc.queryForObject(
+      "SELECT CASE WHEN EXISTS (SELECT 1 FROM reservation_items ri "
+        + "JOIN reservations res ON res.id = ri.reservation_id "
+        + "WHERE ri.room_id = ? AND res.estado IN ('PENDIENTE','CONFIRMADA') "
+        + "AND ri.desde < ? AND ? < ri.hasta) "
+        + "OR EXISTS (SELECT 1 FROM blocks b WHERE (b.room_id = ? OR b.room_id IS NULL) "
+        + "AND b.desde < ? AND ? < b.hasta) THEN 0 ELSE 1 END",
+      Integer.class, roomId, hasta.toString(), desde.toString(),
+      roomId, hasta.toString(), desde.toString());
+    return libre != null && libre == 1;
+  }
+
   /** Habitaciones activas sin reserva vigente ni bloqueo en el intervalo semiabierto. */
   public List<Habitacion> disponibles(LocalDate desde, LocalDate hasta) {
     return jdbc.query(

@@ -291,8 +291,13 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `docs/evidence/round-80/verificacion.md`.
 - [x] **Ronda 82 - El calendario cuenta habitaciones y agrupa por moneda (Etapa I).**
   `disponibles` son habitaciones distintas y `precios` trae el mínimo por moneda
-  (nuevo contrato, web actualizada). Evidencia:
-  `docs/evidence/round-82/verificacion.md`.
+  (nuevo contrato, web actualizada). El `round-82/` lo ocupa la Ronda 82 del colega;
+  esta evidencia vive en `round-82b/`. Evidencia:
+  `docs/evidence/round-82b/verificacion.md`.
+- [x] **Ronda 83 - La búsqueda agrupa lecturas: de 17 a 5 consultas (Etapa L).**
+  Planes/tipos una vez y precio por (tipo, plan); `estaLibre()` para el detalle.
+  `ContadorConsultas` + cotas que truenan ante un N+1. Evidencia:
+  `docs/evidence/round-83/verificacion.md`.
 - [x] **Ronda 75 - La confirmación ofrece Mis reservas también al panel.** `conCuenta` con
   ambas sesiones + test del hilo de chat (20/20 vitest). Evidencia:
   `docs/evidence/round-75/verificacion.md`.

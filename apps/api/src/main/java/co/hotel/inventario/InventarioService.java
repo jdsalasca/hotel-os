@@ -221,16 +221,29 @@ public class InventarioService {
     validarPeriodo(desde, hasta);
     if (huespedes < 1) throw new DatosInvalidosException("número de huéspedes inválido");
 
-    List<OpcionOferta> ofertas = new java.util.ArrayList<>();
+    // Los planes y los tipos se leen una vez, y el precio se calcula por (tipo, plan):
+    // depende del tipo, no de la habitación, así que una lectura sirve para todas las suyas.
+    // Antes se pedía por cada habitación (N+1): con 4 habitaciones y 2 planes eran 17 consultas.
+    java.util.Map<Long, RoomType> tipos = new java.util.HashMap<>();
+    for (RoomType tipo : inventario.tipos()) tipos.put(tipo.id(), tipo);
+    List<PlanTarifario> planes = tarifas.planesActivos();
+    java.util.Map<Long, List<Habitacion>> porTipo = new java.util.HashMap<>();
     for (Habitacion habitacion : inventario.disponibles(desde, hasta)) {
-      Optional<RoomType> tipo = inventario.tipoPorId(habitacion.roomTypeId());
-      if (tipo.isEmpty() || tipo.get().capacidadMax() < huespedes) continue;
-
-      for (PlanTarifario plan : tarifas.planesActivos()) {
-        detalleParaPlan(tipo.get(), plan, desde, hasta).ifPresent(p -> ofertas.add(
-          new OpcionOferta(habitacion, tipo.get(), p.total(), p.plan().moneda(),
-            (int) java.time.temporal.ChronoUnit.DAYS.between(desde, hasta), p.plan(),
-            p.totalSinDescuento(), p.plan().descuentoPct())));
+      porTipo.computeIfAbsent(habitacion.roomTypeId(), k -> new java.util.ArrayList<>()).add(habitacion);
+    }
+    int noches = (int) java.time.temporal.ChronoUnit.DAYS.between(desde, hasta);
+    List<OpcionOferta> ofertas = new java.util.ArrayList<>();
+    for (var grupo : porTipo.entrySet()) {
+      RoomType tipo = tipos.get(grupo.getKey());
+      if (tipo == null || tipo.capacidadMax() < huespedes) continue;
+      for (PlanTarifario plan : planes) {
+        var precio = detalleParaPlan(tipo, plan, desde, hasta);
+        if (precio.isEmpty()) continue;
+        var p = precio.orElseThrow();
+        for (Habitacion habitacion : grupo.getValue()) {
+          ofertas.add(new OpcionOferta(habitacion, tipo, p.total(), p.plan().moneda(), noches,
+            p.plan(), p.totalSinDescuento(), p.plan().descuentoPct()));
+        }
       }
     }
     return ofertas;
@@ -288,8 +301,8 @@ public class InventarioService {
     var tipo = habitacion.flatMap(h -> inventario.tipoPorId(h.roomTypeId()))
       .filter(t -> t.capacidadMax() >= huespedes);
     if (tipo.isEmpty()) return java.util.Optional.empty();
-    boolean libre = inventario.disponibles(desde, hasta).stream().anyMatch(h -> h.id() == roomId);
-    if (!libre) return java.util.Optional.empty();
+    // Una fila en vez de la lista completa: la regla es la misma de la búsqueda.
+    if (!inventario.estaLibre(roomId, desde, hasta)) return java.util.Optional.empty();
     return precioDetallado(tipo.get(), desde, hasta).map(p -> new DetalleOferta(
       habitacion.orElseThrow(), tipo.get(), p.plan(), p.noches(), p.total(), p.plan().moneda(),
       p.totalSinDescuento(), p.plan().descuentoPct()));
