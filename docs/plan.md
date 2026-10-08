@@ -302,6 +302,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 77 - Lo del colega a prod, verificado.** Sus suites en verde, deploy de todo
   origin y verificación viva (health, amenidades, lugares, web). Evidencia:
   `docs/evidence/round-77/verificacion.md`.
+- [x] **Ronda 78 - Respaldos en modo túnel + higiene.** Servicio diario, shebang que
+  faltaba, primer respaldo verificado con integridad + poda de 344 MB. Evidencia:
+  `docs/evidence/round-78/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
