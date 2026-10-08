@@ -282,6 +282,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   el 200 queda para respuestas de verdad (vacías o no). Número 74 porque el 73 ya
   estaba publicado por el colega. Evidencia:
   `docs/evidence/round-74/verificacion.md`.
+- [x] **Ronda 76 - El detalle es oferta vendible (Etapa F).** `detalleOferta()` exige
+  habitación libre con la misma regla de la búsqueda: ocupada o bloqueada es 404.
+  Evidencia: `docs/evidence/round-76/verificacion.md`.
 - [x] **Ronda 75 - La confirmación ofrece Mis reservas también al panel.** `conCuenta` con
   ambas sesiones + test del hilo de chat (20/20 vitest). Evidencia:
   `docs/evidence/round-75/verificacion.md`.

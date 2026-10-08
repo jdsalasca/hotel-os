@@ -153,6 +153,49 @@ class InventarioServiceTest {
   }
 
   @Test
+  @DisplayName("el detalle de una habitación libre trae sus noches con el plan")
+  void detalleDeHabitacionLibreExiste() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    LocalDate desde = LocalDate.parse("2026-11-01");
+    for (int i = 0; i < 2; i++) tarifas.fijarPrecio(plan, tipo.id(), desde.plusDays(i), 150_000);
+    Habitacion h = svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+
+    var detalle = svc.detalleOferta(h.id(), desde, desde.plusDays(2), 2);
+    assertTrue(detalle.isPresent(), "libre y tarifada: hay detalle");
+    assertEquals(2, detalle.orElseThrow().noches().size());
+    assertEquals(300_000, detalle.orElseThrow().totalCents());
+  }
+
+  @Test
+  @DisplayName("el detalle de una habitación ocupada no existe: es oferta vendible, no precio informativo")
+  void detalleDeHabitacionOcupadaNoExiste() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    LocalDate desde = LocalDate.parse("2026-11-01");
+    for (int i = 0; i < 2; i++) tarifas.fijarPrecio(plan, tipo.id(), desde.plusDays(i), 150_000);
+    Habitacion h = svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    reservar("H-OCUPADA", h.id(), "2026-11-01", "2026-11-03", "CONFIRMADA");
+
+    assertTrue(svc.detalleOferta(h.id(), desde, desde.plusDays(2), 2).isEmpty(),
+      "con reserva vigente encima, el detalle no puede venderse");
+  }
+
+  @Test
+  @DisplayName("el detalle de una habitación bloqueada no existe")
+  void detalleDeHabitacionBloqueadaNoExiste() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    LocalDate desde = LocalDate.parse("2026-11-01");
+    for (int i = 0; i < 2; i++) tarifas.fijarPrecio(plan, tipo.id(), desde.plusDays(i), 150_000);
+    Habitacion h = svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    svc.bloquear(h.id(), LocalDate.parse("2026-11-01"), LocalDate.parse("2026-11-03"), "Obra");
+
+    assertTrue(svc.detalleOferta(h.id(), desde, desde.plusDays(2), 2).isEmpty(),
+      "bloqueada: no hay detalle aunque haya tarifa");
+  }
+
+  @Test
   @DisplayName("un plan con 20% de descuento rebaja el total y dice el original")
   void planConDescuentoRebajaElTotal() {
     RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);

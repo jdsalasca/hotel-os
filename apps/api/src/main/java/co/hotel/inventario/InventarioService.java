@@ -262,9 +262,9 @@ public class InventarioService {
   /**
    * Detalle de una oferta: habitación, tipo, plan que la respalda y precio noche por noche.
    *
-   * Son las mismas reglas que la búsqueda y que el alta: si la habitación no está a la venta para
-   * esas fechas y huéspedes, no hay detalle. Tres sitios con tres verdades distintas sería peor
-   * que no tener detalle.
+   * Es oferta vendible, no precio informativo: valen las mismas reglas que la búsqueda. Una
+   * habitación ocupada o bloqueada no tiene detalle aunque tenga tarifa, igual que no sale
+   * en las ofertas.
    */
   public record NochePrecio(LocalDate fecha, long precioCents) {}
   public record DetalleOferta(Habitacion habitacion, RoomType tipo, PlanTarifario plan,
@@ -279,6 +279,8 @@ public class InventarioService {
     var tipo = habitacion.flatMap(h -> inventario.tipoPorId(h.roomTypeId()))
       .filter(t -> t.capacidadMax() >= huespedes);
     if (tipo.isEmpty()) return java.util.Optional.empty();
+    boolean libre = inventario.disponibles(desde, hasta).stream().anyMatch(h -> h.id() == roomId);
+    if (!libre) return java.util.Optional.empty();
     return precioDetallado(tipo.get(), desde, hasta).map(p -> new DetalleOferta(
       habitacion.orElseThrow(), tipo.get(), p.plan(), p.noches(), p.total(), p.plan().moneda(),
       p.totalSinDescuento(), p.plan().descuentoPct()));

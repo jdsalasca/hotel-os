@@ -375,6 +375,37 @@ class DisponibilidadControllerTest {
   }
 
   @Test
+  @DisplayName("el detalle de una habitación ocupada es 404: lo ocupada no se vende")
+  void detalleDeHabitacionOcupadaEs404() throws Exception {
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "DOBLE_O", "nombre", "Habitación doble", "capacidadMax", 2))).get("id").asLong();
+    long habitacionId = JSON.readTree(admin("/api/admin/habitaciones",
+      Map.of("codigo", "603", "roomTypeId", tipoId, "nombre", "Habitación 603"))).get("id").asLong();
+    long planId = JSON.readTree(admin("/api/admin/planes",
+      Map.of("codigo", "PES_O", "nombre", "Plan pesos", "moneda", "COP"))).get("id").asLong();
+    for (String fecha : new String[] { "2026-12-10", "2026-12-11" }) {
+      mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(JSON.writeValueAsString(Map.of("ratePlanId", planId, "roomTypeId", tipoId,
+            "fecha", fecha, "precioCents", 150000))))
+        .andExpect(status().isCreated());
+    }
+    mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("email", "ana@example.com", "nombre", "Ana",
+          "llegada", "2026-12-10", "salida", "2026-12-12", "huespedes", 2, "roomId", habitacionId,
+          "idempotencia", "idem-detalle-603", "totalEsperadoCents", 300000, "monedaEsperada", "COP",
+          "ratePlanIdEsperado", planId))))
+      .andExpect(status().isCreated());
+
+    mvc.perform(get("/api/disponibilidad/detalle")
+        .param("roomId", String.valueOf(habitacionId))
+        .param("llegada", "2026-12-10").param("salida", "2026-12-12").param("huespedes", "2"))
+      .andExpect(status().isNotFound())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
   @DisplayName("el detalle de una habitación sin tarifa es un 404, no un desglose vacío")
   void detalleSinTarifaEs404() throws Exception {
     long tipoId = JSON.readTree(admin("/api/admin/tipos",
