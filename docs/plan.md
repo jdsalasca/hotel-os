@@ -350,6 +350,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   del paso 1. Evidencia: `docs/evidence/round-89/verificacion.md`.
 - [x] **Ronda 92 - Auditoría de auth + deploy de lo nuevo.** 0 lockouts, login ok hoy,
   deploy 7c68555 verificado vivo. Evidencia: `docs/evidence/round-92/verificacion.md`.
+- [x] **Ronda 93 - Login en celular, verificado.** Captura 390px sin roturas; origin sin
+  movimiento. Evidencia: `docs/evidence/round-93/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
