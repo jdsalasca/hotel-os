@@ -114,8 +114,13 @@ export function PaginaAdminInventario() {
       .catch(() => setCatalogoServicios([]));
   }, []);
 
+  /** Lecturas de servicios en vuelo: si el hotel cambia de tipo antes de que vuelvan,
+   * las viejas se ignoran en vez de marcar lo de otro tipo. */
+  const peticionServicios = useRef(0);
+
   async function elegirTipoServicios(id: string) {
     setTipoServicios(id);
+    const n = ++peticionServicios.current;
     if (!id) {
       setMarcados([]);
       return;
@@ -124,8 +129,10 @@ export function PaginaAdminInventario() {
       const datos = await api.get<{ porTipo: Record<string, Amenidad[]> }>(
         `/api/amenidades/por-tipo?ids=${id}`,
       );
+      if (peticionServicios.current !== n) return;
       setMarcados((datos.porTipo[id] ?? []).map((a) => a.id));
     } catch (e) {
+      if (peticionServicios.current !== n) return;
       setError(e instanceof Error ? e.message : 'No se pudieron leer los servicios');
       setMarcados([]);
     }
@@ -186,10 +193,18 @@ export function PaginaAdminInventario() {
     void cargar();
   }, [mes]);
 
+  /** Lecturas de noches en vuelo: como en la búsqueda pública, si el hotel cambia de
+   * plan, tipo o mes antes de que vuelvan, las viejas se ignoran en vez de pintar (y
+   * tarifar sobre) otro plan. */
+  const peticionTarifas = useRef(0);
+
   // Al cambiar de plan, tipo o mes se releen las noches ya tarifadas para no inventar un precio
   // que el hotel no ha fijado: lo guardado se muestra tal cual está en la base.
   useEffect(() => {
     const [desde, hasta] = rangoMes(mesTarifas);
+    // También invalida lo que venía en camino: limpiar el plan con una lectura en vuelo
+    // no puede dejar las noches del plan viejo en pantalla.
+    const id = ++peticionTarifas.current;
     if (!tarifas.planId || !tarifas.tipoId) {
       setNoches(new Map());
       setBorrador({});
@@ -205,12 +220,16 @@ export function PaginaAdminInventario() {
     void api
       .get<Noche[]>(`/api/admin/tarifas?planId=${tarifas.planId}&tipoId=${tarifas.tipoId}&desde=${desde}&hasta=${hasta}`)
       .then((lista) => {
+        if (peticionTarifas.current !== id) return;
         const mapa = new Map(lista.map((n) => [n.fecha, n]));
         setNoches(mapa);
         setBorrador(Object.fromEntries(lista.map((n) => [n.fecha, String(n.precioCents / 100)])));
         setCerradas(Object.fromEntries(lista.map((n) => [n.fecha, n.cerrado])));
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'No se pudieron leer las tarifas'));
+      .catch((e) => {
+        if (peticionTarifas.current !== id) return;
+        setError(e instanceof Error ? e.message : 'No se pudieron leer las tarifas');
+      });
   }, [tarifas.planId, tarifas.tipoId, mesTarifas, versionTarifas]);
 
   /** Noches que cambiaron en el borrador, listas para la previa o el lote. */
