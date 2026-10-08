@@ -269,8 +269,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   protocolo, `usePeticion` con id y `abortar`, búsqueda/detalle/elección con
   snapshot en la pública y `npm test` con vitest (11 verdes). Evidencia:
   `docs/evidence/round-70/verificacion.md`.
-- [ ] **Ronda 66 - Gestión descubrible.** Enlaces a Inventario desde la nav y desde los
-  vacíos + test del saludo. En curso.
+- [x] **Ronda 66 - Gestión descubrible.** Enlace Habitaciones en la nav, vacío con acción
+  al alta guiada y test del saludo (11/11 vitest con los del colega). Evidencia:
+  `docs/evidence/round-66/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

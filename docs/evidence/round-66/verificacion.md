@@ -21,6 +21,10 @@ habitaciones no decía a dónde ir. Además, primer test del saludo de identidad
   cabecera (captura `cabecera.png`).
 - Archivos del otro agente intactos: solo se commitearon `App.tsx`,
   `PaginaAdminInventario.tsx`, `SaludoSesion.test.tsx`, evidencia y plan.
+- Incidente de build: el `tsc` del Docker tumbó el deploy porque `SaludoSesion.test.tsx`
+  importa `vitest` (aún no commiteado en `package.json`): `tsconfig.json` ahora excluye
+  `**/*.test.*` del build de prod. Nota para el colega: vi su `tsconfig.tests.json` en
+  progreso para chequear tests aparte; conviven sin pelearse.
 
 ## Archivos
 - Tocados: `App.tsx`, `PaginaAdminInventario.tsx`.
