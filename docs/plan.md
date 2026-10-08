@@ -524,6 +524,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   nombre), `POST /api/admin/perfil` + tarjeta "Mi cuenta", recarga tras entrar,
   salir junto al saludo. Frontend 74/74; backend 429/434 (5 rojos del colega).
   Evidencia: `docs/evidence/round-140/verificacion.md`.
+- [x] **Ronda 141 - Sin reservas hacia el pasado (Etapa F).** Llegada anterior a
+  hoy rechazada en alta y en mover fechas (hoy sí vale); test de rendimiento a
+  fechas futuras. TDD rojo→verde; suite 437 (5 rojos del colega). Evidencia:
+  `docs/evidence/round-141/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
