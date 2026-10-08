@@ -71,10 +71,10 @@ public class ChatController {
     return texto;
   }
 
-  private static Map<String, Object> vista(List<ChatRepository.Mensaje> hilo) {
+  private static Map<String, Object> vista(List<ChatRepository.Mensaje> hilo, int total) {
     return Map.of("mensajes", hilo.stream().map(m -> Map.of(
       "id", m.id(), "autor", m.autor(), "texto", m.texto(), "en", m.creadoEn(),
-      "visto", m.visto())).toList());
+      "visto", m.visto())).toList(), "total", total);
   }
 
   @GetMapping("/api/mis-reservas/mensajes/nuevos")
@@ -91,7 +91,7 @@ public class ChatController {
   public Map<String, Object> hiloHuesped(@PathVariable String codigo) {
     Long reservaId = reservaPropia(codigo, usuarioDeSesion());
     chat.marcarVistos(reservaId, "HUESPED");
-    return vista(chat.hilo(reservaId));
+    return vista(chat.hilo(reservaId), chat.total(reservaId));
   }
 
   @PostMapping("/api/mis-reservas/{codigo}/mensajes")
@@ -109,7 +109,7 @@ public class ChatController {
     if (reservaId == null)
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "reserva no existe");
     chat.marcarVistos(reservaId, "HOTEL");
-    return vista(chat.hilo(reservaId));
+    return vista(chat.hilo(reservaId), chat.total(reservaId));
   }
 
   @PostMapping("/api/admin/reservas/{codigo}/mensajes")

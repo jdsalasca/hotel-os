@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Aviso } from './Estado';
 
 export type Mensaje = { id: number; autor: string; texto: string; en: string; visto: boolean };
+export type Hilo = { mensajes: Mensaje[]; total?: number };
 
 /**
  * Hilo de conversación de una reserva, igual en la web del huésped y en el panel. Quien
@@ -16,10 +17,11 @@ export function HiloMensajes({
 }: {
   titulo: string;
   ladoPropio: 'HUESPED' | 'HOTEL';
-  cargar: () => Promise<{ mensajes: Mensaje[] }>;
+  cargar: () => Promise<Hilo>;
   enviar: (texto: string) => Promise<void>;
 }) {
   const [mensajes, setMensajes] = useState<Mensaje[] | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
   const [texto, setTexto] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -28,6 +30,7 @@ export function HiloMensajes({
     try {
       const datos = await cargar();
       setMensajes(datos.mensajes);
+      setTotal(datos.total ?? datos.mensajes.length);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo leer la conversación');
     }
@@ -66,6 +69,11 @@ export function HiloMensajes({
       </div>
       {error ? <Aviso tono="error">{error}</Aviso> : null}
       {mensajes === null && !error ? <p className="cargando">Cargando conversación…</p> : null}
+      {mensajes !== null && total !== null && total > mensajes.length ? (
+        <p className="campo__ayuda sin-margen">
+          Mostrando los últimos {mensajes.length} de {total} mensajes.
+        </p>
+      ) : null}
       {mensajes !== null && mensajes.length === 0 ? (
         <p className="campo__ayuda sin-margen">
           Sin mensajes todavía: escribe el primero y te responden por aquí.

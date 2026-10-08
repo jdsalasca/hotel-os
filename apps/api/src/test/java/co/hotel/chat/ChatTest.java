@@ -11,7 +11,10 @@ import java.nio.file.Path;
 import java.util.Map;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ChatTest {
 
   private static final Path DB = crearBase();
@@ -75,6 +79,34 @@ class ChatTest {
   }
 
   @Test
+  @Order(2)
+  @DisplayName("el hilo trae los últimos 50 con su total, no miles de filas")
+  void hiloPaginaUltimos() throws Exception {
+    sembrar();
+    Long uid = jdbc.queryForObject("SELECT id FROM usuarios WHERE email='chat@hotel.test'",
+      Long.class);
+    jdbc.update("INSERT INTO reservations(codigo,email,nombre,llegada,salida,huespedes,estado,"
+      + "origen,idempotencia,creado_en,usuario_id)"
+      + " VALUES('CHAT02','chat@hotel.test','Chat','2030-04-10','2030-04-12',1,'CONFIRMADA',"
+      + "'WEB','idem-chat02',datetime('now'),?)", uid);
+    Long reservaId = jdbc.queryForObject("SELECT id FROM reservations WHERE codigo='CHAT02'",
+      Long.class);
+    for (int i = 0; i < 60; i++) {
+      jdbc.update("INSERT INTO mensajes(reservation_id,autor,texto,creado_en,visto)"
+        + " VALUES(?,'HOTEL',?,datetime('now'),1)", reservaId, "aviso " + i);
+    }
+    var huesped = user("chat@hotel.test").roles("HUESPED");
+    String cuerpo = mvc.perform(get("/api/mis-reservas/CHAT02/mensajes").with(huesped))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    var json = JSON.readTree(cuerpo);
+    assertEquals(50, json.get("mensajes").size());
+    assertEquals(60, json.get("total").asInt());
+    assertEquals("aviso 59", json.get("mensajes").get(49).get("texto").asText());
+  }
+
+  @Test
+  @Order(3)
   @DisplayName("más de 30 mensajes por hora y reserva se frena con 429")
   void topePorHoraYReserva() throws Exception {
     sembrar();
@@ -92,7 +124,10 @@ class ChatTest {
       .andExpect(jsonPath("$.error", org.hamcrest.Matchers.containsString("minuto")));
   }
 
+  // Orden fijo a propósito: los tres tests comparten la reserva CHAT01 y cuentan exacto.
+  // Cada uno deja lo que el siguiente ya descuenta (hiloPagina usa su propia CHAT02).
   @Test
+  @Order(1)
   @DisplayName("conversación de ida y vuelta con vistos y contadores")
   void conversacionCompleta() throws Exception {
     sembrar();

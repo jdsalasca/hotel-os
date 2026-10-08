@@ -404,6 +404,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 111 - WhatsApp con la reserva ya escrita.** Botón wa.me en la confirmación
   (solo con teléfono configurado); TDD, 33/33 vitest. Evidencia:
   `docs/evidence/round-111/verificacion.md`.
+- [x] **Ronda 112 - El hilo del chat trae los últimos 50 con su total.** Backend
+  383 tests sin fallos (1 omitido preexistente en Windows), frontend 30/30,
+  `tsc` limpio y `vite build` OK; rojo-verde verificado.
+  Evidencia: `docs/evidence/round-112/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
