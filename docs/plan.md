@@ -387,6 +387,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `docs/evidence/round-102/verificacion.md`.
 - [x] **Ronda 103 - El chat no se deja inundar.** Tope 30/hora por reserva con 429 en
   español; TDD rojo→verde, 11/11 con vecinas. Evidencia: `docs/evidence/round-103/verificacion.md`.
+- [x] **Ronda 106 - Topes del colega, en vivo.** 1 MB verificado con 413 real, health `ok`.
+  Evidencia: `docs/evidence/round-106/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
