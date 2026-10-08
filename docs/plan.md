@@ -466,6 +466,15 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   con contrato); V18 devuelve OTRO al CHECK perdido en V6/V8. TDD + ruta de
   actualización probada con sqlite3 real; suite 409/409. (124-125 del colega.)
   Evidencia: `docs/evidence/round-126/verificacion.md`.
+- [x] **Ronda 124 - El hotel vacío lo dice (backend).** `GET /api/hotel/venta`
+  (público): verdadero solo con habitación ACTIVA + tarifa; la prod vacía
+  (`rooms=rates=0`) lo confirma. `HotelVentaTest` 3/3 con limpieza por test.
+  (Se numeró 123 por colisión.) Evidencia: `docs/evidence/round-124/verificacion.md`.
+- [x] **Ronda 128 - La vuelta fallida de Google se ve y el saludo dice el rol.**
+  Reporte en prod (`?error=oauth2` mudo): `FalloOauth2` lo registra por registro
+  y la entrada muestra el aviso; saludo con etiqueta `Administrador`/`Huésped`.
+  Backend 409/409, frontend 58/58, captura post-deploy. (Se numeró 125 por
+  colisión.) Evidencia: `docs/evidence/round-128/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
