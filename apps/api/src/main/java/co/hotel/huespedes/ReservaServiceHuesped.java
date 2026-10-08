@@ -42,6 +42,16 @@ public class ReservaServiceHuesped {
     return n != null && n > 0;
   }
 
+  /** Dueño de la reserva por código, o null si no existe. Para compuertas por sesión. */
+  public Long duenaDe(String codigo) {
+    try {
+      return jdbc.queryForObject("SELECT usuario_id FROM reservations WHERE codigo=?", Long.class,
+        codigo);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
   /** Engancha la reserva al usuario que la está haciendo, para que la vea en "Mis reservas". */
   public void vincular(String codigoReserva, long usuarioId) {
     jdbc.update("UPDATE reservations SET usuario_id=? WHERE codigo=? AND usuario_id IS NULL",

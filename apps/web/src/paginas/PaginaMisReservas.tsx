@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
+import { ComprobantePropio, type ComprobantePropioDatos } from '../componentes/ComprobantePropio';
 import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
 
 type Reserva = {
@@ -34,6 +35,7 @@ export function PaginaMisReservas() {
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState<string | null>(null);
   const [hiloAbierto, setHiloAbierto] = useState<string | null>(null);
+  const [comprobanteAbierto, setComprobanteAbierto] = useState<string | null>(null);
   const [nuevos, setNuevos] = useState<Record<string, number>>({});
 
   /** Cancelar en dos pasos por fila: el primero avisa, el segundo ejecuta con el correo de la sesión. */
@@ -107,7 +109,20 @@ export function PaginaMisReservas() {
           <a className="boton boton--secundario boton--chico" href={urlApi('/oauth2/authorization/google-huesped')}>
             Vincular otra cuenta
           </a>
-          <button className="boton boton--fantasma boton--chico" type="button" onClick={() => void sesion.salir()}>
+          <button
+            className="boton boton--fantasma boton--chico"
+            type="button"
+            onClick={() => {
+              void (async () => {
+                const ok = await sesion.salir();
+                if (!ok) {
+                  setError(
+                    'No se pudo cerrar la sesión: el servidor no confirmó la salida y sigue abierta.',
+                  );
+                }
+              })();
+            }}
+          >
             Salir
           </button>
         </div>
@@ -171,7 +186,17 @@ export function PaginaMisReservas() {
                       aria-expanded={hiloAbierto === r.codigo}
                     >
                       Mensajes{(nuevos[r.codigo] ?? 0) > 0 ? ` (${nuevos[r.codigo]})` : ''}
-                    </button>{' '}                    {(r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') ? (
+                    </button>{' '}
+                    <button
+                      className="boton boton--fantasma boton--chico"
+                      type="button"
+                      onClick={() =>
+                        setComprobanteAbierto((abierto) => (abierto === r.codigo ? null : r.codigo))
+                      }
+                      aria-expanded={comprobanteAbierto === r.codigo}
+                    >
+                      Comprobante
+                    </button>{' '}{(r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') ? (
                       <button
                         className={`boton boton--chico ${confirmando === r.codigo ? 'boton--peligro' : 'boton--fantasma'}`}
                         type="button"
@@ -212,6 +237,18 @@ export function PaginaMisReservas() {
                       .then((datos) => setNuevos(datos.porReserva ?? {}))
                       .catch(() => undefined),
                   )
+              }
+            />
+          </div>
+        ) : null}
+
+        {comprobanteAbierto ? (
+          <div className="tarjeta pila mt-e6">
+            <h2 className="t-lg mb-0">Comprobante de {comprobanteAbierto}</h2>
+            <ComprobantePropio
+              codigo={comprobanteAbierto}
+              cargar={(codigo) =>
+                api.get<ComprobantePropioDatos>(`/api/mis-reservas/${codigo}/comprobante`)
               }
             />
           </div>
