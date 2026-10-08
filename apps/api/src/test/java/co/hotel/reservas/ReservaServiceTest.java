@@ -264,6 +264,22 @@ class ReservaServiceTest {
       String codigo = crear("ana@example.com", "2026-11-01", "2026-11-05", 1);
       assertNotNull(svc.consultar(codigo, "ANA@EXAMPLE.COM"));
     }
+
+    @Test void laConsultaToleraEspaciosEnLaPregunta() {
+      // El navegador o el dedo agregan un espacio: con la reserva limpia igual aparece.
+      String codigo = crear("ana@example.com", "2026-11-01", "2026-11-05", 1);
+      assertTrue(svc.consultar(codigo, "  ana@example.com ").isPresent(),
+        "el correo preguntado se compara recortado");
+    }
+
+    @Test void laFilaViejaConEspaciosSeEncuentra() {
+      // Fila de antes del recorte al guardar: se encuentra con el correo limpio, sin backfill.
+      jdbc.update("INSERT INTO reservations(codigo,email,nombre,llegada,salida,huespedes,estado,"
+        + "origen,idempotencia,creado_en) VALUES('H-VIEJA',' ana@example.com ','Ana',"
+        + "'2026-11-01','2026-11-03',2,'PENDIENTE','WEB','idem-vieja',datetime('now'))");
+      assertTrue(svc.consultar("H-VIEJA", "ana@example.com").isPresent(),
+        "se compara recortado en ambos lados");
+    }
   }
 
   @Nested

@@ -239,9 +239,17 @@ public class ReservaService {
     return repo.idPorCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
   }
 
-  /** Consulta pública: código + correo deben coincidir. Nadie ve reservas ajenas por adivinar el código. */
+  /**
+   * Consulta pública: código + correo deben coincidir. Se compara recortado en ambos
+   * lados: el dedo agrega espacios al preguntar y hay filas viejas guardadas con ellos
+   * (desde la R139 ya no se guardan así). Sin esto, el huésped no ve ni cancela su
+   * reserva y el comprobante dice que no existe. También cubre cancelar y comprobante,
+   * que consultan por aquí.
+   */
   public Optional<Reserva> consultar(String codigo, String email) {
-    return repo.porCodigo(codigo).filter(r -> r.email().equalsIgnoreCase(email));
+    String pedido = email == null ? null : email.trim();
+    return repo.porCodigo(codigo)
+      .filter(r -> r.email() != null && pedido != null && r.email().trim().equalsIgnoreCase(pedido));
   }
 
   public List<Reserva> listar(int limite) { return repo.listar(limite); }
