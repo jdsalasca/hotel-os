@@ -66,6 +66,13 @@ public class ChatRepository {
     return n == null ? 0 : n;
   }
 
+  /** Mensajes de la última hora en esa reserva, de ambos lados: el tope antispam. */
+  public int recientes(long reservationId) {
+    Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM mensajes WHERE reservation_id=?"
+      + " AND creado_en >= datetime('now','-1 hour')", Integer.class, reservationId);
+    return n == null ? 0 : n;
+  }
+
   public Long reservaDe(String codigo) {
     try {
       return jdbc.queryForObject("SELECT id FROM reservations WHERE codigo=?", Long.class, codigo);

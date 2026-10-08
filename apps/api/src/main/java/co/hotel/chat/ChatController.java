@@ -48,6 +48,21 @@ public class ChatController {
     return reservaId;
   }
 
+  /**
+   * Tope antispam compartido por ambas escrituras: 30 mensajes por hora y reserva, sumando
+   * los dos lados. Sin esto, un bucle llena la base; con 30 cabe una conversación real.
+   */
+  private static final int MAX_POR_HORA = 30;
+
+  private boolean sinCupo(long reservaId) {
+    return chat.recientes(reservaId) >= MAX_POR_HORA;
+  }
+
+  private static ResponseEntity<Map<String, String>> tope() {
+    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+      .body(Map.of("error", "demasiados mensajes seguidos. Espera unos minutos."));
+  }
+
   private static String exigirTexto(MensajeReq req) {
     String texto = req == null || req.texto() == null ? "" : req.texto().trim();
     if (texto.isEmpty() || texto.length() > MAX_TEXTO)
@@ -83,6 +98,7 @@ public class ChatController {
   public ResponseEntity<?> escribirHuesped(@PathVariable String codigo,
                                           @RequestBody MensajeReq req) {
     Long reservaId = reservaPropia(codigo, usuarioDeSesion());
+    if (sinCupo(reservaId)) return tope();
     long id = chat.agregar(reservaId, "HUESPED", exigirTexto(req), LocalDateTime.now().toString());
     return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", id));
   }
@@ -102,6 +118,7 @@ public class ChatController {
     Long reservaId = chat.reservaDe(codigo);
     if (reservaId == null)
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "reserva no existe");
+    if (sinCupo(reservaId)) return tope();
     long id = chat.agregar(reservaId, "HOTEL", exigirTexto(req), LocalDateTime.now().toString());
     return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", id));
   }

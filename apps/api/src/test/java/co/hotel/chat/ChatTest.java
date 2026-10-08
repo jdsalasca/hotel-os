@@ -75,6 +75,24 @@ class ChatTest {
   }
 
   @Test
+  @DisplayName("más de 30 mensajes por hora y reserva se frena con 429")
+  void topePorHoraYReserva() throws Exception {
+    sembrar();
+    var huesped = user("chat@hotel.test").roles("HUESPED");
+    Long reservaId = jdbc.queryForObject("SELECT id FROM reservations WHERE codigo='CHAT01'",
+      Long.class);
+    for (int i = 0; i < 30; i++) {
+      jdbc.update("INSERT INTO mensajes(reservation_id,autor,texto,creado_en,visto)"
+        + " VALUES(?,'HUESPED',? ,datetime('now'),1)", reservaId, "relleno " + i);
+    }
+    mvc.perform(post("/api/mis-reservas/CHAT01/mensajes").with(huesped).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("texto", "uno más"))))
+      .andExpect(status().isTooManyRequests())
+      .andExpect(jsonPath("$.error", org.hamcrest.Matchers.containsString("minuto")));
+  }
+
+  @Test
   @DisplayName("conversación de ida y vuelta con vistos y contadores")
   void conversacionCompleta() throws Exception {
     sembrar();

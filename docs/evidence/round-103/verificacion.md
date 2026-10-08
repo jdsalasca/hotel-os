@@ -1,39 +1,21 @@
-# Ronda 103 — Tarifar por rango y días desde el panel (Etapa C/I)
+# Ronda 103 - El chat no se deja inundar
 
 Fecha: 2026-10-08.
 
-## Dolor
+## Diseño (brainstorming, vía acotada)
+El hilo aceptaba mensajes sin límite: un bucle llena la base. Opciones: (a) reusar
+`LoginThrottle` (límites y contadores equivocados para conversar), (b) tope por
+reserva y hora contado en la base (sobrevive reinicios, exacto), (c) rate limit en
+Cloudflare (clic del dueño, no código). Va (b): 30/hora sumando ambos lados; el front
+muestra el mensaje tal cual, sin cambios allá.
 
-El endpoint de rango existía (Ronda 101) pero solo por API: el hotel seguía sin poder
-tarifar "fines de semana" sin mandar noches una por una.
-
-## Diseño (bounded)
-
-`<details>` en Precios que reutiliza la previa y la confirmación del lote
-(`previaOrigen` decide a dónde confirma). Cero estilos nuevos: tarjeta, campo,
-grupo-chequeos, botones y navegación existentes.
-
-## Cambio
-
-- Formulario rango: desde/hasta, checkboxes Lun–Dom (ISO 1–7, todos por defecto),
-  precio y no-vendible; "Revisar rango" → misma previa; Confirmar guarda el rango.
-- La previa del mes invalida la del rango y viceversa (nunca se mezclan).
-
-## Verificación real
-
-```text
-docker compose build web → tsc + vite ok. npm test → 23/23. test:typecheck → 0.
-Prueba viva (admin demo, Flexible/Doble): rango 07–13 jun 2027 todos los días →
-previa «7 noches, — → 88, Cambia». No se confirmó: el dev queda intacto.
-Capturas desktop + móvil (esta carpeta). Consola: solo 401 esperados.
-```
+## Verificación real (TDD)
+- Test `topePorHoraYReserva`: 30 insertados → 31º 429 con "minuto" en `$.error`.
+  Primero falló con 201 (sin tope), luego con 429 sin cuerpo JSON (excepción en vez de
+  `ResponseEntity`); verde tras responder como el resto de la API.
+- Vecinas de huésped: **11/11, BUILD SUCCESS**.
+- Despliegue + health `ok`; el 429 real no se provoca en prod a propósito.
+- Archivos del otro agente intactos.
 
 ## Archivos
-
-- Tocados: `PaginaAdminInventario.tsx`, `docs/plan.md`.
-- Nuevos: esta carpeta.
-
-## Riesgos y límites
-
-- Coordinación: 100 y 102 del colega (su `round-102` intacto, restaurado); 103 libre.
-  Trabajo del colega respetado en todo.
+- Tocados: `ChatRepository.java`, `ChatController.java`, `ChatTest.java`.
