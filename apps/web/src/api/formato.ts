@@ -34,3 +34,16 @@ export function hoyIso(): string {
 export function mananaIso(): string {
   return new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 }
+
+/**
+ * Enlace de WhatsApp para hablar con el hotel. Devuelve null sin teléfono usable: el botón
+ * que lo usa no se muestra en vez de apuntar a ningún lado. Regla de país mínima y
+ * documentada: el móvil colombiano de 10 dígitos lleva el 57 delante; si ya trae
+ * indicativo (más de 10 dígitos) se respeta tal cual.
+ */
+export function enlaceWhatsApp(telefono: string, texto: string): string | null {
+  const digitos = (telefono ?? '').replace(/\D/g, '');
+  if (digitos.length < 7) return null;
+  const numero = digitos.length === 10 ? `57${digitos}` : digitos;
+  return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+}

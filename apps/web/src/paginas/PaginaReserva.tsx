@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ErrorApi, api } from '../api/cliente';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { useSesion } from '../api/useSesion';
+import { BotonWhatsApp } from '../componentes/BotonWhatsApp';
 import { fechaCorta, monto } from '../api/formato';
 import { Aviso, HuecoImagen, MensajeError } from '../componentes/Estado';
 
@@ -141,6 +142,8 @@ export function PaginaReserva() {
       <main id="contenido" className="centrado">
         <section className="seccion">
           <h1 className="seccion__titulo">Reserva registrada</h1>
+
+          <BotonWhatsApp codigo={reserva.codigo} />
 
           <p className="pila gap-e2">
             <span className="campo__etiqueta">Tu código de reserva</span>
