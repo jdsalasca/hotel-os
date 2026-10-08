@@ -519,6 +519,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   recorta el email (como ya hacía con el nombre): la reserva aparece con el
   correo limpio y el reintento idempotente no duplica. TDD 2/2; suite 434
   (5 rojos del colega). Evidencia: `docs/evidence/round-139/verificacion.md`.
+- [x] **Ronda 140 - Hola corto con rol, nombre ajustable y salir visible.**
+  Reporte en prod (saludo cortado, sin salir): `nombreCorto` (pre-@ si no hay
+  nombre), `POST /api/admin/perfil` + tarjeta "Mi cuenta", recarga tras entrar,
+  salir junto al saludo. Frontend 74/74; backend 429/434 (5 rojos del colega).
+  Evidencia: `docs/evidence/round-140/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
