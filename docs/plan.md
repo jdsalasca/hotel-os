@@ -328,6 +328,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `docs/evidence/round-82/verificacion.md`.
 - [x] **Ronda 84 - La puerta del panel, vista en vivo.** `/admin` servida con aviso sin
   sesión, captura en evidencia. Evidencia: `docs/evidence/round-84/verificacion.md`.
+- [x] **Ronda 85 - Barrido con el colega en movimiento.** Suites 41/41 (un rojo
+  transitorio sin failing), deploy de lo publicado con health `ok`. Evidencia:
+  `docs/evidence/round-85/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
