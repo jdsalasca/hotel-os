@@ -318,6 +318,34 @@ class ReservaServiceTest {
       assertEquals(0, contar("reservations"));
     }
 
+  @Nested
+  @DisplayName("normalización de texto al reservar")
+  class Normalizacion {
+
+    @Test void emailConEspaciosSeGuardaRecortadoYEsConsultable() {
+      // " ana@ " pasa la validación (que recorta para mirar) pero se guardaba crudo:
+      // después ni la consulta con el correo limpio la encontraba.
+      String codigo = crear("  ana@example.com  ", "2026-11-01", "2026-11-03", 1);
+      assertEquals("ana@example.com", jdbc.queryForObject(
+        "SELECT email FROM reservations WHERE codigo=?", String.class, codigo));
+      assertTrue(svc.consultar(codigo, "ana@example.com").isPresent(),
+        "con el correo limpio la reserva aparece");
+    }
+
+    @Test void reintentoConEspaciosDistintosDevuelveLaMisma() {
+      // Misma clave de idempotencia con el correo recortado o no: un solo intento,
+      // no un 409 por solape consigo misma.
+      String clave = UUID.randomUUID().toString();
+      var datos = new CrearReserva("ana@example.com", "Ana", LocalDate.parse("2026-11-04"),
+        LocalDate.parse("2026-11-06"), 2, Origen.WEB, clave, 1);
+      String c1 = svc.crear(datos);
+      var reintento = new CrearReserva("  ana@example.com ", "Ana", LocalDate.parse("2026-11-04"),
+        LocalDate.parse("2026-11-06"), 2, Origen.WEB, clave, 1);
+      assertEquals(c1, svc.crear(reintento));
+      assertEquals(1, contar("reservations"));
+    }
+  }
+
     private String crearConPrecio(String email, String llegada, String salida, long roomId,
         Long totalCents, String moneda, Long planId) {
       return svc.crear(new CrearReserva(email, "Ana", LocalDate.parse(llegada), LocalDate.parse(salida), 2,

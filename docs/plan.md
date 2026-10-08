@@ -515,6 +515,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `?limite=-1` ya no vuelca la tabla (400) y lo no-numérico trae `$.error`.
   TDD 4/4; suite 432 (5 rojos del colega). Evidencia:
   `docs/evidence/round-138/verificacion.md`.
+- [x] **Ronda 139 - El correo se guarda recortado (Etapa F).** `CrearReserva`
+  recorta el email (como ya hacía con el nombre): la reserva aparece con el
+  correo limpio y el reintento idempotente no duplica. TDD 2/2; suite 434
+  (5 rojos del colega). Evidencia: `docs/evidence/round-139/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.

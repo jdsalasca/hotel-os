@@ -7,6 +7,10 @@ public record CrearReserva(String email, String nombre, LocalDate llegada, Local
                            int huespedes, Origen origen, String claveIdempotencia, long roomId) {
 
   public CrearReserva {
+    // La validación recorta para mirar; aquí se recorta para guardar: con espacios, la
+    // reserva quedaba invisible para la consulta con el correo limpio y el reintento
+    // idempotente con otro recorte abría otra reserva (o un 409 consigo misma).
+    email = email == null ? null : email.trim();
     nombre = nombre == null ? "" : nombre.trim();
   }
 
