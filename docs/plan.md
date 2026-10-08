@@ -276,6 +276,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 66 - Gestión descubrible.** Enlace Habitaciones en la nav, vacío con acción
   al alta guiada y test del saludo (11/11 vitest con los del colega). Evidencia:
   `docs/evidence/round-66/verificacion.md`.
+- [x] **Ronda 67 - Regresión completa de ambos agentes.** Backend 337/337 y frontend
+  17/17 en verde, despliegue de todo origin a prod verificado vivo. Evidencia:
+  `docs/evidence/round-67/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
