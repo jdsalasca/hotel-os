@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
 import { useSesionHuesped } from '../api/useSesionHuesped';
-import { HiloMensajes, type Mensaje } from '../componentes/HiloMensajes';
+import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
 
 type Reserva = {
@@ -196,7 +196,11 @@ export function PaginaMisReservas() {
             <HiloMensajes
               titulo={`Conversación de ${hiloAbierto}`}
               ladoPropio="HUESPED"
-              cargar={() => api.get<{ mensajes: Mensaje[] }>(`/api/mis-reservas/${hiloAbierto}/mensajes`)}
+              cargar={(antesDe) =>
+                api.get<Hilo>(
+                  `/api/mis-reservas/${hiloAbierto}/mensajes${antesDe ? `?antes_de=${antesDe}` : ''}`,
+                )
+              }
               enviar={(texto) =>
                 api
                   .post(`/api/mis-reservas/${hiloAbierto}/mensajes`, { texto })

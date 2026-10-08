@@ -177,4 +177,40 @@ class ChatTest {
     mvc.perform(get("/api/mis-reservas/CHAT01/mensajes"))
       .andExpect(status().isUnauthorized());
   }
+
+  @Test
+  @Order(4)
+  @DisplayName("con antes_de se sube la historia y hay_mas dice si queda más")
+  void hiloPaginaAnteriores() throws Exception {
+    sembrar();
+    Long uid = jdbc.queryForObject("SELECT id FROM usuarios WHERE email='chat@hotel.test'",
+      Long.class);
+    jdbc.update("INSERT INTO reservations(codigo,email,nombre,llegada,salida,huespedes,estado,"
+      + "origen,idempotencia,creado_en,usuario_id)"
+      + " VALUES('CHAT03','chat@hotel.test','Chat','2030-05-10','2030-05-12',1,'CONFIRMADA',"
+      + "'WEB','idem-chat03',datetime('now'),?)", uid);
+    Long reservaId = jdbc.queryForObject("SELECT id FROM reservations WHERE codigo='CHAT03'",
+      Long.class);
+    for (int i = 0; i < 60; i++) {
+      jdbc.update("INSERT INTO mensajes(reservation_id,autor,texto,creado_en,visto)"
+        + " VALUES(?,'HOTEL',?,datetime('now'),1)", reservaId, "aviso " + i);
+    }
+    var huesped = user("chat@hotel.test").roles("HUESPED");
+    String primera = mvc.perform(get("/api/mis-reservas/CHAT03/mensajes").with(huesped))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    var json = JSON.readTree(primera);
+    assertEquals(50, json.get("mensajes").size());
+    assertEquals(true, json.get("hay_mas").asBoolean());
+    long primeroVisto = json.get("mensajes").get(0).get("id").asLong();
+
+    String anteriores = mvc.perform(
+        get("/api/mis-reservas/CHAT03/mensajes?antes_de=" + primeroVisto).with(huesped))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    var json2 = JSON.readTree(anteriores);
+    assertEquals(10, json2.get("mensajes").size());
+    assertEquals("aviso 0", json2.get("mensajes").get(0).get("texto").asText());
+    assertEquals(false, json2.get("hay_mas").asBoolean());
+  }
 }

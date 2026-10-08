@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -71,10 +72,13 @@ public class ChatController {
     return texto;
   }
 
-  private static Map<String, Object> vista(List<ChatRepository.Mensaje> hilo, int total) {
+  private Map<String, Object> vista(long reservaId, Long antesDe) {
+    List<ChatRepository.Mensaje> hilo = antesDe == null ? chat.hilo(reservaId)
+      : chat.hiloAntesDe(reservaId, antesDe);
+    boolean hayMas = !hilo.isEmpty() && chat.hayAnteriores(reservaId, hilo.get(0).id());
     return Map.of("mensajes", hilo.stream().map(m -> Map.of(
       "id", m.id(), "autor", m.autor(), "texto", m.texto(), "en", m.creadoEn(),
-      "visto", m.visto())).toList(), "total", total);
+      "visto", m.visto())).toList(), "total", chat.total(reservaId), "hay_mas", hayMas);
   }
 
   @GetMapping("/api/mis-reservas/mensajes/nuevos")
@@ -88,10 +92,11 @@ public class ChatController {
   }
 
   @GetMapping("/api/mis-reservas/{codigo}/mensajes")
-  public Map<String, Object> hiloHuesped(@PathVariable String codigo) {
+  public Map<String, Object> hiloHuesped(@PathVariable String codigo,
+      @RequestParam(name = "antes_de", required = false) Long antesDe) {
     Long reservaId = reservaPropia(codigo, usuarioDeSesion());
-    chat.marcarVistos(reservaId, "HUESPED");
-    return vista(chat.hilo(reservaId), chat.total(reservaId));
+    if (antesDe == null) chat.marcarVistos(reservaId, "HUESPED");
+    return vista(reservaId, antesDe);
   }
 
   @PostMapping("/api/mis-reservas/{codigo}/mensajes")
@@ -104,12 +109,13 @@ public class ChatController {
   }
 
   @GetMapping("/api/admin/reservas/{codigo}/mensajes")
-  public Map<String, Object> hiloHotel(@PathVariable String codigo) {
+  public Map<String, Object> hiloHotel(@PathVariable String codigo,
+      @RequestParam(name = "antes_de", required = false) Long antesDe) {
     Long reservaId = chat.reservaDe(codigo);
     if (reservaId == null)
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "reserva no existe");
-    chat.marcarVistos(reservaId, "HOTEL");
-    return vista(chat.hilo(reservaId), chat.total(reservaId));
+    if (antesDe == null) chat.marcarVistos(reservaId, "HOTEL");
+    return vista(reservaId, antesDe);
   }
 
   @PostMapping("/api/admin/reservas/{codigo}/mensajes")
