@@ -43,6 +43,8 @@ export function PaginaAdminIndicadores() {
   const [informe, setInforme] = useState<Informe | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  /** Al guardar una referencia se relee el informe para mostrar lo guardado de verdad. */
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     setCargando(true);
@@ -51,7 +53,7 @@ export function PaginaAdminIndicadores() {
       .then(setInforme)
       .catch((e: Error) => setError(e.message))
       .finally(() => setCargando(false));
-  }, [periodo]);
+  }, [periodo, version]);
 
   if (sesion.haySesion === false) return <Aviso tono="aviso" titulo="Sesión requerida">Inicia sesión para ver el informe.</Aviso>;
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
@@ -130,7 +132,15 @@ export function PaginaAdminIndicadores() {
                             Línea base: {fila.lineaBase ?? 'no definida'}
                           </Etiqueta>
                           <Etiqueta tono="neutra">Meta: {fila.meta ?? 'no definida'}</Etiqueta>
+                          <Etiqueta tono="neutra">
+                            Responsable: {fila.responsable ?? 'sin asignar'}
+                          </Etiqueta>
                         </div>
+                        <EditorReferencia
+                          key={`${fila.clave}|${fila.lineaBase ?? ''}|${fila.meta ?? ''}|${fila.responsable ?? ''}`}
+                          fila={fila}
+                          alGuardar={() => setVersion((v) => v + 1)}
+                        />
                       </article>
                     ))}
                   </div>
@@ -194,4 +204,77 @@ export function PaginaAdminIndicadores() {
 
 function mesActual(): string {
   return new Date().toISOString().slice(0, 7);
+}
+
+/** Línea base, meta y responsable por indicador: lo que el hotel fija con datos propios.
+ * Los campos viajan prellenados con lo guardado, así solo cambia lo que se edita
+ * (vaciar uno lo devuelve a "no definida"). */
+function EditorReferencia({ fila, alGuardar }: { fila: Fila; alGuardar: () => void }) {
+  const [base, setBase] = useState(fila.lineaBase ?? '');
+  const [meta, setMeta] = useState(fila.meta ?? '');
+  const [responsable, setResponsable] = useState(fila.responsable ?? '');
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  async function guardar() {
+    setAviso(null);
+    setGuardando(true);
+    try {
+      await api.post(`/api/admin/indicadores/definiciones/${fila.clave}/referencia`, {
+        lineaBase: base,
+        meta,
+        responsable,
+      });
+      alGuardar();
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : 'No se pudo guardar la referencia');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <details className="referencia">
+      <summary className="referencia__resumen">Definir línea base, meta y responsable</summary>
+      <div className="campo">
+        <label className="campo__etiqueta" htmlFor={`base-${fila.clave}`}>Línea base</label>
+        <input
+          id={`base-${fila.clave}`}
+          value={base}
+          maxLength={200}
+          placeholder="p. ej. 60% en temporada baja"
+          onChange={(e) => setBase(e.target.value)}
+        />
+      </div>
+      <div className="campo">
+        <label className="campo__etiqueta" htmlFor={`meta-${fila.clave}`}>Meta</label>
+        <input
+          id={`meta-${fila.clave}`}
+          value={meta}
+          maxLength={200}
+          placeholder="p. ej. 75%"
+          onChange={(e) => setMeta(e.target.value)}
+        />
+      </div>
+      <div className="campo">
+        <label className="campo__etiqueta" htmlFor={`resp-${fila.clave}`}>Responsable</label>
+        <input
+          id={`resp-${fila.clave}`}
+          value={responsable}
+          maxLength={200}
+          placeholder="p. ej. Gerencia"
+          onChange={(e) => setResponsable(e.target.value)}
+        />
+      </div>
+      {aviso ? <p className="campo__error">{aviso}</p> : null}
+      <button
+        className="boton boton--secundario boton--chico"
+        type="button"
+        disabled={guardando}
+        onClick={() => void guardar()}
+      >
+        {guardando ? 'Guardando…' : 'Guardar referencia'}
+      </button>
+    </details>
+  );
 }

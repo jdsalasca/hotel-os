@@ -273,6 +273,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `api/sesion.ts` comparte el vuelo (6 → 2 peticiones por navegación, sin TTL para
   no mentir) y los tests se comprueban en CI sin tocar el build de prod. Evidencia:
   `docs/evidence/round-71/verificacion.md`.
+- [x] **Ronda 72 - Línea base, meta y responsable editables (Etapa D).**
+  `POST …/definiciones/{clave}/referencia` (200/400/404, ausente conserva, vacío
+  limpia) y editor por tarjeta en el panel con recarga. Evidencia:
+  `docs/evidence/round-72/verificacion.md`.
 - [x] **Ronda 66 - Gestión descubrible.** Enlace Habitaciones en la nav, vacío con acción
   al alta guiada y test del saludo (11/11 vitest con los del colega). Evidencia:
   `docs/evidence/round-66/verificacion.md`.

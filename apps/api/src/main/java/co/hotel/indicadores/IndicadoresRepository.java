@@ -21,6 +21,24 @@ public class IndicadoresRepository {
         rs.getString("responsable")));
   }
 
+  public java.util.Optional<DefinicionIndicador> definicionPorClave(String clave) {
+    return jdbc.query("SELECT clave,fase,nombre,definicion,formula,fuente,unidad,periodo_por_defecto,"
+        + "linea_base,meta,responsable FROM indicator_definitions WHERE clave=?",
+      (rs, n) -> new DefinicionIndicador(rs.getString("clave"), rs.getInt("fase"), rs.getString("nombre"),
+        rs.getString("definicion"), rs.getString("formula"), rs.getString("fuente"), rs.getString("unidad"),
+        rs.getString("periodo_por_defecto"), rs.getString("linea_base"), rs.getString("meta"),
+        rs.getString("responsable")), clave).stream().findFirst();
+  }
+
+  /**
+   * Fija línea base, meta y responsable de un indicador. Devuelve cuántas filas tocó:
+   * cero es clave inexistente, no un éxito silencioso.
+   */
+  public int fijarReferencia(String clave, String lineaBase, String meta, String responsable) {
+    return jdbc.update("UPDATE indicator_definitions SET linea_base=?, meta=?, responsable=? WHERE clave=?",
+      lineaBase, meta, responsable, clave);
+  }
+
   /** Habitaciones activas cargadas. */
   public long habitacionesActivas() {
     return jdbc.queryForObject("SELECT COUNT(*) FROM rooms WHERE estado='ACTIVA'", Long.class);

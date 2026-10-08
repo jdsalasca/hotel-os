@@ -144,6 +144,35 @@ public class IndicadoresService {
 
   public void fijarInventarioEsperado(int cantidad) { repo.fijarInventarioEsperado(cantidad); }
 
+  /** La clave no existe: es 404, no validación. Subclase para que el controlador distinga. */
+  public static class ReferenciaNoEncontradaException extends IllegalArgumentException {
+    public ReferenciaNoEncontradaException(String mensaje) { super(mensaje); }
+  }
+
+  /**
+   * Fija línea base, meta y responsable de un indicador. Lo ausente se conserva, lo vacío
+   * limpia el campo (vuelve a "no definida"); lo presente se recorta y se topa en 200.
+   */
+  public DefinicionIndicador fijarReferencia(String clave, String lineaBase, String meta,
+                                            String responsable) {
+    if (clave == null || clave.isBlank()) throw new IllegalArgumentException("clave de indicador requerida");
+    DefinicionIndicador actual = repo.definicionPorClave(clave.trim())
+      .orElseThrow(() -> new ReferenciaNoEncontradaException("indicador no encontrado: " + clave.trim()));
+    String base = lineaBase == null ? actual.lineaBase() : referencia(lineaBase, "la línea base");
+    String m = meta == null ? actual.meta() : referencia(meta, "la meta");
+    String r = responsable == null ? actual.responsable() : referencia(responsable, "el responsable");
+    repo.fijarReferencia(clave.trim(), base, m, r);
+    return repo.definicionPorClave(clave.trim()).orElseThrow();
+  }
+
+  private static String referencia(String valor, String campo) {
+    String v = valor.trim();
+    if (v.isEmpty()) return null;
+    if (v.length() > 200)
+      throw new IllegalArgumentException(campo + " no puede pasar de 200 caracteres");
+    return v;
+  }
+
   /**
    * Registra una actividad de adopción o difusión. El hotel confirma que ocurrió; si no hay datos
    * de origen medibles, queda marcado así para que nadie atribuya ventas a la campaña.

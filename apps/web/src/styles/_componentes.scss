@@ -1069,3 +1069,22 @@
 .previa-fila--invalida {
   background: $error-tenue;
 }
+
+// --- Referencia del indicador: línea base, meta y responsable que fija el hotel ---
+.referencia {
+  margin-top: $e-3;
+
+  &__resumen {
+    cursor: pointer;
+    font-size: $texto-sm;
+    font-weight: $peso-medio;
+    color: $teja;
+    @include focusable;
+
+    &:hover { color: $teja-oscuro; }
+  }
+
+  .campo { margin-top: $e-2; }
+
+  .boton { margin-top: $e-3; }
+}

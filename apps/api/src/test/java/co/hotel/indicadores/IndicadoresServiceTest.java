@@ -301,6 +301,31 @@ class IndicadoresServiceTest {
       assertNull(definicion.meta());
     }
 
+    @Test void elHotelFijaMetaLineaBaseYResponsable() {
+      try {
+        var d = indicadores.fijarReferencia("f3_ocupacion", "60% en temporada baja", "75%", "Gerencia");
+        assertEquals("60% en temporada baja", d.lineaBase());
+        assertEquals("75%", d.meta());
+        assertEquals("Gerencia", d.responsable());
+        var enInforme = indicadores.informe(periodo).stream()
+          .filter(i -> i.definicion().clave().equals("f3_ocupacion")).findFirst().orElseThrow();
+        assertEquals("75%", enInforme.definicion().meta(), "el informe muestra lo fijado");
+      } finally {
+        // La base es compartida por la clase: se deja como estaba (vacío = sin definir).
+        indicadores.fijarReferencia("f3_ocupacion", "", "", "");
+      }
+    }
+
+    @Test void referenciaDeClaveInexistenteSeRechaza() {
+      assertThrows(IllegalArgumentException.class,
+        () -> indicadores.fijarReferencia("f9_no_existe", null, "75%", null));
+    }
+
+    @Test void referenciaMuyLargaSeRechaza() {
+      assertThrows(IllegalArgumentException.class,
+        () -> indicadores.fijarReferencia("f3_ocupacion", "x".repeat(201), null, null));
+    }
+
     @Test void elInformeCubreLasTresFases() {
       var informe = indicadores.informe(periodo);
       assertTrue(informe.stream().anyMatch(i -> i.definicion().fase() == 1));

@@ -1,7 +1,7 @@
 package co.hotel.indicadores;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -103,6 +103,30 @@ class IndicadoresEscriturasTest {
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.error").exists());
     assert actividades() == 0 : "un POST inválido no deja datos";
+  }
+
+  @Test
+  @DisplayName("fijar referencia válida es 200 y se refleja en el informe")
+  void referenciaValidaEs200() throws Exception {
+    mvc.perform(post("/api/admin/indicadores/definiciones/f3_ocupacion/referencia").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(Map.of(
+          "lineaBase", "60% en temporada baja", "meta", "75%", "responsable", "Gerencia"))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.clave").value("f3_ocupacion"))
+      .andExpect(jsonPath("$.meta").value("75%"))
+      .andExpect(jsonPath("$.responsable").value("Gerencia"));
+    mvc.perform(get("/api/admin/indicadores").with(ADMIN).param("periodo", "2026-11"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.indicadores[?(@.clave == 'f3_ocupacion')].meta", hasItem("75%")));
+  }
+
+  @Test
+  @DisplayName("la referencia de una clave inexistente es 404")
+  void referenciaInexistenteEs404() throws Exception {
+    mvc.perform(post("/api/admin/indicadores/definiciones/f9_no_existe/referencia").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(Map.of("meta", "75%"))))
+      .andExpect(status().isNotFound())
+      .andExpect(jsonPath("$.error").exists());
   }
 
   @Test

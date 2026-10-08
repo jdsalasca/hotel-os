@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,6 +24,34 @@ public class IndicadoresController {
 
   public record ActividadReq(String tipo, String descripcion, String fecha, Integer participantes,
                              String confirmadaPor, Boolean conDatosDeOrigen) {}
+
+  public record ReferenciaReq(String lineaBase, String meta, String responsable) {}
+
+  /**
+   * Fija línea base, meta y responsable de un indicador. Lo ausente se conserva, lo vacío lo
+   * limpia (vuelve a "no definida"). Clave inexistente es 404, no un 200 silencioso.
+   */
+  @PostMapping("/api/admin/indicadores/definiciones/{clave}/referencia")
+  public ResponseEntity<?> fijarReferencia(@PathVariable String clave,
+      @RequestBody(required = false) ReferenciaReq req) {
+    if (req == null || (req.lineaBase() == null && req.meta() == null && req.responsable() == null))
+      return ResponseEntity.badRequest()
+        .body(Map.of("error", "envía al menos lineaBase, meta o responsable"));
+    try {
+      DefinicionIndicador d = indicadores.fijarReferencia(clave, req.lineaBase(), req.meta(),
+        req.responsable());
+      Map<String, Object> cuerpo = new java.util.LinkedHashMap<>();
+      cuerpo.put("clave", d.clave());
+      cuerpo.put("lineaBase", d.lineaBase());
+      cuerpo.put("meta", d.meta());
+      cuerpo.put("responsable", d.responsable());
+      return ResponseEntity.ok(cuerpo);
+    } catch (IndicadoresService.ReferenciaNoEncontradaException e) {
+      return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
 
   @GetMapping("/api/admin/indicadores")
   public ResponseEntity<?> informe(@RequestParam(required = false) String periodo) {
