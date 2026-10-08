@@ -337,6 +337,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 87 - El perf del colega, en vivo.** Calendario desplegado y respondiendo con
   forma correcta; 400 de búsqueda inválida verificado en prod. Evidencia:
   `docs/evidence/round-87/verificacion.md`.
+- [x] **Ronda 88 - Barrido de salud integral.** 0 reinicios, endpoints 200, respaldos al
+  día, disco 20%, túnel con 4 conexiones. Evidencia: `docs/evidence/round-88/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
