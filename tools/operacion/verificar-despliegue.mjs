@@ -85,6 +85,22 @@ if (vercel.headers) {
 const base = (process.env.VITE_API_BASE ?? '').trim();
 comprobar(base === '', 'VITE_API_BASE vacía: el panel depende de la reescritura, no de otro origen');
 
+// 4. Respaldos en todos los composes que sirven: el modo túnel los perdió una vez (ver
+// round-78) porque nada los exigía. El drill y el de capturas no sirven tráfico y no llevan.
+for (const compose of ['compose.yaml', 'compose.production.yaml', 'compose.tunnel.yaml']) {
+  let texto = '';
+  try {
+    texto = readFileSync(compose, 'utf8');
+  } catch (e) {
+    comprobar(false, `${compose} se puede leer`);
+    continue;
+  }
+  const servicio = new RegExp(`^  respaldo:`, 'm').test(texto);
+  comprobar(servicio, `${compose} define el servicio respaldo`);
+  comprobar(texto.includes('hotel-data:/data') && texto.includes('hotel-backups:/backups'),
+    `${compose} monta datos y destino del respaldo`);
+}
+
 console.log('');
 if (fallos.length > 0) {
   console.error(`DESPLIEGUE: ${fallos.length} comprobación(es) sin cuadrar`);

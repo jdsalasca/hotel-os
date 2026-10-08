@@ -360,6 +360,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   búsqueda mala 400, prod sincronizado. Evidencia: `docs/evidence/round-95/verificacion.md`.
 - [x] **Ronda 96 - Sincronizado y sano.** HEAD igual que origin, sanos, health `ok`.
   Evidencia: `docs/evidence/round-96/verificacion.md`.
+- [x] **Ronda 97 - El verificador también cuida respaldos.** Sección 4: 24/24 verde y
+  FALLA probado en composes rotos. Evidencia: `docs/evidence/round-97/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
