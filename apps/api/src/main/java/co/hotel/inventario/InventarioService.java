@@ -89,8 +89,16 @@ public class InventarioService {
   private long registrarBloqueo(Long habitacionId, LocalDate desde, LocalDate hasta, String motivo) {
     if (desde == null || hasta == null || !desde.isBefore(hasta))
       throw new DatosInvalidosException("el bloqueo necesita desde anterior a hasta");
-    return tx.enTransaccion(estado ->
-      inventario.insertarBloqueo(habitacionId, desde, hasta, motivo == null ? "" : motivo.trim()));
+    if (habitacionId != null && inventario.habitacionPorId(habitacionId).isEmpty())
+      throw new DatosInvalidosException("habitación no encontrada");
+    try {
+      return tx.enTransaccion(estado ->
+        inventario.insertarBloqueo(habitacionId, desde, hasta, motivo == null ? "" : motivo.trim()));
+    } catch (org.springframework.dao.DataAccessException e) {
+      if (mensajeContiene(e, "FOREIGN KEY"))
+        throw new DatosInvalidosException("habitación no encontrada");
+      throw e;
+    }
   }
 
   public List<Habitacion> listarHabitaciones() { return inventario.habitaciones(); }

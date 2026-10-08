@@ -135,7 +135,9 @@ public class InventarioAdminController {
 
   /** Bloqueo de una habitación (roomId) o de todo el hotel si se omite. */
   @PostMapping("/api/admin/bloqueos")
-  public ResponseEntity<?> bloquear(@RequestBody BloqueoReq req) {
+  public ResponseEntity<?> bloquear(@RequestBody(required = false) BloqueoReq req) {
+    if (req == null || req.desde() == null || req.hasta() == null)
+      return ResponseEntity.badRequest().body(Map.of("error", "desde y hasta son obligatorios"));
     return ok(() -> {
       LocalDate desde = LocalDate.parse(req.desde());
       LocalDate hasta = LocalDate.parse(req.hasta());

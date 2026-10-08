@@ -305,6 +305,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   Habitaciones, reservas y bloqueos del mes una vez; por día se filtra en memoria
   con paridad probada contra la consulta SQL: de 34 a 7 consultas, cota ≤ 12.
   Evidencia: `docs/evidence/round-90/verificacion.md`.
+- [x] **Ronda 91 - Bloquear lo inexistente o sin fechas es 400 (Etapa F).**
+  Habitación inexistente y fechas nulas: 400 con motivo y sin filas, no 500.
+  Evidencia: `docs/evidence/round-91/verificacion.md`.
 - [x] **Ronda 75 - La confirmación ofrece Mis reservas también al panel.** `conCuenta` con
   ambas sesiones + test del hilo de chat (20/20 vitest). Evidencia:
   `docs/evidence/round-75/verificacion.md`.

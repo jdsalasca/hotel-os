@@ -138,6 +138,17 @@ class InventarioServiceTest {
   }
 
   @Test
+  @DisplayName("un bloqueo de una habitación inexistente se rechaza sin 500 ni filas")
+  void bloqueoDeHabitacionInexistenteSeRechaza() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    var ex = assertThrows(DatosInvalidosException.class, () -> svc.bloquear(999999L,
+      LocalDate.parse("2027-11-01"), LocalDate.parse("2027-11-05"), "Obra"));
+    assertTrue(ex.getMessage().contains("habitación"));
+    assertTrue(svc.bloqueosVigentes().isEmpty(), "lo rechazado no deja bloqueos");
+  }
+
+  @Test
   @DisplayName("las tarifas se registran por fecha y el total se calcula con la moneda del plan")
   void registraTarifasYCalculaTotal() {
     RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
