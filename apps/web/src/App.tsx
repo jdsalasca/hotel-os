@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { NavLink, Route, Routes } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { api } from './api/cliente';
 import { useSesion } from './api/useSesion';
@@ -59,11 +59,10 @@ export function SaludoSesion() {
 }
 
 /**
- * Salida del panel donde el personal la encuentra: junto a la navegación del panel y solo con
- * sesión. Se monta únicamente en las rutas del panel para no pedir la sesión en las públicas.
- * Tras cerrar, recarga a /admin/entrar para no dejar datos del panel en memoria.
+ * Salida del panel junto al saludo, donde el personal la ve sin bajar al pie: solo con
+ * sesión. Tras cerrar, recarga a /admin/entrar para no dejar datos del panel en memoria.
  */
-function CierreSesionPanel() {
+export function CierreSesionPanel() {
   const sesion = useSesion();
   const [fallo, setFallo] = useState(false);
 
@@ -76,24 +75,22 @@ function CierreSesionPanel() {
     else setFallo(true);
   }
 
-  return (
-    <>
-      <button type="button" className="nav__salir" onClick={() => void salir()}>
-        Cerrar sesión
-      </button>
-      {fallo ? (
-        <span className="nav__error" role="alert">
-          No se pudo cerrar la sesión: sigue abierta.
-        </span>
-      ) : null}
-    </>
-  );
+    return (
+      <>
+        <button type="button" className="cabecera__salir" onClick={() => void salir()}>
+          Cerrar sesión
+        </button>
+        {fallo ? (
+          <span className="cabecera__error" role="alert">
+            No se pudo cerrar la sesión: sigue abierta.
+          </span>
+        ) : null}
+      </>
+    );
 }
 
 export function App() {
   const [hotel, setHotel] = useState<Record<string, string> | null>(null);
-  const ubicacion = useLocation();
-  const enPanel = ubicacion.pathname.startsWith('/admin/') && ubicacion.pathname !== '/admin/entrar';
 
   // La marca pública llega del hotel; si la API falla, la cabecera usa el nombre genérico.
   useEffect(() => {
@@ -126,7 +123,10 @@ export function App() {
             <NavLink to="/admin/inventario">Habitaciones</NavLink>
             <NavLink to="/admin">Panel</NavLink>
           </nav>
-          <SaludoSesion />
+          <div className="cabecera__sesion">
+            <SaludoSesion />
+            <CierreSesionPanel />
+          </div>
         </div>
       </header>
 
@@ -168,7 +168,6 @@ export function App() {
             <NavLink to="/admin/indicadores">Indicadores</NavLink>
             <NavLink to="/admin/auditoria">Actividad</NavLink>
             <NavLink to="/admin/lugares">Mapa</NavLink>
-            {enPanel ? <CierreSesionPanel /> : null}
           </nav>
           <nav className="nav" aria-label="Información legal">
             <NavLink to="/privacidad">Privacidad</NavLink>
