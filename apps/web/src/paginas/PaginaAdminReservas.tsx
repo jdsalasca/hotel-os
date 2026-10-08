@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, urlApi } from '../api/cliente';
 import { fechaCorta, monto } from '../api/formato';
 import { useSesion } from '../api/useSesion';
-import { Cargando, Etiqueta, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
+import { Aviso, Cargando, Etiqueta, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 
 type Estado = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'RECHAZADA';
@@ -82,6 +82,44 @@ export function PaginaAdminReservas() {
   const [cargando, setCargando] = useState(true);
   const [texto, setTexto] = useState('');
   const [estado, setEstado] = useState('');
+  /** Alta de mostrador: la recepción registra sin pasar por la web. */
+  const [mostrarNueva, setMostrarNueva] = useState(false);
+  const [nueva, setNueva] = useState({ email: '', nombre: '', llegada: '', salida: '', huespedes: 2, roomId: '' });
+  const [creada, setCreada] = useState<string | null>(null);
+
+  async function alternarNueva() {
+    const abrir = !mostrarNueva;
+    setMostrarNueva(abrir);
+    setCreada(null);
+    if (abrir && habitaciones === null) {
+      try {
+        setHabitaciones(await api.get<Habitacion[]>('/api/admin/habitaciones'));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'No se pudieron cargar las habitaciones');
+      }
+    }
+  }
+
+  async function crearManual(evento: React.FormEvent) {
+    evento.preventDefault();
+    setError(null);
+    setCreada(null);
+    try {
+      const r = await api.post<{ codigo: string }>('/api/admin/reservas', {
+        email: nueva.email,
+        nombre: nueva.nombre,
+        llegada: nueva.llegada,
+        salida: nueva.salida,
+        huespedes: nueva.huespedes,
+        roomId: Number(nueva.roomId),
+      });
+      setCreada(r.codigo);
+      setNueva({ email: '', nombre: '', llegada: '', salida: '', huespedes: 2, roomId: '' });
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo registrar la reserva');
+    }
+  }
 
   async function cargar(textoFiltro = texto, estadoFiltro = estado) {
     setCargando(true);
@@ -208,6 +246,110 @@ export function PaginaAdminReservas() {
         </div>
 
         {error ? <MensajeError texto={error} /> : null}
+
+        <button
+          className="boton boton--secundario boton--chico mb-e4"
+          type="button"
+          onClick={() => void alternarNueva()}
+          aria-expanded={mostrarNueva}
+        >
+          {mostrarNueva ? 'Ocultar nueva reserva' : 'Nueva reserva'}
+        </button>
+
+        {mostrarNueva ? (
+          <form
+            className="tarjeta pila mb-e4"
+            onSubmit={(e) => void crearManual(e)}
+          >
+            <h2 className="t-lg mb-0">Nueva reserva de mostrador</h2>
+            {creada ? (
+              <Aviso tono="exito" titulo="Reserva registrada">
+                <p>
+                  Código <span className="cifra">{creada}</span>. Ya aparece en la lista.
+                </p>
+              </Aviso>
+            ) : null}
+            <div className="campos">
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="nr-email">Correo electrónico</label>
+                <input
+                  id="nr-email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={nueva.email}
+                  onChange={(e) => setNueva({ ...nueva, email: e.target.value })}
+                />
+              </div>
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="nr-nombre">Nombre</label>
+                <input
+                  id="nr-nombre"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  value={nueva.nombre}
+                  onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })}
+                />
+              </div>
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="nr-llegada">Llegada</label>
+                <input
+                  id="nr-llegada"
+                  type="date"
+                  required
+                  value={nueva.llegada}
+                  onChange={(e) => setNueva({ ...nueva, llegada: e.target.value })}
+                />
+              </div>
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="nr-salida">Salida</label>
+                <input
+                  id="nr-salida"
+                  type="date"
+                  required
+                  min={nueva.llegada || undefined}
+                  value={nueva.salida}
+                  onChange={(e) => setNueva({ ...nueva, salida: e.target.value })}
+                />
+              </div>
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="nr-huespedes">Huéspedes</label>
+                <input
+                  id="nr-huespedes"
+                  type="number"
+                  required
+                  min={1}
+                  max={20}
+                  value={nueva.huespedes}
+                  onChange={(e) => setNueva({ ...nueva, huespedes: Number(e.target.value) })}
+                />
+              </div>
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="nr-habitacion">Habitación</label>
+                <select
+                  id="nr-habitacion"
+                  required
+                  disabled={habitaciones === null}
+                  value={nueva.roomId}
+                  onChange={(e) => setNueva({ ...nueva, roomId: e.target.value })}
+                >
+                  <option value="">{habitaciones === null ? 'Cargando habitaciones…' : 'Selecciona…'}</option>
+                  {(habitaciones ?? []).map((h) => (
+                    <option key={h.id} value={h.id}>{h.codigo}{h.nombre ? ` · ${h.nombre}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              className="boton boton--primario"
+              type="submit"
+              disabled={!nueva.email || !nueva.llegada || !nueva.salida || !nueva.roomId}
+            >
+              Registrar reserva
+            </button>
+          </form>
+        ) : null}
 
         <form
           className="filtros"

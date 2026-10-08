@@ -466,6 +466,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   con contrato); V18 devuelve OTRO al CHECK perdido en V6/V8. TDD + ruta de
   actualización probada con sqlite3 real; suite 409/409. (124-125 del colega.)
   Evidencia: `docs/evidence/round-126/verificacion.md`.
+- [x] **Ronda 127 - Nueva reserva de mostrador en el panel (Etapa H).**
+  Formulario sobre el endpoint de la R126 con aviso del código y refresh; de paso,
+  `Aviso` faltante en el import (ReferenceError al primer error). TDD 2/2, suite
+  19/60, `tsc` ×2 OK, ciclo crear→cancelar verificado en vivo + capturas.
+  Evidencia: `docs/evidence/round-127/verificacion.md`.
 - [x] **Ronda 124 - El hotel vacío lo dice (backend).** `GET /api/hotel/venta`
   (público): verdadero solo con habitación ACTIVA + tarifa; la prod vacía
   (`rooms=rates=0`) lo confirma. `HotelVentaTest` 3/3 con limpieza por test.
