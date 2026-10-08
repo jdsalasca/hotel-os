@@ -28,7 +28,7 @@ function texto(valor?: string): string {
  * "soy admin" y la web "soy huésped": si hay admin manda el correo, si no el nombre de Google,
  * y sin sesión no se muestra nada en vez de un saludo inventado.
  */
-function SaludoSesion() {
+export function SaludoSesion() {
   const admin = useSesion();
   const huesped = useSesionHuesped();
 
@@ -107,6 +107,7 @@ export function App() {
             <NavLink to="/" end>Reservar</NavLink>
             <NavLink to="/consulta">Consultar reserva</NavLink>
             <NavLink to="/mis-reservas">Mis reservas</NavLink>
+            <NavLink to="/admin/inventario">Habitaciones</NavLink>
             <NavLink to="/admin/reservas">Panel</NavLink>
           </nav>
           <SaludoSesion />

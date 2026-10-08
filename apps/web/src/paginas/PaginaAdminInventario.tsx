@@ -400,10 +400,13 @@ export function PaginaAdminInventario() {
             </table>
           </div>
         ) : (
-          <p className="campo__ayuda">No hay habitaciones registradas todavía.</p>
+          <p className="campo__ayuda">
+            No hay habitaciones registradas todavía.{' '}
+            <a href="#alta-guiada">Créalas con el alta guiada de abajo</a>.
+          </p>
         )}
 
-        <section className="asistente mt-e6" aria-label="Alta guiada del inventario">
+        <section id="alta-guiada" className="asistente mt-e6" aria-label="Alta guiada del inventario">
           <h2 className="t-xl">Alta del hotel, paso a paso</h2>
           <p className="seccion__intro mb-0">
             Primero el tipo, luego sus habitaciones y servicios, y al final el plan con el que se

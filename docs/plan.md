@@ -264,6 +264,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `/api/health/vivo` (proceso, siempre 200) y `/api/health` como readiness real:
   503 degradado o inaccesible en vez de 200 con aviso. Evidencia:
   `docs/evidence/round-69/verificacion.md`.
+- [ ] **Ronda 66 - Gestión descubrible.** Enlaces a Inventario desde la nav y desde los
+  vacíos + test del saludo. En curso.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
