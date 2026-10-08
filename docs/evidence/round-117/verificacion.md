@@ -43,5 +43,12 @@ en la URL.
 ## Despliegue
 - Commit en rama `goal/round-115-comprobante-propio`, merge a `develop`, push y
   `compose up -d --build` en TopNUC con `GET /api/health → {"estado":"ok"}`.
+- Incidente real cazado por el deploy: el build web falló en prod con
+  `TS1345 en PaginaMisReservas.tsx(118,22)`. Causa: mi `git add` por rutas barrió
+  sin querer el handler de Salir del colega (su R116 a medias) junto con mi botón
+  de Comprobante; el hook `boolean` aún no estaba commiteado y el árbol intermedio
+  no compilaba. Se resolvió solo al mergear su R116 (hook + handler juntos) y el
+  redeploy construyó limpio. Lección: con otro agente editando el mismo archivo,
+  `git add` por rutas no basta — hay que revisar el diff propio antes del commit.
 - No se tocó el trabajo paralelo de sesiones (`AdminAuthController`,
   `CookieSesionTest`, `salir.test.tsx`, `App`, `useSesion*`): fuera del commit.
