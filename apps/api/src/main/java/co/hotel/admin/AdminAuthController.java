@@ -52,9 +52,14 @@ public class AdminAuthController {
     // Dos topes, no uno. Por `correo|IP` frena el ataque a una cuenta; por IP sola frena el
     // credential stuffing, que cambia de correo en cada intento y no lo nota.
     String clave = email + "|" + peticion.getRemoteAddr();
-    if (!throttle.permitir(clave) || !throttleIp.permitir(peticion.getRemoteAddr()))
+    if (!throttle.permitir(clave) || !throttleIp.permitir(peticion.getRemoteAddr())) {
+      long espera = Math.max(throttle.segundosRestantes(clave),
+        throttleIp.segundosRestantes(peticion.getRemoteAddr()));
+      long minutos = Math.max(1, (espera + 59) / 60);
       return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-        .body(Map.of("error", "demasiados intentos fallidos. Espera 15 minutos."));
+        .body(Map.of("error", "demasiados intentos fallidos. Espera " + minutos
+          + (minutos == 1 ? " minuto." : " minutos."), "reintentar_en_seg", espera));
+    }
 
     try {
       Authentication auth = autenticacion.authenticate(

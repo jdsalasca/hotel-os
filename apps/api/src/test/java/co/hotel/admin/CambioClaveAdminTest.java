@@ -152,8 +152,7 @@ class CambioClaveAdminTest {
 
   @Test
   @Order(6)
-  @DisplayName("la sesión dice quién es el administrador, y sin sesión es 401")
-  void sesionDiceQuienEs() throws Exception {
+  @DisplayName("la sesión dice quién es el administrador, y sin sesión es 401")  void sesionDiceQuienEs() throws Exception {
     mvc.perform(get("/api/admin/sesion")).andExpect(status().isUnauthorized());
 
     var login = mvc.perform(post("/api/admin/login").with(csrf())
@@ -168,5 +167,26 @@ class CambioClaveAdminTest {
         .session((org.springframework.mock.web.MockHttpSession) mockSesion))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.email").value("propia@hotel.test"));
+  }
+
+  @Test
+  @Order(7)
+  @DisplayName("bloqueado dice en cuántos minutos, no un espera seco")
+  void bloqueoDiceMinutos() throws Exception {
+    for (int i = 0; i < 5; i++) {
+      mvc.perform(post("/api/admin/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+          .content(cuerpo(Map.of("email", "bloqueado@hotel.test", "password", "MalaClave12345"))))
+        .andExpect(status().isUnauthorized());
+    }
+    String cuerpo = mvc.perform(post("/api/admin/login").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("email", "bloqueado@hotel.test", "password", "MalaClave12345"))))
+      .andExpect(status().isTooManyRequests())
+      .andReturn().getResponse().getContentAsString();
+    var json = new ObjectMapper().readTree(cuerpo);
+    assertTrue(json.get("error").asText().contains("minuto"),
+      "el mensaje dice la espera: " + json.get("error").asText());
+    assertTrue(json.get("reintentar_en_seg").asLong() >= 1,
+      "la máquina también recibe los segundos");
   }
 }

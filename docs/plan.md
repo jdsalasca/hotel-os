@@ -372,6 +372,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   FALLA probado en composes rotos. Evidencia: `docs/evidence/round-98/verificacion.md`.
 - [x] **Ronda 100 - Aviso de mensajes sin leer en la nav.** Badge con el conteo existente,
   TDD (rojo→verde), 23/23 vitest. Evidencia: `docs/evidence/round-100/verificacion.md`.
+- [x] **Ronda 102 - El bloqueo dice en cuántos minutos.** `segundosRestantes` + 429 con
+  minutos y campo máquina; test que lo provoca, 12/12 verde. Evidencia:
+  `docs/evidence/round-102/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

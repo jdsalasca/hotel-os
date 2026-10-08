@@ -42,6 +42,19 @@ public class LoginThrottle {
 
   public void exito(String clave) { if (clave != null) porClave.remove(clave); }
 
+  /**
+   * Segundos restantes de espera si la clave está bloqueada, 0 si puede intentar. Es lo que
+   * el login devuelve para que la pantalla diga "en N minutos" en vez de un "espera" seco.
+   */
+  public long segundosRestantes(String clave) {
+    if (clave == null) return 0;
+    Instant ahora = Instant.now();
+    Intentos intentos = porClave.get(clave);
+    if (intentos == null || intentos.caducada(ahora) || intentos.fallos < MAX_INTENTOS) return 0;
+    long pasados = Duration.between(intentos.primerFallo, ahora).getSeconds();
+    return Math.max(1, VENTANA.getSeconds() - pasados);
+  }
+
   /** Solo para diagnóstico del panel; no expone credenciales. */
   public int fallosRegistrados(String clave) {
     Intentos intentos = porClave.get(clave);
