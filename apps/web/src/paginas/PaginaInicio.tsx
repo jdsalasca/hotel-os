@@ -90,7 +90,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       .catch(() => setMapa(null));
   }, []);
   const [detalleCargando, setDetalleCargando] = useState<Record<string, boolean>>({});
-  const [detalleAbierto, setDetalleAbierto] = useState<Record<number, boolean>>({});
+  const [detalleAbierto, setDetalleAbierto] = useState<Record<string, boolean>>({});
   /** La búsqueda que produjo las ofertas en pantalla: elegir usa este snapshot, no el
    * formulario que el huésped pudo editar después sin volver a buscar. */
   const [busqueda, setBusqueda] = useState<{ llegada: string; salida: string; huespedes: number } | null>(null);
@@ -140,6 +140,10 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       if (r.error) setError(r.error);
       setOfertas(r.ofertas ?? []);
       setBusqueda({ llegada: llegadaIso, salida: salidaIso, huespedes: huespedesN });
+      // Resultados nuevos, detalles viejos fuera: lo abierto era de otra búsqueda.
+      setDetalles({});
+      setDetalleAbierto({});
+      setDetalleCargando({});
       setBuscado(true);
     } catch (e) {
       if (peticionBusqueda.current !== id) return;
@@ -193,27 +197,36 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
   return Math.round(2 * 6371 * Math.asin(Math.sqrt(a)) * 10) / 10;
 }
 
+  /** Parámetros de la búsqueda en pantalla: el detalle y el resumen pertenecen a lo
+   * buscado, no al formulario que se pudo editar después sin volver a buscar. */
+  const baseBusqueda = busqueda ?? { llegada, salida, huespedes };
+  /** Clave del detalle de una oferta: habitación + parámetros + plan. Dos planes de la
+   * misma habitación son dos ofertas distintas y abren por separado. */
+  const claveDetalle = (oferta: Oferta) =>
+    `${oferta.habitacion.id}|${baseBusqueda.llegada}|${baseBusqueda.salida}|${baseBusqueda.huespedes}|${oferta.plan.id}`;
+
   /** Desglose noche por noche de una oferta: el plan que la respalda y cada importe. */
   async function verDetalle(oferta: Oferta) {
     const id = oferta.habitacion.id;
-    // El detalle vale para unos parámetros concretos, no para la habitación en general:
-    // con otras fechas u otros huéspedes hay que volver a pedirlo.
-    const clave = `${id}|${llegada}|${salida}|${huespedes}`;
-    if (detalleAbierto[id]) {
-      setDetalleAbierto({ ...detalleAbierto, [id]: false });
+    const clave = claveDetalle(oferta);
+    if (detalleAbierto[clave]) {
+      setDetalleAbierto({ ...detalleAbierto, [clave]: false });
       return;
     }
-    setDetalleAbierto({ ...detalleAbierto, [id]: true });
+    setDetalleAbierto({ ...detalleAbierto, [clave]: true });
     if (detalles[clave]) return;
     setDetalleCargando({ ...detalleCargando, [clave]: true });
     try {
       const consulta = new URLSearchParams({
-        roomId: String(id), llegada, salida, huespedes: String(huespedes),
+        roomId: String(id),
+        llegada: baseBusqueda.llegada,
+        salida: baseBusqueda.salida,
+        huespedes: String(baseBusqueda.huespedes),
       });
       const r = await api.get<DetalleOferta>(`/api/disponibilidad/detalle?${consulta}`);
       setDetalles((previos) => ({ ...previos, [clave]: r }));
     } catch {
-      setDetalleAbierto({ ...detalleAbierto, [id]: false });
+      setDetalleAbierto((previos) => ({ ...previos, [clave]: false }));
     } finally {
       setDetalleCargando((previos) => ({ ...previos, [clave]: false }));
     }
@@ -612,16 +625,17 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
               Habitaciones disponibles
             </h2>
             <p className="seccion__intro">
-              Del {fechaCorta(llegada)} al {fechaCorta(salida)} para {huespedes}{' '}
-              {huespedes === 1 ? 'huésped' : 'huéspedes'}.
+              Del {fechaCorta(baseBusqueda.llegada)} al {fechaCorta(baseBusqueda.salida)} para {baseBusqueda.huespedes}{' '}
+              {baseBusqueda.huespedes === 1 ? 'huésped' : 'huéspedes'}.
             </p>
               <div className="rejilla">
                 {ofertas.map((oferta) => {
                   const id = oferta.habitacion.id;
-                  const abierto = !!detalleAbierto[id];
-                  const detalle = detalles[`${id}|${llegada}|${salida}|${huespedes}`];
+                  const clave = claveDetalle(oferta);
+                  const abierto = !!detalleAbierto[clave];
+                  const detalle = detalles[clave];
                   return (
-                  <article className="tarjeta pila" key={id}>
+                  <article className="tarjeta pila" key={`${id}|${oferta.plan.id}`}>
                   <HuecoImagen texto="Fotografía de la habitación" />
                   <h3>{oferta.tipo.nombre}</h3>
                   {oferta.descuentoPct > 0 ? (
@@ -662,7 +676,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                   >
                     {abierto ? 'Ocultar detalle' : 'Ver detalle por noche'}
                   </button>
-                  {detalleCargando[`${id}|${llegada}|${salida}|${huespedes}`] ? (
+                  {detalleCargando[clave] ? (
                     <p className="cargando" role="status">Cargando el desglose…</p>
                   ) : null}
                   {abierto && detalle ? (
