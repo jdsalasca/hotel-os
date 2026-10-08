@@ -31,7 +31,12 @@ public class AuditoriaAdminFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest req) {
-    return !"POST".equals(req.getMethod()) || !req.getRequestURI().startsWith("/api/admin/");
+    // Toda escritura del panel, no solo POST: el PUT de servicios y el PUT/DELETE de lugares
+    // pasaban sin dejar rastro. Las lecturas (GET) no se registran.
+    String metodo = req.getMethod();
+    boolean escribe = "POST".equals(metodo) || "PUT".equals(metodo) || "DELETE".equals(metodo)
+      || "PATCH".equals(metodo);
+    return !escribe || !req.getRequestURI().startsWith("/api/admin/");
   }
 
   @Override

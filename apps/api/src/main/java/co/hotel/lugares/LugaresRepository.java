@@ -33,10 +33,22 @@ public class LugaresRepository {
   }
 
   public long crear(String nombre, String descripcion, double latitud, double longitud) {
-    jdbc.update("INSERT INTO lugares_interes(nombre,descripcion,latitud,longitud,activo,creado_en)"
-      + " VALUES(?,?,?, ?,1,datetime('now'))", nombre, descripcion, latitud, longitud);
-    Long id = jdbc.queryForObject("SELECT last_insert_rowid()", Long.class);
-    return id == null ? -1 : id;
+    // last_insert_rowid() es por conexión: con pool equivale a otra conexión y devuelve 0.
+    // Las llaves generadas viajan con el INSERT y no dependen de la conexión que toque.
+    var llaves = new org.springframework.jdbc.support.GeneratedKeyHolder();
+    jdbc.update(con -> {
+      var ps = con.prepareStatement("INSERT INTO lugares_interes(nombre,descripcion,latitud,longitud,"
+        + "activo,creado_en) VALUES(?,?,?,?,1,datetime('now'))",
+        java.sql.Statement.RETURN_GENERATED_KEYS);
+      ps.setString(1, nombre);
+      ps.setString(2, descripcion);
+      ps.setDouble(3, latitud);
+      ps.setDouble(4, longitud);
+      return ps;
+    }, llaves);
+    Number id = llaves.getKey();
+    if (id == null) throw new IllegalStateException("no se pudo crear el lugar");
+    return id.longValue();
   }
 
   public int actualizar(long id, String nombre, String descripcion, double latitud,

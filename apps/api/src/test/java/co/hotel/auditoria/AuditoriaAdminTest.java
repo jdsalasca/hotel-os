@@ -135,4 +135,59 @@ class AuditoriaAdminTest {
       "SELECT actor||'|'||metodo||'|'||ruta||'|'||estado FROM admin_actions", String.class);
     assertThat(todo).noneMatch(t -> t.contains("clave-secreta"));
   }
+
+  @Test
+  @DisplayName("un PUT del panel queda registrado con su método y su estado")
+  void unPutDelPanelQuedaRegistrado() throws Exception {
+    long tipoId = JSON.readTree(mvc.perform(post("/api/admin/tipos").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("codigo", "AUD", "nombre", "Auditoría", "capacidadMax", 2))))
+      .andReturn().getResponse().getContentAsString()).get("id").asLong();
+
+    mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+        "/api/admin/tipos/" + tipoId + "/amenidades").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("ids", List.of()))))
+      .andExpect(status().isOk());
+
+    List<Map<String, Object>> rastro = jdbc.queryForList(
+      "SELECT actor, metodo, ruta, estado FROM admin_actions WHERE ruta=? ORDER BY id DESC LIMIT 1",
+      "/api/admin/tipos/" + tipoId + "/amenidades");
+    assertThat(rastro).hasSize(1);
+    assertThat(rastro.get(0))
+      .containsEntry("ACTOR", "admin@hotel.test")
+      .containsEntry("METODO", "PUT")
+      .containsEntry("ESTADO", 200);
+  }
+
+  @Test
+  @DisplayName("un DELETE del panel queda registrado y lo fallido trae su estado real")
+  void unDeleteDelPanelQuedaRegistrado() throws Exception {
+    long lugarId = JSON.readTree(mvc.perform(post("/api/admin/lugares").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("nombre", "Mirador auditoría",
+          "descripcion", "Vista", "latitud", 5.6, "longitud", -73.5))))
+      .andExpect(status().isCreated())
+      .andReturn().getResponse().getContentAsString()).get("id").asLong();
+    org.assertj.core.api.Assertions.assertThat(lugarId).isGreaterThan(0);
+
+    mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(
+        "/api/admin/lugares/" + lugarId).with(ADMIN).with(csrf()))
+      .andExpect(status().isOk());
+
+    List<Map<String, Object>> rastro = jdbc.queryForList(
+      "SELECT metodo, ruta, estado FROM admin_actions WHERE ruta=? ORDER BY id DESC LIMIT 1",
+      "/api/admin/lugares/" + lugarId);
+    assertThat(rastro).hasSize(1);
+    assertThat(rastro.get(0)).containsEntry("METODO", "DELETE").containsEntry("ESTADO", 200);
+
+    mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(
+        "/api/admin/lugares/999999").with(ADMIN).with(csrf()))
+      .andExpect(status().isNotFound());
+
+    Integer estado = jdbc.queryForObject(
+      "SELECT estado FROM admin_actions WHERE ruta=? ORDER BY id DESC LIMIT 1",
+      Integer.class, "/api/admin/lugares/999999");
+    assertThat(estado).isEqualTo(404);
+  }
 }
