@@ -5,6 +5,7 @@ import co.hotel.auditoria.AuditoriaRepository;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -125,10 +126,25 @@ public class AdminReservasController {
     }
   }
 
+  /**
+   * Límite que no es número (`?limite=muchas`): Spring lo rechaza antes de entrar con su
+   * 400 por defecto, sin `error`. Aquí vuelve al contrato de la casa.
+   */
+  @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<?> parametroNoNumerico(
+      org.springframework.web.method.annotation.MethodArgumentTypeMismatchException e) {
+    return ResponseEntity.badRequest().body(Map.of("error",
+      "límite inválido: debe ser un número"));
+  }
+
   @GetMapping("/api/admin/reservas")
   public ResponseEntity<?> listar(@RequestParam(defaultValue = "50") int limite,
                                   @RequestParam(required = false) String q,
                                   @RequestParam(required = false) String estado) {
+    // En SQLite LIMIT -1 es sin tope: sin validar, ?limite=-1 vuelca la tabla entera.
+    if (limite < 1) {
+      return ResponseEntity.badRequest().body(Map.of("error", "el límite debe ser al menos 1"));
+    }
     final EstadoReserva filtro;
     try {
       filtro = estado == null || estado.isBlank() ? null : EstadoReserva.valueOf(estado.toUpperCase());
@@ -204,6 +220,9 @@ public class AdminReservasController {
   public ResponseEntity<String> exportarCsv(@RequestParam(defaultValue = "200") int limite,
                                            @RequestParam(required = false) String q,
                                            @RequestParam(required = false) String estado) {
+    if (limite < 1) {
+      return ResponseEntity.badRequest().body("error,límite inválido: debe ser al menos 1\n");
+    }
     final EstadoReserva filtro;
     try {
       filtro = estado == null || estado.isBlank() ? null : EstadoReserva.valueOf(estado.toUpperCase());
