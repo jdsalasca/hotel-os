@@ -10,7 +10,7 @@ import { fechaCorta } from '../api/formato';
  * valores vivos: con el formulario cambiado se pide otro desglose y el abierto se
  * pierde ("Ocultar detalle" sin nada debajo).
  */
-const estado = vi.hoisted(() => ({ llamadasDetalle: [] as string[], dosPlanes: false }));
+const estado = vi.hoisted(() => ({ llamadasDetalle: [] as string[], dosPlanes: false, sinVenta: false }));
 
 vi.mock('../api/cliente', () => {
   function oferta(planId: number, nombrePlan: string) {
@@ -57,6 +57,7 @@ vi.mock('../api/cliente', () => {
     if (url.startsWith('/api/disponibilidad/calendario?')) {
       return { mes: '2030-06', huespedes: 2, dias: [] };
     }
+    if (url === '/api/hotel/venta') return { a_la_venta: !estado.sinVenta };
     if (url.startsWith('/api/amenidades/por-tipo?')) return { porTipo: {} };
     if (url === '/api/lugares') return { hotel: { ubicado: false }, lugares: [] };
     throw new Error('ruta no esperada: ' + url);
@@ -68,6 +69,7 @@ afterEach(() => {
   cleanup();
   estado.llamadasDetalle.length = 0;
   estado.dosPlanes = false;
+  estado.sinVenta = false;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -83,6 +85,30 @@ async function buscar() {
   fireEvent.click(screen.getByText('Buscar disponibilidad'));
   await screen.findAllByText('Elegir esta habitación');
 }
+
+describe('hotel sin nada que vender', () => {
+  it('lo dice en vez de fingir un mes lleno', async () => {
+    estado.sinVenta = true;
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Este hotel aún no publica habitaciones');
+    expect(document.querySelector('.calendario-mes__rejilla')).toBeNull();
+  });
+
+  it('con venta muestra el calendario como siempre', async () => {
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(document.querySelector('.calendario-mes__rejilla')).not.toBeNull();
+    });
+  });
+});
 
 describe('detalle de la oferta', () => {
   it('pide las fechas buscadas aunque el formulario haya cambiado', async () => {
