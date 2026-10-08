@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, nuevaClaveIdempotencia } from '../api/cliente';
 import { fechaCorta, hoyIso, mananaIso, monto } from '../api/formato';
-import { HuecoImagen, MensajeError } from '../componentes/Estado';
+import { HuecoImagen, MensajeError, Vacio } from '../componentes/Estado';
 
 type Oferta = {
   habitacion: { id: number; codigo: string; nombre: string };
@@ -100,6 +100,19 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   const [errorCal, setErrorCal] = useState<string | null>(null);
   const [cargandoCal, setCargandoCal] = useState(false);
   const peticionCal = useRef(0);
+  /**
+   * Sin nada que vender el calendario mentiría un mes de Llenos: una sola lectura al
+   * abrir dice si el hotel publica. null es "aún no se sabe" y pinta como siempre;
+   * si falla, tampoco se bloquea nada.
+   */
+  const [venta, setVenta] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void api
+      .get<{ a_la_venta: boolean }>('/api/hotel/venta')
+      .then((r) => setVenta(r.a_la_venta !== false))
+      .catch(() => setVenta(null));
+  }, []);
 
   // El calendario es una sola petición por mes: si el huésped cambia de mes o de huéspedes antes
   // de que vuelva, la respuesta vieja se ignora en vez de pintar otro mes.
@@ -557,7 +570,14 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           {errorCal ? <MensajeError texto={errorCal} /> : null}
           {cargandoCal ? <p className="cargando" role="status">Cargando el mes…</p> : null}
 
-          {!cargandoCal && !errorCal ? (
+          {venta === false && !errorCal ? (
+            <Vacio
+              titulo="Este hotel aún no publica habitaciones"
+              detalle="Estamos preparando el inventario: vuelve pronto o pregúntanos por otros medios."
+            />
+          ) : null}
+
+          {venta !== false && !cargandoCal && !errorCal ? (
             <div className="calendario-mes__rejilla" role="list" aria-label={`Disponibilidad de ${nombreMes}`}>
               {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => (
                 <span key={d} className="calendario-mes__semana" aria-hidden="true">{d}</span>
