@@ -408,6 +408,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   383 tests sin fallos (1 omitido preexistente en Windows), frontend 30/30,
   `tsc` limpio y `vite build` OK; rojo-verde verificado.
   Evidencia: `docs/evidence/round-112/verificacion.md`.
+- [x] **Ronda 113 - Bloqueos solapados cuentan su unión (Etapa D).**
+  `nochesBloqueadas()` sumaba intervalos y la ocupación salía inflada; ahora fusiona
+  por (habitación, noche): solapados, global+individual y duplicados restan una vez.
+  TDD rojo (57/56, 55/54, 27/24) → verde; `IndicadoresServiceTest` 38/38.
+  Evidencia: `docs/evidence/round-113/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

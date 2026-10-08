@@ -59,28 +59,68 @@ public class IndicadoresRepository {
   }
 
   /**
-   * Noches bloqueadas en el periodo, en noches de habitación: un bloqueo de una habitación resta
-   * sus noches; uno de todo el hotel (`room_id` nulo) resta las de cada habitación activa. Solo
-   * cuentan bloqueos de habitaciones activas: lo retirado ya salió del inventario por otro lado.
+   * Noches bloqueadas en el periodo, en noches de habitación: la unión por (habitación, noche),
+   * no la suma de intervalos. Dos bloqueos que cubren la misma noche de la misma habitación
+   * (duplicados, solapados, o global + individual) restan una sola vez: sumar intervalos
+   * encogía el denominador y la ocupación salía inflada.
    *
-   * Aproximación declarada: si un bloqueo del hotel y uno de habitación cubren la misma noche,
-   * esa noche resta dos veces. El hotel no cierra dos veces lo mismo, así que en la práctica no
-   * ocurre; si ocurriera, el denominador saldría conservador, nunca inflado.
+   * Un bloqueo de todo el hotel (`room_id` nulo) aporta su intersección a cada habitación
+   * activa. Solo cuentan bloqueos de habitaciones activas: lo retirado ya salió del inventario
+   * por otro lado. La unión se fusiona por intervalos en Java (sin expandir día por día), así
+   * que un periodo amplio nunca revienta la memoria.
    */
   public long nochesBloqueadas(String desde, String hasta) {
-    Long n = jdbc.queryForObject("SELECT COALESCE(CAST(SUM((julianday(MIN(b.hasta, ?)) "
-        + "- julianday(MAX(b.desde, ?))) * CASE WHEN b.room_id IS NULL "
-        + "THEN (SELECT COUNT(*) FROM rooms WHERE estado='ACTIVA') ELSE 1 END) AS INTEGER), 0) "
-        + "FROM blocks b WHERE b.desde < ? AND ? < b.hasta "
-        + "AND (b.room_id IS NULL OR b.room_id IN (SELECT id FROM rooms WHERE estado='ACTIVA'))",
-      Long.class, hasta, desde, hasta, desde);
-    return n == null ? 0L : n;
+    java.time.LocalDate inicio = java.time.LocalDate.parse(desde);
+    java.time.LocalDate fin = java.time.LocalDate.parse(hasta);
+    java.util.List<Long> activas = jdbc.queryForList(
+      "SELECT id FROM rooms WHERE estado='ACTIVA'", Long.class);
+    if (activas.isEmpty()) return 0L;
+    java.util.Set<Long> activasSet = new java.util.HashSet<>(activas);
+    java.util.Map<Long, java.util.List<long[]>> porHabitacion = new java.util.HashMap<>();
+    for (Long id : activas) porHabitacion.put(id, new java.util.ArrayList<>());
+    jdbc.query("SELECT room_id, desde, hasta FROM blocks WHERE desde < ? AND ? < hasta",
+      rs -> {
+        long crudo = rs.getLong("room_id");
+        Long roomId = rs.wasNull() ? null : crudo;
+        java.time.LocalDate bDesde = java.time.LocalDate.parse(rs.getString("desde"));
+        java.time.LocalDate bHasta = java.time.LocalDate.parse(rs.getString("hasta"));
+        java.time.LocalDate s = bDesde.isAfter(inicio) ? bDesde : inicio;
+        java.time.LocalDate e = bHasta.isBefore(fin) ? bHasta : fin;
+        if (!s.isBefore(e)) return;
+        long[] tramo = {s.toEpochDay(), e.toEpochDay()};
+        if (roomId == null) {
+          for (Long id : activas) porHabitacion.get(id).add(tramo);
+        } else if (activasSet.contains(roomId)) {
+          porHabitacion.get(roomId).add(tramo);
+        }
+      }, hasta, desde);
+    long total = 0;
+    for (java.util.List<long[]> tramos : porHabitacion.values()) {
+      if (tramos.isEmpty()) continue;
+      tramos.sort(java.util.Comparator.comparingLong(a -> a[0]));
+      long s = tramos.get(0)[0];
+      long e = tramos.get(0)[1];
+      for (int i = 1; i < tramos.size(); i++) {
+        long ns = tramos.get(i)[0];
+        long ne = tramos.get(i)[1];
+        if (ns <= e) {
+          if (ne > e) e = ne;
+        } else {
+          total += e - s;
+          s = ns;
+          e = ne;
+        }
+      }
+      total += e - s;
+    }
+    return total;
   }
 
   /**
    * Noches disponibles para la venta: habitaciones activas por noche del periodo, menos las
-   * bloqueadas. Un hotel cerrado por mantenimiento no tiene nada vendible, aunque tenga
-   * habitaciones dadas de alta.
+   * bloqueadas (en unión, así que nunca supera el total). Un hotel cerrado por mantenimiento
+   * no tiene nada vendible, aunque tenga habitaciones dadas de alta. El max(0, …) es solo el
+   * invariante defensivo, no el que cuadra las cuentas.
    */
   public long nochesDisponibles(String desde, String hasta) {
     long dias = java.time.temporal.ChronoUnit.DAYS.between(
