@@ -357,7 +357,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
               <span className="paso__numero" aria-hidden="true">1</span>
               <div>
                 <strong>Elige tus fechas</strong>
-                <span> Dinos llegada, salida y huéspedes: te mostramos precio final, sin letra pequeña.</span>
+                <span> Dinos tu llegada, tu salida y tus huéspedes: te mostramos precio final, sin letra pequeña.</span>
               </div>
             </li>
             <li className="paso">
