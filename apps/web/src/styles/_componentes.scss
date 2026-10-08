@@ -332,6 +332,33 @@
     text-overflow: ellipsis;
     max-width: 16rem;
   }
+
+  // Nombre y salida juntos en la cabecera: el personal los ve sin bajar al pie.
+  &__sesion {
+    display: flex;
+    align-items: center;
+    gap: $e-2;
+  }
+
+  &__salir {
+    padding: $e-2 $e-3;
+    border: 0;
+    border-radius: $radio-sm;
+    background: transparent;
+    color: $tinta-suave;
+    font-family: $fuente-texto;
+    font-size: $texto-sm;
+    cursor: pointer;
+    @include focusable;
+
+    &:hover { background: $piedra-clara; color: $tinta; }
+  }
+
+  &__error {
+    align-self: center;
+    color: $error;
+    font-size: $texto-sm;
+  }
 }
 
 .nav {
@@ -354,26 +381,6 @@
       color: $tinta;
       font-weight: $peso-medio;
     }
-  }
-
-  .nav__salir {
-    padding: $e-2 $e-3;
-    border: 0;
-    border-radius: $radio-sm;
-    background: transparent;
-    color: $tinta-suave;
-    font-family: $fuente-texto;
-    font-size: $texto-sm;
-    cursor: pointer;
-    @include focusable;
-
-    &:hover { background: $piedra-clara; color: $tinta; }
-  }
-
-  .nav__error {
-    align-self: center;
-    color: $error;
-    font-size: $texto-sm;
   }
 }
 
