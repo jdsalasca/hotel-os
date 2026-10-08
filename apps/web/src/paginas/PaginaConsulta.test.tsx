@@ -128,4 +128,24 @@ describe('correo de la sesión en la consulta', () => {
     await montar();
     expect((screen.getByLabelText('Correo electrónico') as HTMLInputElement).value).toBe('');
   });
+
+  it('el comprobante se imprime y el formulario no sale en papel', async () => {
+    sesion({});
+    const imprimir = vi.fn();
+    vi.stubGlobal('print', imprimir);
+    await montar();
+    fireEvent.change(screen.getByLabelText('Código de reserva'), {
+      target: { value: 'H-ABC123' },
+    });
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'yo@hotel.test' },
+    });
+    fireEvent.click(screen.getByText('Consultar reserva'));
+    await waitFor(() => {
+      expect(screen.getByText('Imprimir comprobante')).toBeTruthy();
+    });
+    fireEvent.click(screen.getByText('Imprimir comprobante'));
+    expect(imprimir).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('form.ancho-formulario.no-imprimir')).not.toBeNull();
+  });
 });

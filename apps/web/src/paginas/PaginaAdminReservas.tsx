@@ -248,7 +248,7 @@ export function PaginaAdminReservas() {
         {error ? <MensajeError texto={error} /> : null}
 
         <button
-          className="boton boton--secundario boton--chico mb-e4"
+          className={`boton boton--secundario boton--chico mb-e4${detalle ? ' no-imprimir' : ''}`}
           type="button"
           onClick={() => void alternarNueva()}
           aria-expanded={mostrarNueva}
@@ -352,7 +352,7 @@ export function PaginaAdminReservas() {
         ) : null}
 
         <form
-          className="filtros"
+          className={detalle ? 'filtros no-imprimir' : 'filtros'}
           onSubmit={(e) => {
             e.preventDefault();
             void cargar();
@@ -395,7 +395,7 @@ export function PaginaAdminReservas() {
         ) : null}
 
         {reservas && reservas.length > 0 ? (
-          <div className="tabla-envoltura">
+          <div className={detalle ? 'tabla-envoltura no-imprimir' : 'tabla-envoltura'}>
             <table className="tabla">
               <caption>Reservas del hotel</caption>
               <thead>
@@ -490,24 +490,24 @@ export function PaginaAdminReservas() {
                         {m.anulado_en ? (
                           <> (anulado por {m.anulado_por})</>
                         ) : (
-                          <>
-                            {' '}
-                            <button
-                              className="boton boton--fantasma boton--chico"
-                              type="button"
-                              onClick={() => void anularAbono(m.id, detalle.reserva.codigo)}
-                              aria-label={`Anular el abono de ${monto(m.monto_cents, m.moneda)}`}
-                            >
-                              Anular
-                            </button>
-                          </>
+                            <>
+                              {' '}
+                              <button
+                                className="boton boton--fantasma boton--chico no-imprimir"
+                                type="button"
+                                onClick={() => void anularAbono(m.id, detalle.reserva.codigo)}
+                                aria-label={`Anular el abono de ${monto(m.monto_cents, m.moneda)}`}
+                              >
+                                Anular
+                              </button>
+                            </>
                         )}
                       </li>
                     ))}
                   </ul>
                 ) : null}
                 <form
-                  className="campos"
+                  className="campos no-imprimir"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void abonar(detalle.reserva.codigo, detalle.reserva.moneda ?? '');
@@ -549,21 +549,23 @@ export function PaginaAdminReservas() {
                 </li>
               ))}
             </ol>
-            <HiloMensajes
-              titulo="Conversación con el huésped"
-              ladoPropio="HOTEL"
-              cargar={(antesDe) =>
-                api.get<Hilo>(
-                  `/api/admin/reservas/${detalle.reserva.codigo}/mensajes${antesDe ? `?antes_de=${antesDe}` : ''}`,
-                )
-              }
-              enviar={(texto) =>
-                api.post(`/api/admin/reservas/${detalle.reserva.codigo}/mensajes`, { texto }).then(() => undefined)
-              }
-            />
+            <div className="no-imprimir">
+              <HiloMensajes
+                titulo="Conversación con el huésped"
+                ladoPropio="HOTEL"
+                cargar={(antesDe) =>
+                  api.get<Hilo>(
+                    `/api/admin/reservas/${detalle.reserva.codigo}/mensajes${antesDe ? `?antes_de=${antesDe}` : ''}`,
+                  )
+                }
+                enviar={(texto) =>
+                  api.post(`/api/admin/reservas/${detalle.reserva.codigo}/mensajes`, { texto }).then(() => undefined)
+                }
+              />
+            </div>
             {(detalle.reserva.estado === 'PENDIENTE' || detalle.reserva.estado === 'CONFIRMADA') && habitaciones ? (
               <form
-                className="campos"
+                className="campos no-imprimir"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void reasignar(detalle.reserva.codigo);
@@ -589,7 +591,7 @@ export function PaginaAdminReservas() {
             ) : null}
             {(detalle.reserva.estado === 'PENDIENTE' || detalle.reserva.estado === 'CONFIRMADA') ? (
               <form
-                className="campos"
+                className="campos no-imprimir"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void cambiarFechas(detalle.reserva.codigo);
@@ -625,7 +627,14 @@ export function PaginaAdminReservas() {
                 </button>
               </form>
             ) : null}
-            <button className="boton boton--secundario boton--chico" onClick={() => setDetalle(null)}>
+            <button
+              className="boton boton--secundario boton--chico no-imprimir"
+              type="button"
+              onClick={() => window.print()}
+            >
+              Imprimir comprobante
+            </button>
+            <button className="boton boton--secundario boton--chico no-imprimir" onClick={() => setDetalle(null)}>
               Cerrar detalle
             </button>
           </aside>

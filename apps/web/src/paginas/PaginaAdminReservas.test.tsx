@@ -9,13 +9,42 @@ import { PaginaAdminReservas } from './PaginaAdminReservas';
  */
 const estado = vi.hoisted(() => ({ postes: [] as { url: string; cuerpo: unknown }[] }));
 
+function reservaFila() {
+  return {
+    codigo: 'H-PANEL1',
+    email: 'panel@example.com',
+    nombre: 'Panel',
+    llegada: '2030-06-10',
+    salida: '2030-06-12',
+    noches: 2,
+    huespedes: 1,
+    estado: 'PENDIENTE',
+    siguientes: ['CONFIRMADA', 'CANCELADA', 'RECHAZADA'],
+    origen: 'OTRO',
+    creadoEn: '2030-01-01',
+  };
+}
+
 vi.mock('../api/cliente', () => ({
   api: {
     get: (url: string) => {
-      if (url.startsWith('/api/admin/reservas?')) return Promise.resolve([]);
+      if (url.startsWith('/api/admin/reservas?')) return Promise.resolve([reservaFila()]);
       if (url === '/api/admin/habitaciones') {
         return Promise.resolve([{ id: 7, codigo: '101', nombre: 'Habitación 101' }]);
       }
+      if (url.includes('/comprobante')) {
+        return Promise.resolve({
+          reserva: {
+            ...reservaFila(),
+            totalCents: 300000,
+            moneda: 'COP',
+            plan: 'Estándar',
+          },
+          habitacion: { codigo: '101', nombre: 'Habitación 101', tipo: 'Doble' },
+          historial: [],
+        });
+      }
+      if (url.includes('/mensajes')) return Promise.resolve({ mensajes: [] });
       throw new Error('get no esperado: ' + url);
     },
     post: (url: string, cuerpo: unknown) => {
@@ -101,5 +130,20 @@ describe('nueva reserva manual', () => {
     expect(
       (screen.getByText('Registrar reserva').closest('button') as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+});
+
+describe('impresión del detalle', () => {
+  it('el detalle ofrece imprimir y la lista no sale en papel', async () => {
+    await montar();
+    const imprimir = vi.fn();
+    vi.stubGlobal('print', imprimir);
+    fireEvent.click(screen.getByText('Ver detalle'));
+    await waitFor(() => {
+      expect(screen.getByText('Imprimir comprobante')).toBeTruthy();
+    });
+    fireEvent.click(screen.getByText('Imprimir comprobante'));
+    expect(imprimir).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('.tabla-envoltura.no-imprimir')).not.toBeNull();
   });
 });
