@@ -100,17 +100,42 @@ public class ReservaService {
       // tarifas después, el comprobante sigue mostrando lo acordado. Y sin precio completo no hay
       // reserva: ni la habitación retirada, ni la que no alcanza la capacidad, ni la noche sin
       // tarifa están a la venta. Guardar NULL era vender sin importe.
-      var precio = inventario.precioDe(datos.roomId(), datos.llegada(), datos.salida(), datos.huespedes());
-      if (precio.isEmpty()) {
-        throw new SinDisponibilidadException(
-          "la habitación no está a la venta para esas fechas y huéspedes");
-      }
-      var acordado = precio.get();
-      if ((totalEsperadoCents != null
-          && (totalEsperadoCents.longValue() != acordado.totalCents()
-            || (monedaEsperada != null && !monedaEsperada.equalsIgnoreCase(acordado.moneda()))))
-          || (ratePlanIdEsperado != null && ratePlanIdEsperado.longValue() != acordado.ratePlanId())) {
-        throw new PrecioCambiadoException(acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
+      //
+      // Con plan esperado se valida ESE plan, no el primero: comparar contra el primero
+      // atrapaba al huésped en conflictos aunque aceptara, y al aceptar lo cambiaba de
+      // plan en silencio. Si el plan ya no cubre, se ofrece lo vigente para reconfirmar.
+      final InventarioService.PrecioAcordado acordado;
+      if (ratePlanIdEsperado == null) {
+        var precio = inventario.precioDe(datos.roomId(), datos.llegada(), datos.salida(), datos.huespedes());
+        if (precio.isEmpty()) {
+          throw new SinDisponibilidadException(
+            "la habitación no está a la venta para esas fechas y huéspedes");
+        }
+        acordado = precio.get();
+        if (totalEsperadoCents != null
+            && (totalEsperadoCents.longValue() != acordado.totalCents()
+              || (monedaEsperada != null && !monedaEsperada.equalsIgnoreCase(acordado.moneda())))) {
+          throw new PrecioCambiadoException(acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
+        }
+      } else {
+        var especifico = inventario.precioDe(datos.roomId(), datos.llegada(), datos.salida(),
+          datos.huespedes(), ratePlanIdEsperado.longValue());
+        if (especifico.isPresent()) {
+          acordado = especifico.get();
+          if (totalEsperadoCents != null
+              && (totalEsperadoCents.longValue() != acordado.totalCents()
+                || (monedaEsperada != null && !monedaEsperada.equalsIgnoreCase(acordado.moneda())))) {
+            throw new PrecioCambiadoException(acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
+          }
+        } else {
+          var vigente = inventario.precioDe(datos.roomId(), datos.llegada(), datos.salida(), datos.huespedes());
+          if (vigente.isEmpty()) {
+            throw new SinDisponibilidadException(
+              "la habitación no está a la venta para esas fechas y huéspedes");
+          }
+          acordado = vigente.get();
+          throw new PrecioCambiadoException(acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
+        }
       }
       String codigo = generarCodigo();
       long id = repo.insertar(codigo, datos, clave,

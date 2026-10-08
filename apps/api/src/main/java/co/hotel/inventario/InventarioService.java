@@ -220,6 +220,22 @@ public class InventarioService {
   }
 
   /**
+   * Precio con un plan concreto: lo que el huésped eligió en la búsqueda. Vacío si el plan
+   * no existe, está inactivo o no cubre el periodo; quien llama ofrece entonces lo vigente.
+   */
+  public java.util.Optional<PrecioAcordado> precioDe(long roomId, LocalDate desde, LocalDate hasta,
+      int huespedes, long planId) {
+    return inventario.habitacionPorId(roomId)
+      .filter(h -> h.estado() == EstadoHabitacion.ACTIVA)
+      .flatMap(h -> inventario.tipoPorId(h.roomTypeId())
+        .filter(t -> t.capacidadMax() >= huespedes)
+        .flatMap(t -> tarifas.planPorId(planId)
+          .filter(PlanTarifario::activo)
+          .flatMap(plan -> detalleParaPlan(t, plan, desde, hasta)
+            .map(p -> new PrecioAcordado(p.total(), p.plan().moneda(), p.plan().id())))));
+  }
+
+  /**
    * Habitaciones libres cuyo precio se puede totalizar. Cada habitación sale una vez por plan con
    * tarifa completa: el huésped elige entre planes reales (flexible, promo…), no recibe solo el
    * primero. Quedan fuera las que no alcanzan la capacidad, las noches cerradas o sin tarifa y
