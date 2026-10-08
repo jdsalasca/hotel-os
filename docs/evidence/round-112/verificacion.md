@@ -33,6 +33,9 @@ años de conversación obligaba al navegador a traer miles de filas de una vez.
 ## Despliegue
 - Merge a `develop`, push y `compose up -d --build` en TopNUC con
   `GET /api/health → {"estado":"ok"}` verificado después.
+- Post-merge en `develop`: `Tests run: 388, Failures: 0, Errors: 0, Skipped: 1`
+  + `BUILD SUCCESS` (383 de la ronda + 5 del trabajo paralelo de indicadores,
+  todos verdes juntos).
 - Nota: al cerrar había cambios sin commitear en
   `apps/api/.../indicadores/IndicadoresRepository.java` e
   `IndicadoresServiceTest.java` que NO son de esta ronda (trabajo paralelo de
