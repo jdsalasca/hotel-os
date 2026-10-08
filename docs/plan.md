@@ -437,6 +437,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   plan y apertura por separado; sin llaves React duplicadas. TDD 3/3, suite 12/45,
   `tsc` ×2 y build OK, verificado en vivo con ofertas reales + capturas. Evidencia:
   `docs/evidence/round-118/verificacion.md`.
+- [x] **Ronda 119 - El panel ignora las lecturas viejas (Etapa E).** Contadores en
+  tarifas (plan/mes/tipo) y servicios del panel: la respuesta tardía no pinta ni
+  deja baseline equivocado para el lote. TDD 3/3 con orden invertido, suite 14/48,
+  `tsc` ×2 OK, grilla real verificada en vivo + capturas. Evidencia:
+  `docs/evidence/round-119/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
