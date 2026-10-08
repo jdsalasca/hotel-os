@@ -99,33 +99,71 @@ public class TarifaService {
 
   /**
    * Previa de un lote: valida cada fila y dice qué se guardaría, sin escribir nada.
-   * Lo inválido no aborta la previa: cada fila trae su propio motivo.
+   * Lo inválido no aborta la previa: cada fila trae su propio motivo. Las noches del
+   * rango viajan una vez, no una por fila.
    */
   public PreviaLote previsualizarLote(long planId, long tipoId, java.util.List<CambioNoche> cambios) {
-    validarLoteBasico(planId, tipoId, cambios);
-    return new PreviaLote(cambios.stream().map(c -> filaPrevia(planId, tipoId, c)).toList());
+    return resolverLote(planId, tipoId, cambios).previa();
   }
 
   /**
    * Aplica un lote en una sola transacción: una fila inválida revierte todo y responde
-   * con el detalle por fila. Lo omitido se conserva, incluido el cierre.
+   * con el detalle por fila. Lo omitido se conserva, incluido el cierre. No resuelve dos
+   * veces ni relee lo que acaba de guardar: lo resuelto es lo que se escribe.
    */
   public java.util.List<TarifaRepository.TarifaNoche> aplicarLote(long planId, long tipoId,
       java.util.List<CambioNoche> cambios) {
-    validarLoteBasico(planId, tipoId, cambios);
-    var previa = previsualizarLote(planId, tipoId, cambios);
-    if (!previa.lista()) throw new LoteRechazadoException(previa);
-    var resueltas = cambios.stream()
-      .map(c -> resolverNoche(planId, tipoId, c.fecha(), c.precioCents(), c.minEstancia(),
-        c.maxEstancia(), c.cerrado()))
-      .toList();
+    var resuelto = resolverLote(planId, tipoId, cambios);
+    if (!resuelto.previa().lista()) throw new LoteRechazadoException(resuelto.previa());
     return tx.enTransaccion(estado -> {
-      for (var r : resueltas)
+      var guardadas = new java.util.ArrayList<TarifaRepository.TarifaNoche>();
+      for (var r : resuelto.resueltas()) {
         repo.guardarNoche(planId, tipoId, r.fecha(), r.precio(), r.minimo(), r.maximo(), r.cerrada());
-      return resueltas.stream()
-        .map(r -> repo.nocheDe(planId, tipoId, r.fecha()).orElseThrow())
-        .toList();
+        guardadas.add(new TarifaRepository.TarifaNoche(r.fecha(), r.precio(), r.minimo(), r.maximo(),
+          r.cerrada()));
+      }
+      return guardadas;
     });
+  }
+
+  private record LoteResuelto(PreviaLote previa, java.util.List<ResueltaNoche> resueltas) {}
+
+  private LoteResuelto resolverLote(long planId, long tipoId, java.util.List<CambioNoche> cambios) {
+    validarLoteBasico(planId, tipoId, cambios);
+    var previas = previasPorFecha(planId, tipoId, cambios);
+    var filas = new java.util.ArrayList<FilaPrevia>();
+    var resueltas = new java.util.ArrayList<ResueltaNoche>();
+    for (CambioNoche c : cambios) {
+      if (c.fecha() == null) {
+        filas.add(new FilaPrevia(null, false, "la fecha es obligatoria", null, false, false));
+        continue;
+      }
+      try {
+        var r = resolverConPrevia(c.fecha(), c.precioCents(), c.minEstancia(), c.maxEstancia(),
+          c.cerrado(), java.util.Optional.ofNullable(previas.get(c.fecha())));
+        resueltas.add(r);
+        filas.add(new FilaPrevia(c.fecha(), true, "", r.precio(), r.cerrada(), r.crea()));
+      } catch (DatosInvalidosException e) {
+        filas.add(new FilaPrevia(c.fecha(), false, e.getMessage(), null, false, false));
+      }
+    }
+    return new LoteResuelto(new PreviaLote(filas), resueltas);
+  }
+
+  /** Las noches del rango que cubre el lote, en una sola lectura indexada por fecha. */
+  private java.util.Map<LocalDate, TarifaRepository.TarifaNoche> previasPorFecha(long planId,
+      long tipoId, java.util.List<CambioNoche> cambios) {
+    LocalDate min = null;
+    LocalDate max = null;
+    for (CambioNoche c : cambios) {
+      if (c.fecha() == null) continue;
+      if (min == null || c.fecha().isBefore(min)) min = c.fecha();
+      if (max == null || c.fecha().isAfter(max)) max = c.fecha();
+    }
+    var mapa = new java.util.HashMap<LocalDate, TarifaRepository.TarifaNoche>();
+    if (min == null) return mapa;
+    for (var n : repo.nochesDelPeriodo(planId, tipoId, min, max.plusDays(1))) mapa.put(n.fecha(), n);
+    return mapa;
   }
 
   private void validarLoteBasico(long planId, long tipoId, java.util.List<CambioNoche> cambios) {
@@ -139,31 +177,25 @@ public class TarifaService {
       throw new DatosInvalidosException("tipo de habitación no encontrado");
   }
 
-  private FilaPrevia filaPrevia(long planId, long tipoId, CambioNoche c) {
-    if (c.fecha() == null)
-      return new FilaPrevia(null, false, "la fecha es obligatoria", null, false, false);
-    try {
-      var r = resolverNoche(planId, tipoId, c.fecha(), c.precioCents(), c.minEstancia(),
-        c.maxEstancia(), c.cerrado());
-      return new FilaPrevia(c.fecha(), true, "", r.precio(), r.cerrada(), r.crea());
-    } catch (DatosInvalidosException e) {
-      return new FilaPrevia(c.fecha(), false, e.getMessage(), null, false, false);
-    }
-  }
-
   private record ResueltaNoche(LocalDate fecha, long precio, Integer minimo, Integer maximo,
                                boolean cerrada, boolean crea) {}
 
   private ResueltaNoche resolverNoche(long planId, long tipoId, LocalDate fecha,
       Long precioCents, Integer minEstancia, Integer maxEstancia, Boolean cerrado) {
     if (fecha == null) throw new DatosInvalidosException("la fecha es obligatoria");
+    return resolverConPrevia(fecha, precioCents, minEstancia, maxEstancia, cerrado,
+      repo.nocheDe(planId, tipoId, fecha));
+  }
+
+  private ResueltaNoche resolverConPrevia(LocalDate fecha,
+      Long precioCents, Integer minEstancia, Integer maxEstancia, Boolean cerrado,
+      java.util.Optional<TarifaRepository.TarifaNoche> previa) {
     if (precioCents != null && precioCents < 0)
       throw new DatosInvalidosException("el precio no puede ser negativo");
     if (minEstancia != null && minEstancia < 1)
       throw new DatosInvalidosException("la estancia mínima debe ser al menos 1 noche");
     if (maxEstancia != null && maxEstancia < 1)
       throw new DatosInvalidosException("la estancia máxima debe ser al menos 1 noche");
-    var previa = repo.nocheDe(planId, tipoId, fecha);
     if (previa.isEmpty() && precioCents == null) {
       throw new DatosInvalidosException(
         "la noche no existe: fija primero el precio para crearla");

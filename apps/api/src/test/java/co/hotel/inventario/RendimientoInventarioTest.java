@@ -106,7 +106,7 @@ class RendimientoInventarioTest {
     var dias = svc.calendarioMensual(YearMonth.parse("2026-11"), 2);
 
     assertEquals(30, dias.size());
-    assertTrue(contador.consultas() <= 12,
+    assertTrue(contador.consultas() <= 10,
       "1 habitaciones + 1 reservas + 1 bloqueos + 1 tipos + 1 planes + 1 tipo × 2 "
         + "meses-tarifa, fue " + contador.consultas());
   }

@@ -308,6 +308,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 91 - Bloquear lo inexistente o sin fechas es 400 (Etapa F).**
   Habitación inexistente y fechas nulas: 400 con motivo y sin filas, no 500.
   Evidencia: `docs/evidence/round-91/verificacion.md`.
+- [x] **Ronda 99 - El lote lee el rango una vez y no resuelve dos veces (Etapa L).**
+  Previa de 10 en 3 lecturas y aplicar en 13 sentencias, con cotas que truenan.
+  Evidencia: `docs/evidence/round-99/verificacion.md`.
 - [x] **Ronda 94 - Canales conectados cuenta canales, no intentos (Etapa D).**
   Conectados (configurados con sync exitosa) sobre configurados; sin ellos,
   SIN_DATOS. El `round-94/` lo ocupa la Ronda 94 del colega; esta evidencia vive
