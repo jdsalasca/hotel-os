@@ -395,4 +395,38 @@ class ReservaServiceTest {
   private int contar(String tabla) {
     return jdbc.queryForObject("SELECT COUNT(*) FROM " + tabla, Integer.class);
   }
+
+  @Nested
+  @DisplayName("hacia el pasado no se reserva")
+  class Pasado {
+    // Una PENDIENTE en el pasado es un sinsentido (nacería siendo no-show): se rechaza
+    // en la frontera con 400, no se guarda para que otro informe la encuentre.
+
+    @Test void llegadaPasadaSeRechazaSinEscribir() {
+      var ex = assertThrows(DatosInvalidosException.class,
+        () -> crear("ayer@example.com", "2026-01-10", "2026-01-12", 1));
+      assertTrue(ex.getMessage().contains("pasado") || ex.getMessage().contains("llegada"),
+        "el motivo debe decir que es el pasado: " + ex.getMessage());
+      assertEquals(0, contar("reservations"));
+    }
+
+    @Test void laLlegadaDeHoySiSeAcepta() {
+      // Candado contra el off-by-one: hoy todavía es reservable (el walk-in existe).
+      LocalDate hoy = LocalDate.now();
+      for (int i = 0; i < 3; i++) {
+        jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,cerrado)"
+          + " VALUES(1,1,?,150000,0)", hoy.plusDays(i).toString());
+      }
+      String codigo = crear("hoy@example.com", hoy.toString(), hoy.plusDays(2).toString(), 1);
+      assertNotNull(codigo);
+    }
+
+    @Test void moverAlPasadoSeRechaza() {
+      String codigo = crear("mueve@example.com", "2026-11-01", "2026-11-03", 1);
+      var ex = assertThrows(DatosInvalidosException.class,
+        () -> svc.cambiarFechas(codigo, LocalDate.parse("2026-01-10"), LocalDate.parse("2026-01-12"),
+          "admin@hotel.test"));
+      assertEquals("2026-11-01", svc.buscar(codigo).orElseThrow().llegada().toString());
+    }
+  }
 }

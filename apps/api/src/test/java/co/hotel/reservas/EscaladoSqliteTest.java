@@ -145,7 +145,9 @@ class EscaladoSqliteTest {
     JdbcTemplate jdbc = new JdbcTemplate(ds);
     for (int i = 2; i <= 10; i++)
       jdbc.update("INSERT INTO rooms(codigo,estado,nombre) VALUES(?,'ACTIVA',?)", String.valueOf(100 + i), "H" + i);
-    HotelDePrueba.tarifarTodo(jdbc, java.time.LocalDate.parse("2026-01-01"), java.time.LocalDate.parse("2026-04-05"));
+    // Fechas futuras a propósito: desde la R141 el alta rechaza llegadas pasadas y este
+    // test mide caudal, no historia (para historia con pasado está tamañoDeArchivoTrasHistorial).
+    HotelDePrueba.tarifarTodo(jdbc, java.time.LocalDate.parse("2026-11-01"), java.time.LocalDate.parse("2027-02-10"));
 
     int reservas = 300;
     long inicio = System.nanoTime();
@@ -155,7 +157,7 @@ class EscaladoSqliteTest {
       // reservas de una misma habitación nunca se solapan entre sí.
       int dia = (i / 10) * 3 + 1;
       svc.crear(new CrearReserva("h" + i + "@example.com", "Huésped " + i,
-        LocalDate.parse("2026-01-01").plusDays(dia), LocalDate.parse("2026-01-01").plusDays(dia + 2),
+        LocalDate.parse("2026-11-01").plusDays(dia), LocalDate.parse("2026-11-01").plusDays(dia + 2),
         2, Origen.WEB, UUID.randomUUID().toString(), habitacion));
     }
     double segundos = (System.nanoTime() - inicio) / 1_000_000_000.0;

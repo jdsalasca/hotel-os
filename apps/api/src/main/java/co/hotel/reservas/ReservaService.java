@@ -204,6 +204,9 @@ public class ReservaService {
     if (llegada == null || salida == null || !llegada.isBefore(salida)) {
       throw new DatosInvalidosException("la salida debe ser posterior a la llegada");
     }
+    if (llegada.isBefore(java.time.LocalDate.now())) {
+      throw new DatosInvalidosException("la llegada no puede ser en el pasado");
+    }
     return tx.enTransaccion(estado -> {
       var actual = repo.porCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
       if (!actual.estado().vigente()) {
@@ -264,6 +267,10 @@ public class ReservaService {
       throw new DatosInvalidosException("fechas requeridas");
     if (!datos.llegada().isBefore(datos.salida()))
       throw new DatosInvalidosException("la salida debe ser posterior a la llegada");
+    // Una PENDIENTE en el pasado nacería siendo no-show: se rechaza en la frontera.
+    // Hoy sí vale (el walk-in existe). Vale para web, panel y lo que venga.
+    if (datos.llegada().isBefore(java.time.LocalDate.now()))
+      throw new DatosInvalidosException("la llegada no puede ser en el pasado");
     if (datos.huespedes() < 1)
       throw new DatosInvalidosException("número de huéspedes inválido");
     if (datos.origen() == null)
