@@ -119,6 +119,19 @@ class AdminReservaPropiaTest {
   }
 
   @Test
+  @DisplayName("ni con identidad previa la reserva ajena se engancha")
+  void adminConIdentidadReservaAjenaNoSeEngancha() throws Exception {
+    // La primera reserva propia le crea la identidad de panel; la segunda, para otro
+    // correo con la misma sesión, igual queda anónima: tener fila no es probar propiedad.
+    reservarComo(cuerpo("admin@hotel.test", "2026-12-03", "2026-12-05"), "admin@hotel.test");
+    String ajena = reservarComo(cuerpo("otro@hotel.test", "2026-12-06", "2026-12-08"),
+      "admin@hotel.test");
+
+    assertNull(jdbc.queryForObject("SELECT usuario_id FROM reservations WHERE codigo=?",
+      Long.class, ajena));
+  }
+
+  @Test
   @DisplayName("sin sesión nada se engancha")
   void anonimaNoSeEngancha() throws Exception {
     String codigo = reservarComo(cuerpo("anon@hotel.test", "2026-12-20", "2026-12-22"), null);

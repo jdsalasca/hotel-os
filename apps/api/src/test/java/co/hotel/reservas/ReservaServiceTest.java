@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import co.hotel.auditoria.AuditoriaRepository;
 import co.hotel.auditoria.AuditoriaService;
+import co.hotel.huespedes.ReservaServiceHuesped;
+import co.hotel.huespedes.UsuariosHuespedRepository;
 import co.hotel.inventario.InventarioRepository;
 import co.hotel.inventario.InventarioService;
 import co.hotel.inventario.TarifaRepository;
@@ -91,7 +93,7 @@ class ReservaServiceTest {
     var inventario = new InventarioService(new InventarioRepository(jdbc), new TarifaRepository(jdbc),
       new SqliteTransactionExecutor(dataSource));
     this.svc = new ReservaService(new ReservaRepository(jdbc), new SqliteTransactionExecutor(dataSource),
-      auditoria, inventario);
+      auditoria, inventario, new ReservaServiceHuesped(jdbc, new UsuariosHuespedRepository(jdbc)));
   }
 
   private String crear(String email, String llegada, String salida, long roomId) {

@@ -1,6 +1,7 @@
 package co.hotel.reservas;
 
 import co.hotel.auditoria.AuditoriaService;
+import co.hotel.huespedes.ReservaServiceHuesped;
 import co.hotel.inventario.InventarioService;
 import java.time.LocalDate;
 import java.util.List;
@@ -24,13 +25,15 @@ public class ReservaService {
   private final SqliteTransactionExecutor tx;
   private final AuditoriaService auditoria;
   private final InventarioService inventario;
+  private final ReservaServiceHuesped huespedes;
 
   public ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
-                        InventarioService inventario) {
+                        InventarioService inventario, ReservaServiceHuesped huespedes) {
     this.repo = repo;
     this.tx = tx;
     this.auditoria = auditoria;
     this.inventario = inventario;
+    this.huespedes = huespedes;
   }
 
   public String crear(CrearReserva datos) {
@@ -54,6 +57,17 @@ public class ReservaService {
    */
   public String crear(CrearReserva datos, Long totalEsperadoCents, String monedaEsperada,
                       Long ratePlanIdEsperado) {
+    return crear(datos, totalEsperadoCents, monedaEsperada, ratePlanIdEsperado, null);
+  }
+
+  /**
+   * Alta enganchando la reserva a la cuenta en la misma unidad transaccional. El controlador
+   * ya comprobó que la sesión reclama su propio correo; aquí el enganche corre junto al alta:
+   * si el vínculo falla, la reserva tampoco se guarda y no queda huérfana. El reintento
+   * idempotente también engancha, con el mismo resguardo de no pisar dueño.
+   */
+  public String crear(CrearReserva datos, Long totalEsperadoCents, String monedaEsperada,
+                      Long ratePlanIdEsperado, Long usuarioId) {
     validar(datos);
     String clave = (datos.claveIdempotencia() == null || datos.claveIdempotencia().isBlank())
         ? UUID.randomUUID().toString() : datos.claveIdempotencia();
@@ -73,6 +87,7 @@ public class ReservaService {
           throw new ConflictoIdempotenciaException(
             "esa clave de idempotencia ya creó otra reserva: repite la petición original o usa una clave nueva");
         }
+        if (usuarioId != null) huespedes.vincular(existente.get(), usuarioId);
         return existente.get();
       }
 
@@ -102,6 +117,7 @@ public class ReservaService {
         acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
       repo.insertarLinea(id, datos.roomId(), datos.llegada(), datos.salida());
       auditoria.cambioEstado(id, null, EstadoReserva.PENDIENTE.name(), datos.origen().name());
+      if (usuarioId != null) huespedes.vincular(codigo, usuarioId);
       return codigo;
     });
   }

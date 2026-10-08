@@ -83,22 +83,24 @@ public class ReservaController {
       }
       var datos = new CrearReserva(req.email(), req.nombre(), llegada, salida,
         h, Origen.WEB, clave, habitacion);
+      // Si quien reserva tiene sesión, la reserva queda colgando de su cuenta para que la vea
+      // en "Mis reservas", pero solo si reclama SU correo: con la sesión abierta y otro correo
+      // en el cuerpo no hay prueba de propiedad y queda NULL, consultable por código + correo.
+      // El personal del panel reserva para sí mismo con su propio correo: ahí se le crea su
+      // identidad de huésped. Si reserva para otro correo (recepción), no se engancha a nadie.
+      // El id viaja al servicio para engancharse en la misma transacción del alta.
+      String correoSesion = co.hotel.huespedes.ActualCorreo.deSesion();
+      String emailPedido = req.email() == null ? "" : req.email().trim();
+      Long idUsuario = null;
+      if (correoSesion != null && !emailPedido.isEmpty()
+        && correoSesion.equalsIgnoreCase(emailPedido)) {
+        idUsuario = servicioHuespedes.idPorEmail(correoSesion);
+        if (idUsuario == null && esAdmin()) idUsuario = servicioHuespedes.identidadPanelPara(correoSesion);
+      }
       // El importe que el huésped vio en la búsqueda viaja con la petición: si la tarifa se
       // movió entre medias, el servicio lo rechaza con el vigente en vez de colarlo.
       String codigo = svc.crear(datos, req.totalEsperadoCents(), req.monedaEsperada(),
-        req.ratePlanIdEsperado());
-      // Si quien reserva tiene sesión de huésped, la reserva queda colgando de su cuenta para que
-      // la vea en "Mis reservas". Si no, usuario_id queda NULL y sigue siendo consultable por
-      // código + correo: nadie pierde su reserva por no haber entrado con Google. El personal del
-      // panel reserva para sí mismo con su propio correo: ahí se le crea su identidad de huésped.
-      // Si reserva para otro correo (recepción), no se engancha a nadie.
-      String correoSesion = co.hotel.huespedes.ActualCorreo.deSesion();
-      Long idUsuario = correoSesion == null ? null : servicioHuespedes.idPorEmail(correoSesion);
-      if (idUsuario == null && correoSesion != null && esAdmin()
-        && correoSesion.equalsIgnoreCase(req.email())) {
-        idUsuario = servicioHuespedes.identidadPanelPara(correoSesion);
-      }
-      if (idUsuario != null) servicioHuespedes.vincular(codigo, idUsuario);
+        req.ratePlanIdEsperado(), idUsuario);
       return ResponseEntity.status(201).body(ReservaResp.de(svc.buscar(codigo).orElseThrow(),
         "Reserva registrada. Queda pendiente de confirmación: el hotel aún no ha configurado pago ni "
           + "confirmación automática."));

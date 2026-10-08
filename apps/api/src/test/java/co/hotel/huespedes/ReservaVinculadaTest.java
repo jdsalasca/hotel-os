@@ -3,6 +3,7 @@ package co.hotel.huespedes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -11,6 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import co.hotel.pruebas.HotelDePrueba;
+import co.hotel.reservas.CrearReserva;
+import co.hotel.reservas.Origen;
+import co.hotel.reservas.ReservaService;
 import java.nio.file.Files;
 import java.time.LocalDate;
 import java.nio.file.Path;
@@ -58,6 +62,7 @@ class ReservaVinculadaTest {
 
   @Autowired MockMvc mvc;
   @Autowired JdbcTemplate jdbc;
+  @Autowired ReservaService svc;
 
   @BeforeEach
   void inventario() {
@@ -115,6 +120,76 @@ class ReservaVinculadaTest {
     mvc.perform(get("/api/reservas/" + codigo).param("email", "huesped@hotel.test"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.codigo").value(codigo));
+  }
+
+  @Test
+  @DisplayName("con sesión, reservar para otro correo no se engancha a la cuenta")
+  void reservarParaOtroCorreoNoSeEngancha() throws Exception {
+    // La sesión es de huesped@hotel.test pero la reserva es para otro@: con el
+    // correo distinto no hay prueba de propiedad y la reserva queda anónima.
+    jdbc.update("INSERT INTO usuarios(google_sub,email,nombre,creado_en) VALUES('sub-otro',"
+      + "'huesped@hotel.test','Huésped','2030-01-01')");
+    var huesped = user("huesped@hotel.test").roles("HUESPED");
+    Map<String, Object> cuerpo = new java.util.HashMap<>(siguiente());
+    cuerpo.put("email", "otro@hotel.test");
+    cuerpo.put("llegada", "2030-03-10");
+    cuerpo.put("salida", "2030-03-12");
+    cuerpo.put("roomId", 2);
+
+    String respuesta = mvc.perform(post("/api/reservas").with(huesped).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(cuerpo)))
+      .andExpect(status().isCreated())
+      .andReturn().getResponse().getContentAsString();
+    String codigo = JSON.readTree(respuesta).get("codigo").asText();
+
+    assertNull(jdbc.queryForObject("SELECT usuario_id FROM reservations WHERE codigo=?",
+      Long.class, codigo), "para otro correo no se engancha a la sesión abierta");
+
+    mvc.perform(get("/api/mis-reservas").with(huesped))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.reservas[?(@.codigo=='" + codigo + "')]").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("con el correo duplicado no hay 500: se engancha a la cuenta más antigua")
+  void correoDuplicadoNoEs500() throws Exception {
+    // Dos cuentas con el mismo correo (panel + Google): la petición con ese correo sale
+    // 201 contra la más antigua, en vez de reventar resolviendo el id.
+    jdbc.update("INSERT INTO usuarios(google_sub,email,nombre,creado_en) VALUES('panel:dup@hotel.test',"
+      + "'dup@hotel.test','Panel','2030-01-01')");
+    jdbc.update("INSERT INTO usuarios(google_sub,email,nombre,creado_en) VALUES('sub-dup',"
+      + "'dup@hotel.test','Dup','2030-01-02')");
+    Long antigua = jdbc.queryForObject("SELECT MIN(id) FROM usuarios WHERE email='dup@hotel.test'",
+      Long.class);
+    Map<String, Object> cuerpo = new java.util.HashMap<>(siguiente());
+    cuerpo.put("email", "dup@hotel.test");
+    cuerpo.put("llegada", "2030-05-10");
+    cuerpo.put("salida", "2030-05-12");
+    cuerpo.put("roomId", 2);
+
+    String respuesta = mvc.perform(post("/api/reservas").with(user("dup@hotel.test").roles("HUESPED"))
+        .with(csrf()).contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(cuerpo)))
+      .andExpect(status().isCreated())
+      .andReturn().getResponse().getContentAsString();
+    String codigo = JSON.readTree(respuesta).get("codigo").asText();
+
+    assertEquals(antigua, jdbc.queryForObject("SELECT usuario_id FROM reservations WHERE codigo=?",
+      Long.class, codigo), "desempate determinista por antigüedad");
+  }
+
+  @Test
+  @DisplayName("si el vínculo falla, la reserva tampoco se guarda")
+  void vinculoFallidoNoDejaHuerfana() {
+    // Un usuario_id inexistente viola la FK al enganchar: el alta entera revierte en la
+    // misma unidad, en vez de dejar la reserva huérfana como con las dos escrituras.
+    int antes = jdbc.queryForObject("SELECT COUNT(*) FROM reservations", Integer.class);
+    assertThrows(org.springframework.dao.DataAccessException.class, () ->
+      svc.crear(new CrearReserva("huerfana@hotel.test", "H",
+        LocalDate.parse("2030-04-10"), LocalDate.parse("2030-04-12"), 1, Origen.WEB,
+        java.util.UUID.randomUUID().toString(), 2), null, null, null, 999999L));
+    assertEquals(antes, jdbc.queryForObject("SELECT COUNT(*) FROM reservations", Integer.class),
+      "el fallo del vínculo revierte el alta");
   }
 
   @Test

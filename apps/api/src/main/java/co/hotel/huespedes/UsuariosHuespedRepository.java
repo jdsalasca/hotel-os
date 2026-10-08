@@ -13,11 +13,17 @@ public class UsuariosHuespedRepository {
   /**
    * Id por correo, en minúsculas. La comparación sin mayúsculas es la misma que en el login, para
    * que Google y la web traten el correo igual.
+   *
+   * Si el correo está en más de una cuenta (p. ej. identidad de panel + login de Google con el
+   * mismo correo), se devuelve la más antigua en vez de reventar con 500: antes
+   * `queryForObject` exigía exactamente una fila y cualquier duplicado tumbaba la petición.
+   * Es un desempate determinista, no una identidad: resolver por (subject, issuer) en vez de
+   * por correo sigue pendiente.
    */
   public Long idPorEmail(String email) {
     if (email == null) return null;
     try {
-      return jdbc.queryForObject("SELECT id FROM usuarios WHERE lower(email)=lower(?)",
+      return jdbc.queryForObject("SELECT id FROM usuarios WHERE lower(email)=lower(?) ORDER BY id LIMIT 1",
         Long.class, email);
     } catch (org.springframework.dao.EmptyResultDataAccessException e) {
       return null;

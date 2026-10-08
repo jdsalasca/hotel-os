@@ -417,6 +417,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `hay_mas` en ambos GET, botón que antepone historia en huésped y panel.
   Backend 389 sin fallos, frontend 35/35, `tsc` limpio, `vite build` OK.
   Evidencia: `docs/evidence/round-114/verificacion.md`.
+- [x] **Ronda 115 - Reserva y vínculo a la cuenta en una sola unidad (Etapa G).**
+  Alta + enganche en la misma transacción (antes dos escrituras: huérfanas con 500);
+  la sesión solo reclama su propio correo (H3: huésped y admin con identidad previa);
+  `idPorEmail` determinista por antigüedad en vez de 500 con duplicados (H2 parcial).
+  TDD rojo-verde; suite 393/393. Evidencia: `docs/evidence/round-115/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.

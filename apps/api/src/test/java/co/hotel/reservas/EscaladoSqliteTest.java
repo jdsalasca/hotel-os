@@ -86,7 +86,9 @@ class EscaladoSqliteTest {
     var inventario = new co.hotel.inventario.InventarioService(new co.hotel.inventario.InventarioRepository(jdbc),
       new co.hotel.inventario.TarifaRepository(jdbc), tx);
     return new ReservaService(new ReservaRepository(jdbc), tx,
-      new AuditoriaService(new AuditoriaRepository(jdbc)), inventario);
+      new AuditoriaService(new AuditoriaRepository(jdbc)), inventario,
+      new co.hotel.huespedes.ReservaServiceHuesped(jdbc,
+        new co.hotel.huespedes.UsuariosHuespedRepository(jdbc)));
   }
 
   @Test
