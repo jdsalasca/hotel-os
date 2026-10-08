@@ -11,6 +11,13 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class TarifaService {
+  /**
+   * Techo técnico por noche en céntimos (100 millones en la moneda del plan): ninguna tarifa
+   * real se acerca, y con él ni un año de noches al tope desborda las sumas en long. No es
+   * una regla comercial, es el límite a partir del cual los totales dejarían de ser exactos.
+   */
+  public static final long PRECIO_MAXIMO_CENTS = 10_000_000_000L;
+
   private final TarifaRepository repo;
   private final InventarioRepository inventario;
   private final SqliteTransactionExecutor tx;
@@ -192,6 +199,9 @@ public class TarifaService {
       java.util.Optional<TarifaRepository.TarifaNoche> previa) {
     if (precioCents != null && precioCents < 0)
       throw new DatosInvalidosException("el precio no puede ser negativo");
+    if (precioCents != null && precioCents > PRECIO_MAXIMO_CENTS)
+      throw new DatosInvalidosException("el precio supera el máximo de "
+        + PRECIO_MAXIMO_CENTS + " céntimos por noche");
     if (minEstancia != null && minEstancia < 1)
       throw new DatosInvalidosException("la estancia mínima debe ser al menos 1 noche");
     if (maxEstancia != null && maxEstancia < 1)
@@ -213,6 +223,8 @@ public class TarifaService {
 
   public void fijarPrecio(PlanTarifario plan, long tipoId, LocalDate fecha, long precioCents) {
     if (precioCents < 0) throw new DatosInvalidosException("el precio no puede ser negativo");
+    if (precioCents > PRECIO_MAXIMO_CENTS) throw new DatosInvalidosException("el precio supera el máximo de "
+      + PRECIO_MAXIMO_CENTS + " céntimos por noche");
     repo.fijarPrecio(plan.id(), tipoId, fecha, precioCents);
   }
 

@@ -244,6 +244,52 @@ class InventarioServiceTest {
   }
 
   @Test
+  @DisplayName("un precio absurdo se rechaza: las sumas en long no pueden desbordar")
+  void precioEnormeSeRechaza() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    LocalDate dia = LocalDate.parse("2026-11-01");
+    assertThrows(DatosInvalidosException.class, () -> tarifas.fijarNoche(plan.id(), tipo.id(), dia,
+      TarifaService.PRECIO_MAXIMO_CENTS + 1, null, null, null));
+    assertThrows(DatosInvalidosException.class,
+      () -> tarifas.fijarPrecio(plan, tipo.id(), dia, TarifaService.PRECIO_MAXIMO_CENTS + 1));
+    assertTrue(tarifas.nocheDe(plan.id(), tipo.id(), dia).isEmpty(), "lo rechazado no se guarda");
+  }
+
+  @Test
+  @DisplayName("el tope suma exacto en un mes sin desbordar")
+  void topeMaximoSumaSinDesbordar() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    LocalDate desde = LocalDate.parse("2026-11-01");
+    var cambios = new java.util.ArrayList<TarifaService.CambioNoche>();
+    for (int i = 0; i < 30; i++) {
+      cambios.add(new TarifaService.CambioNoche(desde.plusDays(i),
+        TarifaService.PRECIO_MAXIMO_CENTS, null, null, null));
+    }
+    assertEquals(30, tarifas.aplicarLote(plan.id(), tipo.id(), cambios).size());
+    var detalle = svc.detalleOferta(
+      svc.crearHabitacion("101", tipo.id(), "Habitación 101").id(), desde, desde.plusDays(30), 2);
+    assertTrue(detalle.isPresent());
+    assertEquals(30 * TarifaService.PRECIO_MAXIMO_CENTS, detalle.orElseThrow().totalCents());
+  }
+
+  @Test
+  @DisplayName("el lote rechaza el precio absurdo sin escribir nada")
+  void loteConPrecioEnormeNoEscribeNada() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario plan = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    var cambios = java.util.List.of(
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-01"), 10000L, null, null, null),
+      new TarifaService.CambioNoche(LocalDate.parse("2026-11-02"),
+        TarifaService.PRECIO_MAXIMO_CENTS + 1, null, null, null));
+    assertFalse(tarifas.previsualizarLote(plan.id(), tipo.id(), cambios).lista());
+    assertThrows(DatosInvalidosException.class,
+      () -> tarifas.aplicarLote(plan.id(), tipo.id(), cambios));
+    assertTrue(tarifas.nocheDe(plan.id(), tipo.id(), LocalDate.parse("2026-11-01")).isEmpty());
+  }
+
+  @Test
   @DisplayName("un plan con 20% de descuento rebaja el total y dice el original")
   void planConDescuentoRebajaElTotal() {
     RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);

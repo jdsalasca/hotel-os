@@ -308,6 +308,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 91 - Bloquear lo inexistente o sin fechas es 400 (Etapa F).**
   Habitación inexistente y fechas nulas: 400 con motivo y sin filas, no 500.
   Evidencia: `docs/evidence/round-91/verificacion.md`.
+- [x] **Ronda 104 - Tope técnico de precio contra desbordes (Etapa I).**
+  `PRECIO_MAXIMO_CENTS` en todas las vías de escritura; un mes al tope suma exacto.
+  Evidencia: `docs/evidence/round-104/verificacion.md`.
 - [x] **Ronda 99 - El lote lee el rango una vez y no resuelve dos veces (Etapa L).**
   Previa de 10 en 3 lecturas y aplicar en 13 sentencias, con cotas que truenan.
   El `round-99/` lo ocupa la Ronda 99 del colega; ver `round-101/`. Evidencia:
