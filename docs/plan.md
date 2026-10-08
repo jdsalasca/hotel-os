@@ -299,6 +299,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `docs/evidence/round-73/verificacion.md`.
 - [ ] **Nota de coordinación.** Las rondas 60-67 son mías; el colega lleva 68-72 y otras sin
   registrar en el plan. Antes de crear evidencia, listar el directorio (ya me pasó una vez).
+- [x] **Ronda 77 - Lo del colega a prod, verificado.** Sus suites en verde, deploy de todo
+  origin y verificación viva (health, amenidades, lugares, web). Evidencia:
+  `docs/evidence/round-77/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
