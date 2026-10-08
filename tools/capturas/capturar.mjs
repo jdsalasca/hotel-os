@@ -12,27 +12,52 @@ const MOVIL = devices['iPhone 13'];
 
 // Errores de consola y de red: si algo falla al cargar estilos o datos, hay que enterarse,
 // no guardar una captura bonita de una pantalla rota.
-// El 401 al preguntar por la sesión antes de entrar es el comportamiento correcto del panel.
+// El 401 al preguntar por la sesión antes de entrar es el comportamiento correcto del panel, y
+// el ruido de consola que deja ya se filtra por nombre en el listener de respuestas de abajo.
 const IGNORAR = [/Failed to load resource.*401/];
 const ignorables = (t) => IGNORAR.some((r) => r.test(t));
 
 const problemas = [];
 
+// Las únicas respuestas que NO son un fallo, y son las tres misma cosa: preguntar si hay sesión
+// cuando no la hay. El 401 es la respuesta correcta, no un error del hotel. Con el 401 ya no se
+// filtra "todo 401" (tapaba también los de las rutas de verdad), sino estos y solo mientras no se
+// ha entrado: si la sesión se cae después, ese mismo 401 sí hay que verlo.
+// El contador de mensajes responde igual a un admin, que no es huésped y por eso no tiene hilo:
+// se espera siempre un 401 ahí.
+const PROBES_SESION = ['/api/yo', '/api/admin/sesion'];
+const SOLO_HUESPE = '/api/mis-reservas/mensajes/nuevos';
+let sesionAdmin = false;
+const esperada = (ruta) =>
+  ruta.endsWith(SOLO_HUESPE) || (!sesionAdmin && PROBES_SESION.some((p) => ruta.endsWith(p)));
+
 async function nuevaPagina(browser, opciones) {
   const contexto = await browser.newContext(opciones);
   const pagina = await contexto.newPage();
+  // Cada contexto nace sin cookies: la siguiente vuelta (móvil) vuelve a estar sin sesión, así
+  // que el 401 de la pregunta inicial vuelve a ser lo esperado.
+  sesionAdmin = false;
   pagina.on('console', (m) => {
     if (m.type() === 'error' && !ignorables(m.text())) problemas.push(`consola: ${m.text()}`);
   });
   pagina.on('response', async (r) => {
-    if (r.url().includes('/api/') && r.request().method() !== 'GET') {
+    const url = r.url();
+    if (!url.includes('/api/')) return;
+    const ruta = url.split('?')[0];
+    // Antes solo miraba las escrituras: un GET caido (datos que no llegan, tabla vacía) pasaba
+    // desapercibido y la captura documentaba una pantalla rota como si fuera correcta.
+    if (r.status() < 400) {
+      if (r.request().method() === 'GET') return;
       const cuerpo = await r.text().catch(() => '');
-      if (r.status() >= 400) {
-        problemas.push(`api ${r.status()} ${r.url()}: ${cuerpo.slice(0, 200)}`);
-      } else {
-        console.log(`api ok ${r.status()} ${r.url()} -> ${cuerpo.slice(0, 120)}`);
-      }
+      console.log(`api ok ${r.status()} ${url} -> ${cuerpo.slice(0, 120)}`);
+      return;
     }
+    if (r.status() === 401 && r.request().method() === 'GET' && esperada(ruta)) {
+      console.log(`api esperado ${r.status()} GET ${ruta} (pregunta por la sesión)`);
+      return;
+    }
+    const cuerpo = await r.text().catch(() => '');
+    problemas.push(`api ${r.status()} ${r.request().method()} ${url}: ${cuerpo.slice(0, 200)}`);
   });
   return { contexto, pagina };
 }
@@ -70,6 +95,9 @@ async function iniciarSesion(pagina) {
   await pagina.fill('#admin-clave', 'admin');
   await pagina.click('button[type=submit]');
   await pagina.waitForResponse((r) => r.url().includes('/api/admin/login'));
+  // A partir de aquí ya hay sesión: un 401 en /api/admin/sesion sería una sesión caída, no la
+  // pregunta inicial, y el guion tiene que enterarse.
+  sesionAdmin = true;
 }
 
 // La CSP solo vale si está presente Y muerde. Comprobar el encabezado es fácil y no demuestra
