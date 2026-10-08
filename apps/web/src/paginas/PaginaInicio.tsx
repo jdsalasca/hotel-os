@@ -72,7 +72,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [buscado, setBuscado] = useState(false);
-  const [detalles, setDetalles] = useState<Record<number, DetalleOferta>>({});
+  const [detalles, setDetalles] = useState<Record<string, DetalleOferta>>({});
   const [servicios, setServicios] = useState<Record<number, string[]>>({});
   const [mapa, setMapa] = useState<{
     hotel: { ubicado: boolean; latitud?: number; longitud?: number };
@@ -89,8 +89,12 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       .then((datos) => setMapa(datos))
       .catch(() => setMapa(null));
   }, []);
-  const [detalleCargando, setDetalleCargando] = useState<Record<number, boolean>>({});
+  const [detalleCargando, setDetalleCargando] = useState<Record<string, boolean>>({});
   const [detalleAbierto, setDetalleAbierto] = useState<Record<number, boolean>>({});
+  /** La búsqueda que produjo las ofertas en pantalla: elegir usa este snapshot, no el
+   * formulario que el huésped pudo editar después sin volver a buscar. */
+  const [busqueda, setBusqueda] = useState<{ llegada: string; salida: string; huespedes: number } | null>(null);
+  const peticionBusqueda = useRef(0);
   const [mes, setMes] = useState(() => hoyIso().slice(0, 7));
   const [dias, setDias] = useState<DiaCalendario[]>([]);
   const [errorCal, setErrorCal] = useState<string | null>(null);
@@ -124,18 +128,24 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   }, [mes, huespedes]);
 
   async function buscarCon(llegadaIso: string, salidaIso: string, huespedesN: number) {
+    // Como el calendario: si el huésped lanza otra búsqueda antes de que vuelva esta,
+    // la tardía se ignora en vez de pintar el viaje anterior.
+    const id = ++peticionBusqueda.current;
     setError(null);
     setCargando(true);
     try {
       const consulta = new URLSearchParams({ llegada: llegadaIso, salida: salidaIso, huespedes: String(huespedesN) });
       const r = await api.get<RespuestaDisponibilidad>(`/api/disponibilidad?${consulta}`);
+      if (peticionBusqueda.current !== id) return;
       if (r.error) setError(r.error);
       setOfertas(r.ofertas ?? []);
+      setBusqueda({ llegada: llegadaIso, salida: salidaIso, huespedes: huespedesN });
       setBuscado(true);
     } catch (e) {
+      if (peticionBusqueda.current !== id) return;
       setError(e instanceof Error ? e.message : 'No se pudo consultar la disponibilidad');
     } finally {
-      setCargando(false);
+      if (peticionBusqueda.current === id) setCargando(false);
     }
   }
 
@@ -146,7 +156,10 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
 
   function elegir(oferta: Oferta) {    // Clave de idempotencia por intento: el respaldo cubre entornos sin secure context (HTTP local).
     const clave = nuevaClaveIdempotencia();
-    sessionStorage.setItem('reserva-en-curso', JSON.stringify({ ...oferta, llegada, salida, huespedes, clave }));
+    // Snapshot de la búsqueda que produjo la oferta: si el huésped editó el formulario
+    // después sin volver a buscar, la tarjeta vieja no se mezcla con los valores nuevos.
+    const base = busqueda ?? { llegada, salida, huespedes };
+    sessionStorage.setItem('reserva-en-curso', JSON.stringify({ ...oferta, ...base, clave }));
     navegar('/reserva');
   }
 
@@ -183,23 +196,26 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
   /** Desglose noche por noche de una oferta: el plan que la respalda y cada importe. */
   async function verDetalle(oferta: Oferta) {
     const id = oferta.habitacion.id;
+    // El detalle vale para unos parámetros concretos, no para la habitación en general:
+    // con otras fechas u otros huéspedes hay que volver a pedirlo.
+    const clave = `${id}|${llegada}|${salida}|${huespedes}`;
     if (detalleAbierto[id]) {
       setDetalleAbierto({ ...detalleAbierto, [id]: false });
       return;
     }
     setDetalleAbierto({ ...detalleAbierto, [id]: true });
-    if (detalles[id]) return;
-    setDetalleCargando({ ...detalleCargando, [id]: true });
+    if (detalles[clave]) return;
+    setDetalleCargando({ ...detalleCargando, [clave]: true });
     try {
       const consulta = new URLSearchParams({
         roomId: String(id), llegada, salida, huespedes: String(huespedes),
       });
       const r = await api.get<DetalleOferta>(`/api/disponibilidad/detalle?${consulta}`);
-      setDetalles({ ...detalles, [id]: r });
+      setDetalles((previos) => ({ ...previos, [clave]: r }));
     } catch {
       setDetalleAbierto({ ...detalleAbierto, [id]: false });
     } finally {
-      setDetalleCargando({ ...detalleCargando, [id]: false });
+      setDetalleCargando((previos) => ({ ...previos, [clave]: false }));
     }
   }
 
@@ -602,7 +618,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                 {ofertas.map((oferta) => {
                   const id = oferta.habitacion.id;
                   const abierto = !!detalleAbierto[id];
-                  const detalle = detalles[id];
+                  const detalle = detalles[`${id}|${llegada}|${salida}|${huespedes}`];
                   return (
                   <article className="tarjeta pila" key={id}>
                   <HuecoImagen texto="Fotografía de la habitación" />
@@ -645,7 +661,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                   >
                     {abierto ? 'Ocultar detalle' : 'Ver detalle por noche'}
                   </button>
-                  {detalleCargando[id] ? (
+                  {detalleCargando[`${id}|${llegada}|${salida}|${huespedes}`] ? (
                     <p className="cargando" role="status">Cargando el desglose…</p>
                   ) : null}
                   {abierto && detalle ? (

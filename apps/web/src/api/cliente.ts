@@ -72,7 +72,11 @@ async function peticion<T>(ruta: string, opciones: RequestInit = {}): Promise<T>
       headers: cabeceras,
       credentials: 'same-origin',
     });
-  } catch {
+  } catch (e) {
+    // Una cancelación deliberada (AbortSignal) no es "sin conexión": se propaga tal cual
+    // para que quien la pidió la ignore en silencio en vez de mostrar un error. Se mira el
+    // nombre y no el instanceof: cada reino (navegador, jsdom, Node) trae su DOMException.
+    if ((e as { name?: unknown } | null)?.name === 'AbortError') throw e;
     // Sin red no hay estado ni cuerpo: el TypeError de fetch no le dice nada a nadie.
     throw new ErrorApi(0, 'No hay conexión con el hotel. Revisa tu internet e inténtalo de nuevo.', null);
   }
@@ -99,16 +103,26 @@ async function peticion<T>(ruta: string, opciones: RequestInit = {}): Promise<T>
         : 'Error inesperado del hotel. Inténtalo de nuevo.';
     throw new ErrorApi(respuesta.status, mensaje, cuerpo);
   }
+  if (texto && cuerpo === null) {
+    // Un 200 con cuerpo no-JSON (página de error del proxy) no es un null tipado T:
+    // es un error de protocolo que hay que mostrar, no tragar.
+    throw new ErrorApi(respuesta.status,
+      'Respuesta inesperada del hotel (no es JSON). Inténtalo de nuevo.', null);
+  }
   return cuerpo as T;
 }
 
+/** Opciones de lectura: hoy solo la señal de cancelación, que viaja hasta fetch. */
+export type OpcionesLectura = Pick<RequestInit, 'signal'>;
+
 export const api = {
-  get: <T>(ruta: string) => peticion<T>(ruta),
-  post: <T>(ruta: string, cuerpo?: unknown) =>
-    peticion<T>(ruta, { method: 'POST', body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) }),
-  put: <T>(ruta: string, cuerpo?: unknown) =>
-    peticion<T>(ruta, { method: 'PUT', body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) }),
-  del: <T>(ruta: string) => peticion<T>(ruta, { method: 'DELETE' }),
+  get: <T>(ruta: string, opciones?: OpcionesLectura) => peticion<T>(ruta, { ...opciones }),
+  post: <T>(ruta: string, cuerpo?: unknown, opciones?: OpcionesLectura) =>
+    peticion<T>(ruta, { ...opciones, method: 'POST', body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) }),
+  put: <T>(ruta: string, cuerpo?: unknown, opciones?: OpcionesLectura) =>
+    peticion<T>(ruta, { ...opciones, method: 'PUT', body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) }),
+  del: <T>(ruta: string, opciones?: OpcionesLectura) =>
+    peticion<T>(ruta, { ...opciones, method: 'DELETE' }),
 };
 
 /**

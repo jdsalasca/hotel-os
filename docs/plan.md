@@ -264,6 +264,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `/api/health/vivo` (proceso, siempre 200) y `/api/health` como readiness real:
   503 degradado o inaccesible en vez de 200 con aviso. Evidencia:
   `docs/evidence/round-69/verificacion.md`.
+- [x] **Ronda 70 - Respuestas viejas no pintan + tests frontend (Etapa E/L).**
+  `signal` hasta `fetch`, `AbortError` sin mensaje, 200 no-JSON como error de
+  protocolo, `usePeticion` con id y `abortar`, búsqueda/detalle/elección con
+  snapshot en la pública y `npm test` con vitest (11 verdes). Evidencia:
+  `docs/evidence/round-70/verificacion.md`.
 - [ ] **Ronda 66 - Gestión descubrible.** Enlaces a Inventario desde la nav y desde los
   vacíos + test del saludo. En curso.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)

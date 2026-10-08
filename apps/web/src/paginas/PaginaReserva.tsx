@@ -305,7 +305,17 @@ function leerEnCurso(): EnCurso | null {
   const bruto = sessionStorage.getItem('reserva-en-curso');
   if (!bruto) return null;
   try {
-    return JSON.parse(bruto) as EnCurso;
+    // JSON.parse más un cast no verifica nada: si otro código (o una versión vieja del
+    // panel) dejó otra forma, se descarta en vez de pintar una reserva a medias.
+    const datos: unknown = JSON.parse(bruto);
+    if (!datos || typeof datos !== 'object') return null;
+    const o = datos as Record<string, unknown>;
+    const habitacion = o.habitacion as { id?: unknown } | undefined;
+    if (typeof o.llegada !== 'string' || typeof o.salida !== 'string'
+      || typeof o.huespedes !== 'number' || typeof o.totalCents !== 'number'
+      || typeof o.moneda !== 'string' || typeof o.noches !== 'number'
+      || typeof o.clave !== 'string' || typeof habitacion?.id !== 'number') return null;
+    return datos as EnCurso;
   } catch {
     return null;
   }
