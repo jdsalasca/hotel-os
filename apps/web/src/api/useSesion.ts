@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { urlApi } from './cliente';
 import { crearEstadoSesion } from './sesion';
 
-type DatosAdmin = { email: string };
+type DatosAdmin = { email: string; nombre?: string };
 
 async function pedirAdmin(): Promise<DatosAdmin | null> {
   const r = await fetch(urlApi('/api/admin/sesion'), { credentials: 'same-origin' });
   if (!r.ok) return null;
-  const cuerpo = (await r.json()) as { email?: string };
-  return { email: cuerpo.email ?? '' };
+  const cuerpo = (await r.json()) as { email?: string; nombre?: string };
+  return { email: cuerpo.email ?? '', nombre: cuerpo.nombre ?? '' };
 }
 
 /** Una sola pregunta para todos los montados: ver `sesion.ts`. */
@@ -19,14 +19,19 @@ const sesionAdmin = crearEstadoSesion(pedirAdmin);
  * se sabe si hay sesión. Nunca se guarda el token en localStorage ni en memoria accesible.
  */
 export function useSesion() {
-  const [estado, setEstado] = useState<{ haySesion: boolean; email: string } | null>(null);
+  const [estado, setEstado] = useState<{ haySesion: boolean; email: string; nombre: string } | null>(
+    null,
+  );
   const vigente = useRef(true);
+
+  function fijar(e: { haySesion: boolean; datos: DatosAdmin | null }) {
+    if (!vigente.current) return;
+    setEstado({ haySesion: e.haySesion, email: e.datos?.email ?? '', nombre: e.datos?.nombre ?? '' });
+  }
 
   useEffect(() => {
     vigente.current = true;
-    void sesionAdmin.leer().then((e) => {
-      if (vigente.current) setEstado({ haySesion: e.haySesion, email: e.datos?.email ?? '' });
-    });
+    void sesionAdmin.leer().then(fijar);
     return () => {
       vigente.current = false;
     };
@@ -34,13 +39,13 @@ export function useSesion() {
 
   async function comprobar(): Promise<void> {
     sesionAdmin.olvidar();
-    const e = await sesionAdmin.leer();
-    if (vigente.current) setEstado({ haySesion: e.haySesion, email: e.datos?.email ?? '' });
+    fijar(await sesionAdmin.leer());
   }
 
   return {
     haySesion: estado === null ? null : estado.haySesion,
     email: estado?.email ?? '',
+    nombre: estado?.nombre ?? '',
     comprobar,
     async entrar(email: string, clave: string): Promise<'autenticado' | 'cambio_requerido'> {
       const r = await fetch(urlApi('/api/admin/login'), {
@@ -80,7 +85,7 @@ export function useSesion() {
         credentials: 'same-origin',
       });
       sesionAdmin.olvidar();
-      if (vigente.current) setEstado({ haySesion: false, email: '' });
+      if (vigente.current) setEstado({ haySesion: false, email: '', nombre: '' });
     },
   };
 }

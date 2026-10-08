@@ -1,52 +1,30 @@
-# Ronda 82 — El calendario cuenta habitaciones y agrupa el mínimo por moneda (Etapa I)
+# Ronda 82 - Bienvenido con nombre + panel que orienta
 
 Fecha: 2026-10-08.
 
 ## Dolor
-
-1. `calendarioMensual()` contaba `ofertas.size()` (parejas habitación×plan) como
-   "habitaciones libres": con dos planes cubriendo una habitación decía 2.
-2. El mínimo se calculaba sobre todas las ofertas y se etiquetaba con la moneda de la
-   primera: con planes en COP y USD, `min(100000, 5000)` con etiqueta COP.
+Nadie decía tu nombre en ningún lado; entrar (contraseña o Google) te dejaba en una lista
+sin contexto; el login con Google caía en la home en vez del panel.
 
 ## Cambio
-
-- `DiaCalendario` ahora trae `disponibles` (habitaciones distintas) y `precios`
-  (mínimo por moneda, ordenado), en vez de `desdeCents`/`moneda` únicos.
-- `GET /api/disponibilidad/calendario` devuelve `precios: [{moneda, desdeCents}]`
-  (siempre presente, vacío si no hay oferta). Sin conversión entre monedas.
-- La pública muestra `4 · EUR 72` o `COP 100.000 · USD 50` por día, igual en celda y
-  `aria-label`.
+- Migración V16: `users.nombre`. Al entrar con Google se guarda su `given_name` (sin
+  pisar un nombre puesto a mano con un login sin atributos).
+- `GET /api/admin/sesion` devuelve `nombre`; la cabecera dice **"Bienvenido de vuelta,
+  {nombre}"** (cae al correo, y el huésped a su nombre de Google).
+- Nueva puerta `/admin`: tarjetas a Reservas (con mensajes sin leer), Hoy, Habitaciones,
+  Hotel/Mapa y Actividad. La nav "Panel" y ambos logins (contraseña navega, Google con
+  default a `/admin`) llevan ahí.
+- `useSesion` expone `nombre` (vía el `sesion.ts` compartido del colega, sin duplicar).
 
 ## Verificación real
-
-```text
-2 tests de servicio (cuenta habitaciones, agrupa por moneda) + 1 de contrato
-multimoneda + actualización del existente: vistos fallar antes (símbolos nuevos).
-En el camino: códigos de habitación/test duplicados en la BD compartida de la clase
-(701, fechas de otros tests) → códigos y fecha 2028-01 propios.
-InventarioServiceTest + DisponibilidadControllerTest + CalendarioControllerTest
-verdes; suite en worktree limpio sobre HEAD: 279 corridos, 0 fallos, 0 errores,
-1 omitida. BUILD SUCCESS.
-docker compose build web → tsc + vite ok. npm test → 20/20. test:typecheck → 0.
-Prueba viva (imágenes reconstruidas): calendario con `precios` por día y la pública
-pinta «4 habitaciones libres desde EUR 72». Captura: calendario-desktop.png.
-```
+- Backend: Oauth2AdminTest (+nombre guardado), CambioClave, SecurityIntegration: 18/18.
+- Frontend: tsc con tests limpio, vitest **21/21**.
+- Despliegue: `git reset --hard origin/develop` + `up -d --build`; V16 aplicada; bundle con
+  el panel; health `ok`. La bienvenida con nombre real se ve con sesión (cuenta del hotel).
+- Archivos del otro agente intactos: paquete `seguridad` solo suma en el manejador que ya
+  tocaba la R22; `Oauth2AdminTest` solo adapta constructor + 1 test nuevo.
 
 ## Archivos
-
-- Tocados: `InventarioService.java`, `DisponibilidadController.java`,
-  `InventarioServiceTest.java`, `DisponibilidadControllerTest.java`,
-  `PaginaInicio.tsx`, `docs/plan.md`.
-- Nuevos: esta carpeta.
-
-## Riesgos y límites
-
-- Cambio de contrato del calendario (de `desdeCents`/`moneda` a `precios`): el único
-  consumidor es la web del repo, actualizada en la misma ronda. Verificado que nada
-  más lee `desdeCents`.
-- La suite del checkout quedó en rojo por WIP ajeno a mitad de refactor
-  (`ManejadorAdminOauth2` con nueva firma vs `Oauth2AdminTest` viejo): no tocado;
-  verificado en worktree limpio y eliminado después.
-- Coordinación: 81 era del colega (su archivo intacto); 82 verificado libre.
-  Trabajo del colega respetado en todo.
+- Nuevos: `V16__nombre_visible_admin.sql`, `PaginaAdminPanel.tsx`, este archivo.
+- Tocados: `ManejadorAdminOauth2.java`, `AdminSesionController.java`, `useSesion.ts`,
+  `SaludoSesion.test.tsx`, `App.tsx`, `PaginaLoginAdmin.tsx`, `Oauth2AdminTest.java`.

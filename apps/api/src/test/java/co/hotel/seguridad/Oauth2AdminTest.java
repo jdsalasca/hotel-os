@@ -59,6 +59,7 @@ class Oauth2AdminTest {
   }
 
   @Autowired MockMvc mvc;
+  @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
   private OAuth2AuthenticationToken ficha(String registro, String email) {
     var principal = new DefaultOAuth2User(List.of(),
@@ -83,7 +84,7 @@ class Oauth2AdminTest {
   @Test
   @DisplayName("un correo de la allowlist obtiene sesión con rol de administrador")
   void correoEnAllowlistEntra() throws Exception {
-    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"));
+    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"), jdbc);
     var respuesta = new MockHttpServletResponse();
 
     manejador.onAuthenticationSuccess(new MockHttpServletRequest(), respuesta,
@@ -102,7 +103,7 @@ class Oauth2AdminTest {
   @Test
   @DisplayName("quien entra con Google también queda con sesión guardada")
   void laSesionDelAdminSobrevive() throws Exception {
-    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"));
+    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"), jdbc);
     var req = new MockHttpServletRequest();
     req.getSession(true);
     var respuesta = new MockHttpServletResponse();
@@ -120,9 +121,8 @@ class Oauth2AdminTest {
   }
 
   @Test
-  @DisplayName("un correo fuera de la allowlist no entra aunque Google lo autentique")
-  void correoFueraDeAllowlistNoEntra() throws Exception {
-    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"));
+  @DisplayName("un correo fuera de la allowlist no entra aunque Google lo autentique")  void correoFueraDeAllowlistNoEntra() throws Exception {
+    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"), jdbc);
     var respuesta = new MockHttpServletResponse();
 
     manejador.onAuthenticationSuccess(new MockHttpServletRequest(), respuesta,
@@ -136,5 +136,29 @@ class Oauth2AdminTest {
     } finally {
       SecurityContextHolder.clearContext();
     }
+  }
+
+  @Test
+  @DisplayName("al entrar con Google se guarda su nombre visible para el bienvenido")
+  void loginConGoogleGuardaNombre() throws Exception {
+    jdbc.update("INSERT INTO users(email,hash,rol,activo,creado_en,nombre)"
+      + " VALUES('jefa@hotel.test','{bcrypt}$2a$10$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV','ADMIN',1,"
+      + "datetime('now'),'')");
+    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"), jdbc);
+    var principal = new DefaultOAuth2User(java.util.List.of(),
+      Map.of("sub", "sub-jefa", "email", "jefa@hotel.test", "given_name", "Jefa",
+        "name", "Jefa Hotel"),
+      "sub");
+    var ficha = new OAuth2AuthenticationToken(principal, java.util.List.of(), "google-admin");
+
+    try {
+      manejador.onAuthenticationSuccess(new MockHttpServletRequest(),
+        new MockHttpServletResponse(), ficha);
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
+
+    assertEquals("Jefa", jdbc.queryForObject(
+      "SELECT nombre FROM users WHERE email='jefa@hotel.test'", String.class));
   }
 }

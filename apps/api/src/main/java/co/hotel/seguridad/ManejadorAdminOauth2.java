@@ -34,18 +34,27 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
   private static final Logger log = LoggerFactory.getLogger(ManejadorAdminOauth2.class);
 
   private final Set<String> permitidos;
-  private final AuthenticationSuccessHandler continuacion =
-    new SavedRequestAwareAuthenticationSuccessHandler();
+  private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+  private final org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler continuacion =
+    new org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler();
   private final HttpSessionSecurityContextRepository repoSesion =
     new HttpSessionSecurityContextRepository();
 
   @Autowired
-  public ManejadorAdminOauth2(HotelProperties props) {
-    this(props.oauth2().correosAdministradores());
+  public ManejadorAdminOauth2(HotelProperties props,
+      org.springframework.jdbc.core.JdbcTemplate jdbc) {
+    this(props.oauth2().correosAdministradores(), jdbc);
+    // Sin petición guardada (entrar directo por el botón), al panel y no a la home: con Google
+    // no hay pantalla de login que redirija, así que este default es el que orienta.
+    continuacion.setDefaultTargetUrl("/admin");
   }
 
   /** Visible para pruebas: la allowlist sin pasar por propiedades. */
-  ManejadorAdminOauth2(Set<String> permitidos) { this.permitidos = permitidos; }
+  ManejadorAdminOauth2(Set<String> permitidos,
+      org.springframework.jdbc.core.JdbcTemplate jdbc) {
+    this.permitidos = permitidos;
+    this.jdbc = jdbc;
+  }
 
   @Override
   public void onAuthenticationSuccess(HttpServletRequest req, HttpServletResponse res,
@@ -61,6 +70,14 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
 
     OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) auth;
     OAuth2User principal = token.getPrincipal();
+    // El nombre visible sale de Google y se guarda: es el "bienvenido de vuelta" sin pedir
+    // nada más. Solo se escribe si Google trae algo no vacío, para no borrar un nombre puesto
+    // a mano con un login sin atributos.
+    String visible = texto(principal.getAttribute("given_name"));
+    if (visible.isEmpty()) visible = texto(principal.getAttribute("name"));
+    if (!visible.isEmpty()) {
+      jdbc.update("UPDATE users SET nombre=? WHERE email=?", visible, email);
+    }
     // El nombre de la sesión es el correo: DefaultOAuth2User lo toma del atributo nombrado.
     var conNombre = new DefaultOAuth2User(principal.getAuthorities(), principal.getAttributes(), "email");
     var conRol = new OAuth2AuthenticationToken(conNombre,
@@ -70,5 +87,9 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
     repoSesion.saveContext(SecurityContextHolder.getContext(), req, res);
     log.info("entrada al panel con Google: {}", email);
     continuacion.onAuthenticationSuccess(req, res, conRol);
+  }
+
+  private static String texto(Object valor) {
+    return valor == null ? "" : valor.toString().trim();
   }
 }

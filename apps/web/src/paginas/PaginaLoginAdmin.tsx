@@ -29,7 +29,7 @@ export function PaginaLoginAdmin() {
     try {
       const estado = await sesion.entrar(email, clave);
       if (estado === 'cambio_requerido') setPideCambio(true);
-      else navegar('/admin/reservas');
+      else navegar('/admin');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo iniciar sesión');
     } finally {
@@ -54,7 +54,7 @@ export function PaginaLoginAdmin() {
       if (estado === 'cambio_requerido') setPideCambio(true);
       else {
         setClave(nueva);
-        navegar('/admin/reservas');
+        navegar('/admin');
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cambiar la contraseña');

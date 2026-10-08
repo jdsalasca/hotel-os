@@ -14,6 +14,7 @@ import { PaginaAdminHotel } from './paginas/PaginaAdminHotel';
 import { PaginaAdminHoy } from './paginas/PaginaAdminHoy';
 import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
 import { PaginaAdminAuditoria } from './paginas/PaginaAdminAuditoria';
+import { PaginaAdminPanel } from './paginas/PaginaAdminPanel';
 import { PaginaAdminLugares } from './paginas/PaginaAdminLugares';
 import { PaginaMisReservas } from './paginas/PaginaMisReservas';
 import { PaginaPrivacidad } from './paginas/PaginaPrivacidad';
@@ -36,14 +37,17 @@ export function SaludoSesion() {
   // (ver api/sesion.ts). Llamarlo aquí además duplicaba la petición por cada render.
 
   if (admin.haySesion === true && admin.email.length > 0) {
+    const quien = admin.nombre.length > 0 ? admin.nombre : admin.email;
     return (
-      <span className="cabecera__saludo" title="Sesión del panel">
-        Hola, {admin.email}
+      <span className="cabecera__saludo" title={`Sesión del panel (${admin.email})`}>
+        Bienvenido de vuelta, {quien}
       </span>
     );
   }
-  if (admin.haySesion !== true && huesped.haySesion === true && huesped.nombre.length > 0) {
-    return <span className="cabecera__saludo">Hola, {huesped.nombre}</span>;
+  if (admin.haySesion !== true && huesped.haySesion === true) {
+    const quien = huesped.nombre.length > 0 ? huesped.nombre : huesped.email;
+    if (quien.length === 0) return null;
+    return <span className="cabecera__saludo">Bienvenido de vuelta, {quien}</span>;
   }
   return null;
 }
@@ -104,7 +108,7 @@ export function App() {
             <NavLink to="/consulta">Consultar reserva</NavLink>
             <NavLink to="/mis-reservas">Mis reservas</NavLink>
             <NavLink to="/admin/inventario">Habitaciones</NavLink>
-            <NavLink to="/admin/reservas">Panel</NavLink>
+            <NavLink to="/admin">Panel</NavLink>
           </nav>
           <SaludoSesion />
         </div>
@@ -120,6 +124,7 @@ export function App() {
         <Route path="/terminos" element={<PaginaTerminos />} />
 
         {/* Panel administrativo: cada pantalla comprueba la sesión por su cuenta */}
+        <Route path="/admin" element={<PaginaAdminPanel />} />
         <Route path="/admin/entrar" element={<PaginaLoginAdmin />} />
         <Route path="/admin/reservas" element={<PaginaAdminReservas />} />
         <Route path="/admin/hoy" element={<PaginaAdminHoy />} />

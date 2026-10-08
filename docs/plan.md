@@ -318,6 +318,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 81 - La suite completa delató al WIP del colega.** 12 errores en cascada desde
   su `AuditoriaAdminTest` en progreso; sin esa clase, 345/345 verde. Reportado sin tocar sus
   archivos. Evidencia: `docs/evidence/round-81/verificacion.md`.
+- [x] **Ronda 82 - Bienvenido con nombre + panel que orienta.** V16, nombre de Google
+  guardado, puerta `/admin` con tarjetas y ambos logins llevándote ahí. Evidencia:
+  `docs/evidence/round-82/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

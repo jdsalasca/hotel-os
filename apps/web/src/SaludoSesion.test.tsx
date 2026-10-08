@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { SaludoSesion } from './App';
 
-function simularSesion(admin: { email: string } | null, huesped: object | null) {
+function simularSesion(admin: object | null, huesped: object | null) {
   globalThis.fetch = vi.fn(async (url: unknown) => {
     const ruta = String(url);
     if (ruta.includes('/api/admin/sesion')) {
@@ -25,20 +25,27 @@ describe('SaludoSesion', () => {
     vi.unstubAllGlobals();
   });
 
-  it('muestra el correo con sesión del panel', async () => {
-    simularSesion({ email: 'admin@hotel.test' }, null);
-    const { container } = render(<SaludoSesion />);
+  it('da la bienvenida por el nombre del panel', async () => {
+    simularSesion({ email: 'admin@hotel.test', nombre: 'Juan' }, null);
+    render(<SaludoSesion />);
     await waitFor(() => {
-      expect(screen.getByText('Hola, admin@hotel.test')).toBeTruthy();
+      expect(screen.getByText('Bienvenido de vuelta, Juan')).toBeTruthy();
     });
-    expect(container.textContent).toContain('Hola, admin@hotel.test');
   });
 
-  it('muestra el nombre con sesión de huésped', async () => {
+  it('cae al correo si el panel no tiene nombre', async () => {
+    simularSesion({ email: 'admin@hotel.test', nombre: '' }, null);
+    render(<SaludoSesion />);
+    await waitFor(() => {
+      expect(screen.getByText('Bienvenido de vuelta, admin@hotel.test')).toBeTruthy();
+    });
+  });
+
+  it('da la bienvenida al huésped por su nombre de Google', async () => {
     simularSesion(null, { email: 'huesped@hotel.test', nombre: 'Luz', tieneReservas: false });
     render(<SaludoSesion />);
     await waitFor(() => {
-      expect(screen.getByText('Hola, Luz')).toBeTruthy();
+      expect(screen.getByText('Bienvenido de vuelta, Luz')).toBeTruthy();
     });
   });
 
@@ -46,7 +53,7 @@ describe('SaludoSesion', () => {
     simularSesion(null, null);
     const { container } = render(<SaludoSesion />);
     await waitFor(() => {
-      expect(container.textContent ?? '').not.toContain('Hola,');
+      expect(container.textContent ?? '').not.toContain('Bienvenido');
     });
   });
 });
