@@ -36,6 +36,43 @@ public class AdminReservasController {
    */
   public record CambioEstadoReq(String estado) {}
 
+  public record CrearManualReq(String email, String nombre, String llegada, String salida,
+                               Integer huespedes, Long roomId, String idempotencia) {}
+
+  /**
+   * Alta manual desde el panel: la recepción registra al huésped que llama o llega sin
+   * pasar por la web. La habitación la asigna el personal (requerida); el precio es el
+   * vigente y queda congelado igual que en la web. Origen OTRO: no es venta directa.
+   * 400 con entrada inválida; 409 si no hay disponibilidad para esas fechas.
+   */
+  @PostMapping("/api/admin/reservas")
+  public ResponseEntity<?> crearManual(@RequestBody CrearManualReq req) {
+    if (req.roomId() == null) {
+      return ResponseEntity.badRequest().body(Map.of("error",
+        "habitación requerida: la recepción asigna la habitación"));
+    }
+    final java.time.LocalDate llegada;
+    final java.time.LocalDate salida;
+    try {
+      llegada = java.time.LocalDate.parse(req.llegada());
+      salida = java.time.LocalDate.parse(req.salida());
+    } catch (java.time.format.DateTimeParseException | NullPointerException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "las fechas deben tener formato YYYY-MM-DD"));
+    }
+    int h = req.huespedes() == null ? 0 : req.huespedes();
+    var datos = new CrearReserva(req.email(), req.nombre(), llegada, salida,
+      h, Origen.OTRO, req.idempotencia(), req.roomId());
+    try {
+      String codigo = svc.crear(datos);
+      var reserva = svc.buscar(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+      return ResponseEntity.status(201).body(fila(reserva));
+    } catch (SinDisponibilidadException | ConflictoIdempotenciaException e) {
+      return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
+
   public record ReasignarReq(Long roomId) {}
 
   public record CambiarFechasReq(String llegada, String salida) {}
