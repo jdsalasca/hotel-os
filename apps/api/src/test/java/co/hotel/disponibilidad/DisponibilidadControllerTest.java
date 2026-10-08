@@ -100,6 +100,34 @@ class DisponibilidadControllerTest {
   }
 
   @Test
+  @DisplayName("una fecha mal escrita es 400 con motivo, no 200 con error y ofertas vacías")
+  void fechaMalEscritaEs400() throws Exception {
+    mvc.perform(get("/api/disponibilidad")
+        .param("llegada", "mal").param("salida", "2026-11-03").param("huespedes", "2"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
+  @DisplayName("la salida anterior a la llegada es 400, no un 200 que parece sin disponibilidad")
+  void salidaAnteriorALaLlegadaEs400() throws Exception {
+    mvc.perform(get("/api/disponibilidad")
+        .param("llegada", "2026-11-03").param("salida", "2026-11-01").param("huespedes", "2"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
+  @DisplayName("200 con ofertas vacías es sin disponibilidad, no entrada inválida")
+  void vacioEs200ConOfertasVacias() throws Exception {
+    mvc.perform(get("/api/disponibilidad")
+        .param("llegada", "2031-01-01").param("salida", "2031-01-03").param("huespedes", "2"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.ofertas").isArray())
+      .andExpect(jsonPath("$.error").doesNotExist());
+  }
+
+  @Test
   @DisplayName("con tarifas, la búsqueda devuelve el total y la moneda del plan")
   void busquedaConTarifasDevuelveTotal() throws Exception {
     long tipoId = JSON.readTree(admin("/api/admin/tipos",

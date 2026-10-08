@@ -277,6 +277,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `POST …/definiciones/{clave}/referencia` (200/400/404, ausente conserva, vacío
   limpia) y editor por tarjeta en el panel con recarga. Evidencia:
   `docs/evidence/round-72/verificacion.md`.
+- [x] **Ronda 74 - La búsqueda inválida es 400, no 200 con error (Etapa F).**
+  `GET /api/disponibilidad` con fechas malas o invertidas responde 400 con motivo;
+  el 200 queda para respuestas de verdad (vacías o no). Número 74 porque el 73 ya
+  estaba publicado por el colega. Evidencia:
+  `docs/evidence/round-74/verificacion.md`.
 - [x] **Ronda 66 - Gestión descubrible.** Enlace Habitaciones en la nav, vacío con acción
   al alta guiada y test del saludo (11/11 vitest con los del colega). Evidencia:
   `docs/evidence/round-66/verificacion.md`.

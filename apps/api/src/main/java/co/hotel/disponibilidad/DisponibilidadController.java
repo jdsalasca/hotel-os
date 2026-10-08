@@ -44,9 +44,9 @@ public class DisponibilidadController {
       return ResponseEntity.ok(
         Map.of("llegada", llegada, "salida", salida, "huespedes", huespedes, "ofertas", ofertas));
     } catch (DatosInvalidosException e) {
-      return ResponseEntity.ok(Map.of("error", e.getMessage(), "ofertas", List.of()));
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     } catch (java.time.format.DateTimeParseException e) {
-      return ResponseEntity.ok(Map.of("error", "las fechas deben tener formato YYYY-MM-DD", "ofertas", List.of()));
+      return ResponseEntity.badRequest().body(Map.of("error", "las fechas deben tener formato YYYY-MM-DD"));
     }
   }
 
