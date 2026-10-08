@@ -289,6 +289,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   Filtro primero en la cadena con actor de sesión antes/después; `crear` de lugares
   devuelve el id real. Deploy a prod bloqueado (sin usuario SSH). Evidencia:
   `docs/evidence/round-80/verificacion.md`.
+- [x] **Ronda 82 - El calendario cuenta habitaciones y agrupa por moneda (Etapa I).**
+  `disponibles` son habitaciones distintas y `precios` trae el mínimo por moneda
+  (nuevo contrato, web actualizada). Evidencia:
+  `docs/evidence/round-82/verificacion.md`.
 - [x] **Ronda 75 - La confirmación ofrece Mis reservas también al panel.** `conCuenta` con
   ambas sesiones + test del hilo de chat (20/20 vitest). Evidencia:
   `docs/evidence/round-75/verificacion.md`.

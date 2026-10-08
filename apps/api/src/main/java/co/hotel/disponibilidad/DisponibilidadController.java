@@ -95,10 +95,8 @@ public class DisponibilidadController {
         var dia = new java.util.LinkedHashMap<String, Object>();
         dia.put("fecha", d.fecha().toString());
         dia.put("disponibles", d.disponibles());
-        if (d.disponibles() > 0) {
-          dia.put("desdeCents", d.desdeCents());
-          dia.put("moneda", d.moneda());
-        }
+        dia.put("precios", d.precios().stream().map(p -> Map.of(
+          "moneda", p.moneda(), "desdeCents", p.desdeCents())).toList());
         return dia;
       }).toList();
       return ResponseEntity.ok(Map.of("mes", periodo.toString(), "huespedes", huespedes, "dias", dias));

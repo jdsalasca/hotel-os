@@ -237,10 +237,12 @@ public class InventarioService {
   }
 
   /**
-   * Un día del calendario público: cuántas habitaciones se pueden vender esa noche y desde qué
-   * precio. Sin precio no hay oferta: el día sale con cero, igual que en la búsqueda.
+   * Un día del calendario público: cuántas habitaciones distintas se pueden vender esa noche
+   * y desde qué precio en cada moneda. Las habitaciones se cuentan una vez aunque tengan
+   * varios planes, y el mínimo nunca mezcla monedas: cada moneda trae el suyo.
    */
-  public record DiaCalendario(LocalDate fecha, int disponibles, Long desdeCents, String moneda) {}
+  public record PrecioDesde(String moneda, long desdeCents) {}
+  public record DiaCalendario(LocalDate fecha, int disponibles, List<PrecioDesde> precios) {}
 
   /**
    * Calendario de disponibilidad de un mes para unos huéspedes: una entrada por día con su
@@ -252,9 +254,16 @@ public class InventarioService {
     List<DiaCalendario> dias = new java.util.ArrayList<>();
     for (LocalDate dia = mes.atDay(1); !dia.isAfter(mes.atEndOfMonth()); dia = dia.plusDays(1)) {
       var ofertas = disponiblesConPrecio(dia, dia.plusDays(1), huespedes);
-      Long desde = ofertas.stream().map(OpcionOferta::totalCents).min(Long::compare).orElse(null);
-      String moneda = ofertas.isEmpty() ? null : ofertas.get(0).moneda();
-      dias.add(new DiaCalendario(dia, ofertas.size(), desde, moneda));
+      long habitaciones = ofertas.stream().map(o -> o.habitacion().id()).distinct().count();
+      var precios = ofertas.stream()
+        .collect(java.util.stream.Collectors.groupingBy(OpcionOferta::moneda,
+          java.util.stream.Collectors.mapping(OpcionOferta::totalCents,
+            java.util.stream.Collectors.minBy(Long::compare))))
+        .entrySet().stream()
+        .sorted(java.util.Map.Entry.comparingByKey())
+        .map(e -> new PrecioDesde(e.getKey(), e.getValue().orElseThrow()))
+        .toList();
+      dias.add(new DiaCalendario(dia, (int) habitaciones, precios));
     }
     return dias;
   }

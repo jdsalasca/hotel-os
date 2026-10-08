@@ -26,8 +26,8 @@ type RespuestaDisponibilidad = {
 type DiaCalendario = {
   fecha: string;
   disponibles: number;
-  desdeCents?: number;
-  moneda?: string;
+  /** Mínimo por moneda, ordenado: nunca se mezclan monedas en un mínimo. */
+  precios: { moneda: string; desdeCents: number }[];
 };
 
 type RespuestaCalendario = {
@@ -556,10 +556,11 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                 const numero = Number(dia.fecha.slice(8, 10));
                 const pasado = dia.fecha < hoy;
                 const libre = !pasado && dia.disponibles > 0;
+                const desde = dia.precios.map((p) => monto(p.desdeCents, p.moneda)).join(' · ');
                 const etiqueta = pasado
                   ? `${numero}: fecha pasada`
                   : dia.disponibles > 0
-                    ? `${fechaCorta(dia.fecha)}: ${dia.disponibles} ${dia.disponibles === 1 ? 'habitación libre' : 'habitaciones libres'} desde ${monto(dia.desdeCents ?? 0, dia.moneda ?? 'COP')}`
+                    ? `${fechaCorta(dia.fecha)}: ${dia.disponibles} ${dia.disponibles === 1 ? 'habitación libre' : 'habitaciones libres'}${desde ? ` desde ${desde}` : ''}`
                     : `${fechaCorta(dia.fecha)}: sin habitaciones`;
                 return libre ? (
                   <button
@@ -572,7 +573,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                   >
                     <span className="calendario-mes__numero" aria-hidden="true">{numero}</span>
                     <span className="calendario-mes__detalle" aria-hidden="true">
-                      {dia.disponibles} · {monto(dia.desdeCents ?? 0, dia.moneda ?? 'COP')}
+                      {dia.disponibles} · {desde}
                     </span>
                   </button>
                 ) : (

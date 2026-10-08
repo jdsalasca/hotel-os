@@ -196,6 +196,43 @@ class InventarioServiceTest {
   }
 
   @Test
+  @DisplayName("el calendario cuenta habitaciones distintas, no ofertas por plan")
+  void calendarioCuentaHabitaciones() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario cop = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    PlanTarifario flex = tarifas.crearPlan("FLEX", "Flexible", "COP");
+    LocalDate dia = LocalDate.parse("2026-11-01");
+    tarifas.fijarPrecio(cop, tipo.id(), dia, 150_000);
+    tarifas.fijarPrecio(flex, tipo.id(), dia, 140_000);
+    svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+
+    var dias = svc.calendarioMensual(java.time.YearMonth.parse("2026-11"), 2);
+    var noche = dias.stream().filter(d -> d.fecha().equals(dia)).findFirst().orElseThrow();
+    assertEquals(1, noche.disponibles(), "una habitación con dos planes sigue siendo una");
+  }
+
+  @Test
+  @DisplayName("el calendario agrupa el mínimo por moneda sin mezclarlas")
+  void calendarioAgrupaMinimoPorMoneda() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    PlanTarifario cop = tarifas.crearPlan("PES", "Plan pesos", "COP");
+    PlanTarifario usd = tarifas.crearPlan("USD", "Plan dólares", "USD");
+    LocalDate dia = LocalDate.parse("2026-11-01");
+    tarifas.fijarPrecio(cop, tipo.id(), dia, 100_000);
+    tarifas.fijarPrecio(usd, tipo.id(), dia, 5_000);
+    svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+
+    var dias = svc.calendarioMensual(java.time.YearMonth.parse("2026-11"), 2);
+    var noche = dias.stream().filter(d -> d.fecha().equals(dia)).findFirst().orElseThrow();
+    assertEquals(1, noche.disponibles());
+    assertEquals(2, noche.precios().size());
+    assertEquals("COP", noche.precios().get(0).moneda());
+    assertEquals(100_000, noche.precios().get(0).desdeCents());
+    assertEquals("USD", noche.precios().get(1).moneda());
+    assertEquals(5_000, noche.precios().get(1).desdeCents());
+  }
+
+  @Test
   @DisplayName("un plan con 20% de descuento rebaja el total y dice el original")
   void planConDescuentoRebajaElTotal() {
     RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);

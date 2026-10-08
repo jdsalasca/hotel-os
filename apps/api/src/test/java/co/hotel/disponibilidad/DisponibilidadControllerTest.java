@@ -329,10 +329,41 @@ class DisponibilidadControllerTest {
       .andExpect(jsonPath("$.dias.length()").value(31))
       .andExpect(jsonPath("$.dias[0].fecha").value("2026-12-01"))
       .andExpect(jsonPath("$.dias[0].disponibles", greaterThanOrEqualTo(1)))
-      .andExpect(jsonPath("$.dias[0].desdeCents").value(150000))
-      .andExpect(jsonPath("$.dias[0].moneda").value("COP"))
+      .andExpect(jsonPath("$.dias[0].precios.length()").value(1))
+      .andExpect(jsonPath("$.dias[0].precios[0].desdeCents").value(150000))
+      .andExpect(jsonPath("$.dias[0].precios[0].moneda").value("COP"))
       .andExpect(jsonPath("$.dias[2].fecha").value("2026-12-03"))
-      .andExpect(jsonPath("$.dias[2].disponibles").value(0));
+      .andExpect(jsonPath("$.dias[2].disponibles").value(0))
+      .andExpect(jsonPath("$.dias[2].precios").isEmpty());
+  }
+
+  @Test
+  @DisplayName("el calendario cuenta habitaciones y agrupa el mínimo por moneda")
+  void calendarioCuentaHabitacionesPorMoneda() throws Exception {
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "DOBLE_MC", "nombre", "Habitación doble", "capacidadMax", 2))).get("id").asLong();
+    admin("/api/admin/habitaciones", Map.of("codigo", "901", "roomTypeId", tipoId, "nombre", "Habitación 901"));
+    long copId = JSON.readTree(admin("/api/admin/planes",
+      Map.of("codigo", "PES_MC", "nombre", "Plan pesos", "moneda", "COP"))).get("id").asLong();
+    long usdId = JSON.readTree(admin("/api/admin/planes",
+      Map.of("codigo", "USD_MC", "nombre", "Plan dólares", "moneda", "USD"))).get("id").asLong();
+    for (long planId : new long[] { copId, usdId }) {
+      mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(JSON.writeValueAsString(Map.of("ratePlanId", planId, "roomTypeId", tipoId,
+            "fecha", "2028-01-10", "precioCents", planId == copId ? 100000 : 5000))))
+        .andExpect(status().isCreated());
+    }
+
+    mvc.perform(get("/api/disponibilidad/calendario").param("mes", "2028-01").param("huespedes", "2"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.dias[9].fecha").value("2028-01-10"))
+      .andExpect(jsonPath("$.dias[9].disponibles").value(1))
+      .andExpect(jsonPath("$.dias[9].precios.length()").value(2))
+      .andExpect(jsonPath("$.dias[9].precios[0].moneda").value("COP"))
+      .andExpect(jsonPath("$.dias[9].precios[0].desdeCents").value(100000))
+      .andExpect(jsonPath("$.dias[9].precios[1].moneda").value("USD"))
+      .andExpect(jsonPath("$.dias[9].precios[1].desdeCents").value(5000));
   }
 
   @Test
