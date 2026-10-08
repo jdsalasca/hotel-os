@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,10 +19,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class HuespedController {
   private final UsuariosHuespedRepository usuarios;
   private final ReservaServiceHuesped reservas;
+  private final co.hotel.reservas.ComprobanteService comprobantes;
 
-  public HuespedController(UsuariosHuespedRepository usuarios, ReservaServiceHuesped reservas) {
+  public HuespedController(UsuariosHuespedRepository usuarios, ReservaServiceHuesped reservas,
+      co.hotel.reservas.ComprobanteService comprobantes) {
     this.usuarios = usuarios;
     this.reservas = reservas;
+    this.comprobantes = comprobantes;
   }
 
   /**
@@ -46,6 +50,23 @@ public class HuespedController {
     if (id == null) return ResponseEntity.ok(Map.of("reservas", java.util.List.of()));
     List<Map<String, Object>> lista = reservas.de(id);
     return ResponseEntity.ok(Map.of("reservas", lista));
+  }
+
+  /**
+   * Comprobante completo de una reserva propia, sin pasar el correo por la URL: la sesión ya
+   * dice de quién es. La ajena responde 404 (no 403, para no confirmar que existe).
+   */
+  @GetMapping("/api/mis-reservas/{codigo}/comprobante")
+  public ResponseEntity<?> comprobantePropio(@PathVariable String codigo) {
+    Long id = idActual();
+    if (id == null)
+      return ResponseEntity.status(401).body(Map.of("error", "sin sesión"));
+    Long duena = reservas.duenaDe(codigo);
+    if (duena == null || !duena.equals(id))
+      return ResponseEntity.status(404).body(Map.of("error", "reserva no existe"));
+    return comprobantes.comprobante(codigo, null)
+      .map(c -> ResponseEntity.ok().body((Object) c))
+      .orElse(ResponseEntity.status(404).body(Map.of("error", "reserva no existe")));
   }
 
   /**

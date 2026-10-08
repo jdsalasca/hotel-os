@@ -417,6 +417,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `hay_mas` en ambos GET, botón que antepone historia en huésped y panel.
   Backend 389 sin fallos, frontend 35/35, `tsc` limpio, `vite build` OK.
   Evidencia: `docs/evidence/round-114/verificacion.md`.
+- [x] **Ronda 115 - Comprobante propio por sesión en Mis reservas.**
+  `GET /api/mis-reservas/{codigo}/comprobante` (dueño por sesión, ajena 404) +
+  panel inline por fila. Backend 395 sin fallos, frontend 40/40, `tsc` limpio.
+  Evidencia: `docs/evidence/round-115/verificacion.md`.
 - [x] **Ronda 115 - Reserva y vínculo a la cuenta en una sola unidad (Etapa G).**
   Alta + enganche en la misma transacción (antes dos escrituras: huérfanas con 500);
   la sesión solo reclama su propio correo (H3: huésped y admin con identidad previa);
@@ -428,7 +432,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 2. Recordatorio de llegada por correo el día antes (requiere refresh token Gmail) —
    alto/bloqueado por credencial externa.
 3. Calendario del panel con arrastre para bloquear noches — alto/alto.
-4. Límite de tamaño y tipo en comprobantes adjuntos — bajo/bajo.
+4. `/consulta` para logueados sin email en la URL (reusa R115) — bajo/bajo.
 5. Modo claro/oscuro en la web pública — bajo/medio.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
