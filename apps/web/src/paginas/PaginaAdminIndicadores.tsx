@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
-import { Aviso, Cargando, Etiqueta, MensajeError } from '../componentes/Estado';
+import { Cargando, Etiqueta, MensajeError, PuertaAdmin } from '../componentes/Estado';
 
 type Fila = {
   clave: string;
@@ -46,16 +46,31 @@ export function PaginaAdminIndicadores() {
   /** Al guardar una referencia se relee el informe para mostrar lo guardado de verdad. */
   const [version, setVersion] = useState(0);
 
+  /** Informes en vuelo: si el hotel cambia de período antes de que vuelvan, el viejo
+   * se ignora en vez de pintar otro mes. */
+  const peticionInforme = useRef(0);
+
   useEffect(() => {
+    const id = ++peticionInforme.current;
     setCargando(true);
+    // El error viejo no sobrevive a la relectura: si esta falla, su catch lo pone.
+    setError(null);
     api
       .get<Informe>(`/api/admin/indicadores?periodo=${periodo}`)
-      .then(setInforme)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setCargando(false));
+      .then((r) => {
+        if (peticionInforme.current !== id) return;
+        setInforme(r);
+      })
+      .catch((e: Error) => {
+        if (peticionInforme.current !== id) return;
+        setError(e.message);
+      })
+      .finally(() => {
+        if (peticionInforme.current === id) setCargando(false);
+      });
   }, [periodo, version]);
 
-  if (sesion.haySesion === false) return <Aviso tono="aviso" titulo="Sesión requerida">Inicia sesión para ver el informe.</Aviso>;
+  if (sesion.haySesion === false) return <PuertaAdmin>Inicia sesión para ver el informe.</PuertaAdmin>;
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
 
   return (

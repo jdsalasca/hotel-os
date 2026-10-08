@@ -10,6 +10,9 @@ import { PaginaAdminInventario } from './PaginaAdminInventario';
  */
 const estado = vi.hoisted(() => ({
   diferidas: [] as { url: string; resolver: (v: unknown) => void }[],
+  // Solo el test del calendario retiene la tanda de carga; al resto le resuelve
+  // al momento para poblar tipos y planes (Promise.all espera a las cinco).
+  retenerCalendario: false,
 }));
 
 function diferida() {
@@ -45,7 +48,12 @@ vi.mock('../api/cliente', () => ({
           { id: 2, codigo: 'FLEX', nombre: 'Flexible', moneda: 'COP', descuentoPct: 0 },
         ]);
       }
-      if (url.startsWith('/api/admin/calendario?')) return Promise.resolve([]);
+      if (url.startsWith('/api/admin/calendario?')) {
+        if (!estado.retenerCalendario) return Promise.resolve([]);
+        const d = diferida();
+        estado.diferidas.push({ url, resolver: d.resolver });
+        return d.promesa;
+      }
       if (url === '/api/admin/bloqueos') return Promise.resolve([]);
       if (url === '/api/amenidades') {
         return Promise.resolve({
@@ -78,6 +86,7 @@ function sesionConectada() {
 afterEach(() => {
   cleanup();
   estado.diferidas.length = 0;
+  estado.retenerCalendario = false;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -200,5 +209,28 @@ describe('vigencia de las lecturas del inventario', () => {
     expect((screen.getByRole('checkbox', { name: 'Wifi' }) as HTMLInputElement).checked).toBe(
       true,
     );
+  });
+
+  it('cambiar de mes ignora el calendario tardío del mes viejo', async () => {
+    estado.retenerCalendario = true;
+    await montar();
+    await waitFor(() => {
+      expect(peticiones('/api/admin/calendario?').length).toBe(1);
+    });
+    fireEvent.change(screen.getByLabelText('Mes', { selector: '#mes-inv' }), {
+      target: { value: '2026-11' },
+    });
+    await waitFor(() => {
+      expect(peticiones('/api/admin/calendario?').length).toBe(2);
+    });
+    const [viejo, nuevo] = peticiones('/api/admin/calendario?');
+    nuevo!.resolver([{ id: 2, codigo: 'NUEVA-202', noches: [] }]);
+    await waitFor(() => {
+      expect(screen.queryByText('NUEVA-202')).not.toBeNull();
+    });
+    viejo!.resolver([{ id: 1, codigo: 'VIEJA-101', noches: [] }]);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(screen.queryByText('VIEJA-101')).toBeNull();
+    expect(screen.queryByText('NUEVA-202')).not.toBeNull();
   });
 });
