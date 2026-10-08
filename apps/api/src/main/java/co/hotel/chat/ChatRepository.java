@@ -22,8 +22,20 @@ public class ChatRepository {
   }
 
   public List<Mensaje> hilo(long reservationId) {
+    return hilo(reservationId, 50);
+  }
+
+  /** Últimos `limite` mensajes: un hilo de años no se baja entero a cada apertura. */
+  public List<Mensaje> hilo(long reservationId, int limite) {
     return jdbc.query("SELECT id,autor,texto,creado_en,visto FROM mensajes"
-      + " WHERE reservation_id=? ORDER BY id", ChatRepository::fila, reservationId);
+      + " WHERE reservation_id=? ORDER BY id DESC LIMIT ?",
+      ChatRepository::fila, reservationId, limite).reversed();
+  }
+
+  public int total(long reservationId) {
+    Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM mensajes WHERE reservation_id=?",
+      Integer.class, reservationId);
+    return n == null ? 0 : n;
   }
 
   public long agregar(long reservationId, String autor, String texto, String ahora) {

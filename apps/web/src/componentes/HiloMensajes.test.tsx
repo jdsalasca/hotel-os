@@ -57,4 +57,16 @@ describe('HiloMensajes', () => {
     fireEvent.click(screen.getByText('Enviar'));
     expect(enviar).not.toHaveBeenCalled();
   });
+
+  it('avisa cuando hay más historia de la mostrada', async () => {
+    render(
+      <HiloMensajes
+        titulo="Chat"
+        ladoPropio="HUESPED"
+        cargar={() => Promise.resolve({ mensajes: HILO.mensajes, total: 60 })}
+        enviar={() => Promise.resolve()}
+      />,
+    );
+    await screen.findByText('Mostrando los últimos 2 de 60 mensajes.');
+  });
 });
