@@ -132,6 +132,24 @@ public class IndicadoresRepository {
     return n == null ? 0L : n;
   }
 
+  /** Canales que el hotel tiene configurados (activos): el denominador de conectados. */
+  public long canalesConfigurados() {
+    Long n = jdbc.queryForObject("SELECT COUNT(*) FROM channels WHERE activo=1", Long.class);
+    return n == null ? 0L : n;
+  }
+
+  /**
+   * Canales configurados con al menos una sincronización exitosa en el periodo: estar
+   * configurado sin haber sincronizado nunca no es estar conectado.
+   */
+  public long canalesConSyncExitosa(String desde, String hasta) {
+    Long n = jdbc.queryForObject("SELECT COUNT(DISTINCT s.channel_codigo) FROM ota_syncs s "
+      + "JOIN channels c ON c.codigo = s.channel_codigo AND c.activo=1 "
+      + "WHERE s.exitosa=1 AND substr(s.en,1,10) >= ? AND substr(s.en,1,10) < ?",
+      Long.class, desde, hasta);
+    return n == null ? 0L : n;
+  }
+
   public long actividadesDeTipo(String tipo, String desde, String hasta) {
     Long n = jdbc.queryForObject("SELECT COUNT(*) FROM adoption_activities WHERE tipo=? "
       + "AND fecha >= ? AND fecha < ?", Long.class, tipo, desde, hasta);

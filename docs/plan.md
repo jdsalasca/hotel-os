@@ -308,6 +308,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 91 - Bloquear lo inexistente o sin fechas es 400 (Etapa F).**
   Habitación inexistente y fechas nulas: 400 con motivo y sin filas, no 500.
   Evidencia: `docs/evidence/round-91/verificacion.md`.
+- [x] **Ronda 94 - Canales conectados cuenta canales, no intentos (Etapa D).**
+  Conectados (configurados con sync exitosa) sobre configurados; sin ellos,
+  SIN_DATOS. Evidencia: `docs/evidence/round-94/verificacion.md`.
 - [x] **Ronda 75 - La confirmación ofrece Mis reservas también al panel.** `conCuenta` con
   ambas sesiones + test del hilo de chat (20/20 vitest). Evidencia:
   `docs/evidence/round-75/verificacion.md`.

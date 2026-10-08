@@ -57,12 +57,14 @@ public class IndicadoresService {
           (long) esperado, null);
       }
       case "f1_canales_conectados" -> {
-        String desde = periodoDesde(periodo);
-        long intentadas = repo.sincronizacionesIntentadas(desde, periodoHasta(periodo));
-        long exitosas = repo.sincronizacionesExitosas(desde, periodoHasta(periodo));
-        if (exitosas == 0)
+        long configurados = repo.canalesConfigurados();
+        if (configurados == 0)
+          yield ResultadoIndicador.faltante(d, periodo, "no hay canales configurados");
+        long conectados = repo.canalesConSyncExitosa(periodoDesde(periodo), periodoHasta(periodo));
+        if (conectados == 0)
           yield ResultadoIndicador.faltante(d, periodo, "no hay ninguna sincronización autorizada exitosa");
-        yield ResultadoIndicador.medido(d, periodo, porcentaje(exitosas, intentadas), exitosas, intentadas, null);
+        yield ResultadoIndicador.medido(d, periodo, porcentaje(conectados, configurados), conectados,
+          configurados, null);
       }
       case "f1_pruebas_sync" -> {
         String desde = periodoDesde(periodo);

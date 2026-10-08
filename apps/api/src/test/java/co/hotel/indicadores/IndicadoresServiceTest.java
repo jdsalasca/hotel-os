@@ -281,6 +281,40 @@ class IndicadoresServiceTest {
       assertFalse(resultado.tieneResultado());
       assertTrue(resultado.motivoFaltante().contains("esperado"));
     }
+
+    private void sync(String canal, boolean exitosa, String fecha) {
+      jdbc.update("INSERT INTO ota_syncs(channel_codigo,operacion,exitosa,detalle,en) "
+        + "VALUES(?, 'reservas', ?, 'ok', ?)", canal, exitosa ? 1 : 0, fecha);
+    }
+
+    @Test void canalesConectadosCuentanCanalesNoIntentos() {
+      sync("BOOKING", true, "2026-11-03");
+      sync("BOOKING", false, "2026-11-04");
+      sync("BOOKING", true, "2026-11-05");
+
+      var resultado = indicadores.calcular("f1_canales_conectados", periodo);
+      assertFalse(resultado.tieneResultado(),
+        "BOOKING no está configurado y WEB no tiene sync: nada conectado");
+    }
+
+    @Test void canalConfiguradoConSyncDaCien() {
+      sync("WEB", true, "2026-11-03");
+
+      var resultado = indicadores.calcular("f1_canales_conectados", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(100.0, resultado.valor(), 0.01);
+      assertEquals(1, resultado.numerador());
+      assertEquals(1, resultado.denominador());
+    }
+
+    @Test void dosConfiguradosUnoConectadoDaCincuenta() {
+      jdbc.update("UPDATE channels SET activo=1 WHERE codigo='BOOKING'");
+      sync("BOOKING", true, "2026-11-03");
+
+      var resultado = indicadores.calcular("f1_canales_conectados", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(50.0, resultado.valor(), 0.01);
+    }
   }
 
   @Nested
