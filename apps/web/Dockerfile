@@ -77,8 +77,10 @@ server {
   # Vite no emite scripts ni estilos en línea (comprobado: el index.html solo referencia /assets), así
   # que se puede cerrar de verdad. Si algún día se añade un script en línea, esto lo rompe de forma
   # visible en vez de dejarlo pasar en silencio. frame-src solo abre el mapa embebido de
-  # OpenStreetMap: nada más puede cargarse en un marco.
-  add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src https://www.openstreetmap.org; img-src 'self' data:; font-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'" always;
+  # OpenStreetMap: nada más puede cargarse en un marco. script-src abre además el
+  # beacon de Cloudflare (analítica sin cookies que Cloudflare inyecta en el borde):
+  # sin ese host, cada página grita un error CSP en la consola sin que nada falle.
+  add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src https://www.openstreetmap.org; img-src 'self' data:; font-src 'self'; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self'; form-action 'self'" always;
   add_header X-Content-Type-Options "nosniff" always;
   add_header X-Frame-Options "DENY" always;
   add_header Referrer-Policy "strict-origin-when-cross-origin" always;
