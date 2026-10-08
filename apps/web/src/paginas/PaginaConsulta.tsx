@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { fechaCorta, monto } from '../api/formato';
+import { useSesionHuesped } from '../api/useSesionHuesped';
+import { useSesion } from '../api/useSesion';
 import { Aviso, Etiqueta } from '../componentes/Estado';
 
 type Comprobante = {
@@ -28,8 +30,17 @@ type Comprobante = {
 
 /** Paso 6 del flujo público: consultar una reserva con código y correo. */
 export function PaginaConsulta() {
+  const huesped = useSesionHuesped();
+  const panel = useSesion();
   const [codigo, setCodigo] = useState('');
   const [email, setEmail] = useState('');
+  /** Con sesión, el correo viene puesto para no teclearlo: manda el huésped y, si no,
+   * el panel. Solo rellena el vacío: lo escrito a mano (p. ej. la reserva de otra
+   * persona) no se pisa cuando la sesión termina de resolverse. */
+  const correoSesion = huesped.email || panel.email;
+  useEffect(() => {
+    if (correoSesion && !email) setEmail(correoSesion);
+  }, [correoSesion, email]);
   const [comprobante, setComprobante] = useState<Comprobante | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
@@ -110,6 +121,11 @@ export function PaginaConsulta() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+              {correoSesion && email === correoSesion ? (
+                <p className="campo__ayuda">
+                  Usamos el correo de tu sesión; cámbialo si consultas otra reserva.
+                </p>
+              ) : null}
             </div>
             {error ? <Aviso tono="error">{error}</Aviso> : null}
             <button className="boton boton--primario" type="submit" disabled={buscando || !codigo || !email}>

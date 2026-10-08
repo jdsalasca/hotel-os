@@ -452,6 +452,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   eran callejones). Nuevo `PuertaAdmin` compartido con enlace a `/admin/entrar`,
   usado en las 9. `tsc` ×2 limpio, captura post-deploy del URL reportado.
   Evidencia: `docs/evidence/round-121/verificacion.md`.
+- [x] **Ronda 122 - La consulta trae el correo de la sesión (Misión 4).** Prefill
+  editable (huésped, si no panel) que no pisa lo escrito a mano + pista visible.
+  TDD 3/1 → 4/4, suite 17/56, `tsc` ×2 OK, verificado en vivo con sesión real +
+  capturas. (La 121 es del colega: colisión resuelta moviendo la mía a la 122.)
+  Evidencia: `docs/evidence/round-122/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
