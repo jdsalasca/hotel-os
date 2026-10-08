@@ -457,6 +457,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   TDD 3/1 → 4/4, suite 17/56, `tsc` ×2 OK, verificado en vivo con sesión real +
   capturas. (La 121 es del colega: colisión resuelta moviendo la mía a la 122.)
   Evidencia: `docs/evidence/round-122/verificacion.md`.
+- [x] **Ronda 123 - Parámetros malformados con contrato (Etapa F).** `huespedes` y
+  `roomId` no numéricos + parámetros ausentes devuelven 400 con `$.error` en
+  español (antes el 400 crudo de Spring). TDD 3 fallos → verde; suite backend
+  399/399. Evidencia: `docs/evidence/round-123/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
