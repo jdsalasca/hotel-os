@@ -111,6 +111,65 @@ class IndicadoresServiceTest {
       assertEquals(50, resultado.denominador(), "2 habitaciones × 30 menos 2 × 5 noches cerradas");
     }
 
+    @Test void bloqueosSolapadosDeLaMismaHabitacionCuentanSuUnion() {
+      // Habitación 101 bloqueada del día 1 al 3 y del 2 al 4 (de noviembre): la unión ocupa
+      // las noches 01, 02 y 03. Sumar intervalos daría 4 y dejaría 56 vendibles; son 57.
+      crearHabitacion("102");
+      long h = crearHabitacion("101");
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(?, '2026-11-01', '2026-11-03', 'Mantenimiento')", h);
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(?, '2026-11-02', '2026-11-04', 'Mantenimiento')", h);
+
+      var resultado = indicadores.calcular("f3_ocupacion", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(57, resultado.denominador(), "2 × 30 menos 3 noches en unión, no 4 sumadas");
+    }
+
+    @Test void bloqueoGlobalMasIndividualSolapadosCuentanSuUnion() {
+      // Cierre del hotel 01→03 (noches 01,02 en ambas) más bloqueo individual de la 101 del
+      // 02→04 (noches 02,03): la 101 aporta {01,02,03} y la 102 {01,02}. Son 5, no 6.
+      long h1 = crearHabitacion("101");
+      crearHabitacion("102");
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(NULL, '2026-11-01', '2026-11-03', 'Cierre total')");
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(?, '2026-11-02', '2026-11-04', 'Mantenimiento')", h1);
+
+      var resultado = indicadores.calcular("f3_ocupacion", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(55, resultado.denominador(), "60 menos 5 en unión, no 6 sumadas");
+    }
+
+    @Test void bloqueosDuplicadosCuentanUnaSolaVez() {
+      // El mismo intervalo registrado dos veces sigue siendo 3 noches, no 6.
+      long h = crearHabitacion("101");
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(?, '2026-11-10', '2026-11-13', 'Mantenimiento')", h);
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(?, '2026-11-10', '2026-11-13', 'Mantenimiento')", h);
+
+      var resultado = indicadores.calcular("f3_ocupacion", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(27, resultado.denominador(), "30 menos 3 en unión, no 6 sumadas");
+    }
+
+    @Test void bloqueoQueCruzaElPeriodoSoloRestaSuInterseccion() {
+      // Del 28 de octubre al 2 de noviembre: en noviembre solo cae la noche del día 1.
+      long h = crearHabitacion("101");
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(?, '2026-10-28', '2026-11-02', 'Mantenimiento')", h);
+
+      var resultado = indicadores.calcular("f3_ocupacion", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(29, resultado.denominador(), "solo la noche del 01 cae en noviembre");
+    }
+
+    @Test void bloqueoDeHabitacionFueraDeServicioNoResta() {
+      // La 101 sale de la oferta: ni cuenta en el total ni su bloqueo resta.
+      long h1 = crearHabitacion("101");
+      crearHabitacion("102");
+      jdbc.update("UPDATE rooms SET estado='FUERA_DE_SERVICIO' WHERE id=?", h1);
+      jdbc.update("INSERT INTO blocks(room_id,desde,hasta,motivo) VALUES(?, '2026-11-10', '2026-11-13', 'Mantenimiento')", h1);
+
+      var resultado = indicadores.calcular("f3_ocupacion", periodo);
+      assertTrue(resultado.tieneResultado());
+      assertEquals(30, resultado.denominador(), "solo la 102 activa aporta 30 noches");
+    }
+
     @Test void sobreventaSinRegistroEsDatoFaltanteNoCero() {
       crearHabitacion("101");
 
