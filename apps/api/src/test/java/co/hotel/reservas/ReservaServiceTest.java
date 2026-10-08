@@ -65,10 +65,12 @@ class ReservaServiceTest {
       INSERT INTO rooms(codigo, estado) VALUES('102','ACTIVA');
       INSERT INTO room_types(codigo,nombre,capacidad_max) VALUES('DOBLE','Doble',2);
       INSERT INTO rate_plans(codigo,nombre,moneda,activo) VALUES('STD','Estándar','COP',1);
+      INSERT INTO rate_plans(codigo,nombre,moneda,activo) VALUES('FLEX','Flexible','COP',1);
       UPDATE rooms SET room_type_id=1 WHERE codigo IN ('101','102');
       INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents,cerrado) VALUES
         (1,1,'2026-11-01',150000,0),(1,1,'2026-11-02',150000,0),(1,1,'2026-11-03',150000,0),
         (1,1,'2026-11-04',150000,0),(1,1,'2026-11-05',150000,0),(1,1,'2026-11-06',150000,0),
+        (2,1,'2026-11-01',150000,0),(2,1,'2026-11-02',150000,0),(2,1,'2026-11-03',150000,0),
         (1,1,'2026-12-01',150000,0),(1,1,'2026-12-02',150000,0),(1,1,'2026-12-03',150000,0),
         (1,1,'2026-12-10',150000,0),(1,1,'2026-12-11',150000,0),(1,1,'2026-12-12',150000,0);
       """;
@@ -313,6 +315,51 @@ class ReservaServiceTest {
       long room = jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='105'", Long.class);
       assertThrows(SinDisponibilidadException.class,
         () -> crear("ana@example.com", "2026-11-01", "2026-11-03", room));
+      assertEquals(0, contar("reservations"));
+    }
+
+    private String crearConPrecio(String email, String llegada, String salida, long roomId,
+        Long totalCents, String moneda, Long planId) {
+      return svc.crear(new CrearReserva(email, "Ana", LocalDate.parse(llegada), LocalDate.parse(salida), 2,
+        Origen.WEB, UUID.randomUUID().toString(), roomId), totalCents, moneda, planId);
+    }
+
+    @Test void reservaConElSegundoPlanValidoGuardaEsePlan() {
+      // STD (id 1) también cubre las fechas, pero el huésped eligió FLEX (id 2): el alta
+      // respeta lo elegido en vez de comparar solo contra el primero y acabar en otro plan.
+      jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('106',1,'ACTIVA')");
+      long room = jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='106'", Long.class);
+      String codigo = crearConPrecio("ana@example.com", "2026-11-01", "2026-11-03", room,
+        300000L, "COP", 2L);
+
+      assertEquals(2L, jdbc.queryForObject("SELECT rate_plan_id FROM reservations WHERE codigo=?",
+        Long.class, codigo), "se congela el plan elegido, no el primero");
+    }
+
+    @Test void cambioDePrecioEnElPlanElegidoTraeEsePlan() {
+      // La tarifa FLEX se mueve a 200.000/noche: el 409 trae el total nuevo CON el plan
+      // elegido, para reconfirmar la misma oferta y no otra.
+      jdbc.update("UPDATE rates SET precio_cents=200000 WHERE rate_plan_id=2");
+      jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('107',1,'ACTIVA')");
+      long room = jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='107'", Long.class);
+      var ex = assertThrows(PrecioCambiadoException.class,
+        () -> crearConPrecio("ana@example.com", "2026-11-01", "2026-11-03", room,
+          300000L, "COP", 2L));
+      assertEquals(400000L, ex.nuevoTotalCents(), "2 noches al precio nuevo");
+      assertEquals(2L, ex.nuevoRatePlanId(), "el plan sigue siendo el elegido");
+      assertEquals(0, contar("reservations"), "lo rechazado no escribe nada");
+    }
+
+    @Test void planInexistenteTraeLaOfertaVigente() {
+      // Un plan que no existe (o se retiró) no es un 400: se ofrece lo vigente para
+      // reconfirmar, igual que con un cambio de precio.
+      jdbc.update("INSERT INTO rooms(codigo,room_type_id,estado) VALUES('108',1,'ACTIVA')");
+      long room = jdbc.queryForObject("SELECT id FROM rooms WHERE codigo='108'", Long.class);
+      var ex = assertThrows(PrecioCambiadoException.class,
+        () -> crearConPrecio("ana@example.com", "2026-11-01", "2026-11-03", room,
+          300000L, "COP", 999L));
+      assertEquals(300000L, ex.nuevoTotalCents());
+      assertEquals(1L, ex.nuevoRatePlanId(), "el primero válido, no el inexistente");
       assertEquals(0, contar("reservations"));
     }
   }
