@@ -16,6 +16,8 @@ tablas (elegido: corre en el contenedor, sin tocar /data), (c) pipeline auto-res
   mataba el script en silencio con exit 0. Todo sqlite pasa por `consulta()`, que
   convierte el fallo en ERROR con motivo y exit 1.
 - Despliegue + health `ok`.
+- Cierre: el Dockerfile listaba scripts explícitos y el nuevo no entraba a la imagen;
+  tras incluirlo, el simulacro corre dentro de prod (`esquema v17, 0 reservas`).
 - Archivos del otro agente intactos.
 
 ## Archivos
