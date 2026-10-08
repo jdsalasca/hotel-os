@@ -511,6 +511,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `precioDe` por plan + el alta valida el elegido (precio movido → 409 con sus
   datos; retirado → 409 con lo vigente). TDD rojo→verde; suite 427 (5 rojos del
   colega). Evidencia: `docs/evidence/round-137/verificacion.md`.
+- [x] **Ronda 138 - Límite de paginación con contrato (Etapa F).**
+  `?limite=-1` ya no vuelca la tabla (400) y lo no-numérico trae `$.error`.
+  TDD 4/4; suite 432 (5 rojos del colega). Evidencia:
+  `docs/evidence/round-138/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
