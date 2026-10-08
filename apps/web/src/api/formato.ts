@@ -47,3 +47,16 @@ export function enlaceWhatsApp(telefono: string, texto: string): string | null {
   const numero = digitos.length === 10 ? `57${digitos}` : digitos;
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
+
+/**
+ * Quién saluda en la cabecera: el nombre si hay, si no lo de antes del @ (que
+ * "savatar62@gmail.com" salga como "savatar62" y no cortado a la mitad). El correo
+ * completo queda en el `title` para no perderlo.
+ */
+export function nombreCorto(nombre: string | null | undefined, email: string): string {
+  const limpio = (nombre ?? '').trim();
+  if (limpio.length > 0) return limpio;
+  const correo = (email ?? '').trim();
+  const arroba = correo.indexOf('@');
+  return arroba > 0 ? correo.slice(0, arroba) : correo;
+}

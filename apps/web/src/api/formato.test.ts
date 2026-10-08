@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { enlaceWhatsApp } from './formato';
+import { enlaceWhatsApp, nombreCorto } from './formato';
 
 describe('enlaceWhatsApp', () => {
   it('móvil colombiano de 10 dígitos lleva 57 delante', () => {
@@ -27,5 +27,18 @@ describe('enlaceWhatsApp', () => {
   it('sin teléfono no hay enlace', () => {
     expect(enlaceWhatsApp('', 'x')).toBeNull();
     expect(enlaceWhatsApp('abc', 'x')).toBeNull();
+  });
+});
+
+describe('nombreCorto', () => {
+  it('prefiere el nombre y cae a lo de antes del @', () => {
+    expect(nombreCorto('Juan Pérez', 'juan@hotel.test')).toBe('Juan Pérez');
+    expect(nombreCorto('', 'savatar62@gmail.com')).toBe('savatar62');
+    expect(nombreCorto('  ', 'a@b.co')).toBe('a');
+  });
+
+  it('sin nada muestra el correo tal cual', () => {
+    expect(nombreCorto('', '')).toBe('');
+    expect(nombreCorto('', 'sin-arroba')).toBe('sin-arroba');
   });
 });

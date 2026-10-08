@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api/cliente';
 import { useSesion } from './api/useSesion';
 import { useSesionHuesped } from './api/useSesionHuesped';
+import { nombreCorto } from './api/formato';
 import { PaginaInicio } from './paginas/PaginaInicio';
 import { PaginaReserva } from './paginas/PaginaReserva';
 import { PaginaConsulta } from './paginas/PaginaConsulta';
@@ -39,7 +40,8 @@ export function SaludoSesion() {
   // (ver api/sesion.ts). Llamarlo aquí además duplicaba la petición por cada render.
 
   if (admin.haySesion === true && admin.email.length > 0) {
-    const quien = admin.nombre.length > 0 ? admin.nombre : admin.email;
+    const quien = nombreCorto(admin.nombre, admin.email);
+    if (quien.length === 0) return null;
     return (
       <span className="cabecera__saludo" title={`Sesión del panel (${admin.email})`}>
         Bienvenido de vuelta, {quien} <Etiqueta tono="info">Administrador</Etiqueta>
@@ -47,10 +49,10 @@ export function SaludoSesion() {
     );
   }
   if (admin.haySesion !== true && huesped.haySesion === true) {
-    const quien = huesped.nombre.length > 0 ? huesped.nombre : huesped.email;
+    const quien = nombreCorto(huesped.nombre, huesped.email);
     if (quien.length === 0) return null;
     return (
-      <span className="cabecera__saludo">
+      <span className="cabecera__saludo" title={huesped.email}>
         Bienvenido de vuelta, {quien} <Etiqueta tono="info">Huésped</Etiqueta>
       </span>
     );

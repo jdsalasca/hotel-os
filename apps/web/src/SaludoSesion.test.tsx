@@ -39,15 +39,15 @@ describe('SaludoSesion', () => {
     expect(screen.getByText('Administrador')).toBeTruthy();
   });
 
-  it('cae al correo si el panel no tiene nombre', async () => {
-    simularSesion({ email: 'admin@hotel.test', nombre: '' }, null);
+  it('sin nombre usa lo de antes del @, no el correo cortado', async () => {
+    simularSesion({ email: 'savatar62@gmail.com', nombre: '' }, null);
     render(
       <MemoryRouter>
         <SaludoSesion />
       </MemoryRouter>,
     );
     await waitFor(() => {
-      expect(screen.getByText('Bienvenido de vuelta, admin@hotel.test')).toBeTruthy();
+      expect(screen.getByText('Bienvenido de vuelta, savatar62')).toBeTruthy();
     });
   });
 

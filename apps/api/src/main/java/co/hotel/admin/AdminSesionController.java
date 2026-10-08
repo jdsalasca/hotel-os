@@ -5,6 +5,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -36,5 +38,25 @@ public class AdminSesionController {
       nombre = "";
     }
     return ResponseEntity.ok(Map.of("email", auth.getName(), "nombre", nombre, "rol", "ADMIN"));
+  }
+
+  public record NombreReq(String nombre) {}
+
+  /**
+   * Nombre visible ajustable por el dueño de la sesión. Con Google lo pone el login;
+   * con clave no hay quién, y nadie merece verse como un correo cortado para siempre.
+   */
+  @PostMapping("/api/admin/perfil")
+  public ResponseEntity<?> perfil(@RequestBody NombreReq req, Authentication auth) {
+    if (auth == null || !auth.isAuthenticated()) {
+      return ResponseEntity.status(401).body(Map.of("error", "sin sesión"));
+    }
+    String nombre = req == null || req.nombre() == null ? "" : req.nombre().trim();
+    if (nombre.length() < 2 || nombre.length() > 80) {
+      return ResponseEntity.badRequest()
+        .body(Map.of("error", "el nombre necesita entre 2 y 80 caracteres"));
+    }
+    jdbc.update("UPDATE users SET nombre=? WHERE email=?", nombre, auth.getName());
+    return ResponseEntity.ok(Map.of("nombre", nombre));
   }
 }

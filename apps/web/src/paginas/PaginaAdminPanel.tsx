@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
-import { Cargando, PuertaAdmin } from '../componentes/Estado';
+import { Aviso, Cargando, MensajeError, PuertaAdmin } from '../componentes/Estado';
 import { ListaPreparacion } from '../componentes/ListaPreparacion';
 
 /**
@@ -13,6 +13,10 @@ import { ListaPreparacion } from '../componentes/ListaPreparacion';
 export function PaginaAdminPanel() {
   const sesion = useSesion();
   const [nuevos, setNuevos] = useState<number | null>(null);
+  const [nombre, setNombre] = useState<string | null>(null);
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
+  const [nombreOk, setNombreOk] = useState(false);
+  const [nombreError, setNombreError] = useState<string | null>(null);
 
   useEffect(() => {
     if (sesion.haySesion !== true) return;
@@ -21,6 +25,29 @@ export function PaginaAdminPanel() {
       .then((datos) => setNuevos(datos.nuevos))
       .catch(() => setNuevos(null));
   }, [sesion.haySesion]);
+
+  useEffect(() => {
+    if (sesion.haySesion === true && nombre === null) setNombre(sesion.nombre);
+  }, [sesion.haySesion, sesion.nombre, nombre]);
+
+  /** Nombre visible del saludo: con Google lo pone el login, con clave se pone aquí. */
+  async function guardarNombre(evento: React.FormEvent) {
+    evento.preventDefault();
+    if (nombre === null || guardandoNombre) return;
+    setGuardandoNombre(true);
+    setNombreOk(false);
+    setNombreError(null);
+    try {
+      const r = await api.post<{ nombre: string }>('/api/admin/perfil', { nombre });
+      setNombre(r.nombre);
+      setNombreOk(true);
+      await sesion.comprobar();
+    } catch (e) {
+      setNombreError(e instanceof Error ? e.message : 'No se pudo guardar el nombre');
+    } finally {
+      setGuardandoNombre(false);
+    }
+  }
 
   if (sesion.haySesion === false)
     return <PuertaAdmin>Inicia sesión para entrar al panel.</PuertaAdmin>;
@@ -33,6 +60,31 @@ export function PaginaAdminPanel() {
         <p className="seccion__intro">
           Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
         </p>
+
+        <form className="tarjeta pila mb-e4" onSubmit={(e) => void guardarNombre(e)}>
+          <h2 className="t-lg mb-0">Mi cuenta</h2>
+          <p className="campo__ayuda sin-margen">
+            Así te saluda la cabecera. Con Google se pone solo; con contraseña lo pones aquí.
+          </p>
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="cuenta-nombre">Nombre visible</label>
+            <input
+              id="cuenta-nombre"
+              type="text"
+              maxLength={80}
+              autoComplete="nickname"
+              value={nombre ?? ''}
+              onChange={(e) => setNombre(e.target.value)}
+            />
+          </div>
+          {nombreError ? <MensajeError texto={nombreError} /> : null}
+          {nombreOk ? <Aviso tono="exito">Nombre guardado</Aviso> : null}
+          <p className="sin-margen">
+            <button className="boton boton--secundario boton--chico" type="submit" disabled={guardandoNombre}>
+              {guardandoNombre ? 'Guardando…' : 'Guardar nombre'}
+            </button>
+          </p>
+        </form>
 
         <ListaPreparacion />
 
