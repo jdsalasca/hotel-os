@@ -498,6 +498,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `beacon.min.js` bloqueado por `script-src 'self'` en cada página. Se abre solo
   ese host en nginx y vercel.json; resto igual de cerrado. Verificado en vivo.
   Evidencia: `docs/evidence/round-132/verificacion.md`.
+- [x] **Ronda 134 - Cambiar fechas en Mis reservas (Etapa H).** Formulario por
+  fila sobre el endpoint de la R130 con refresh de lo guardado y aviso del
+  servidor. TDD 2/2, suite 19/20 (el rojo es TDD en curso del colega), `tsc` ×2
+  OK, verificado en vivo desktop+móvil + capturas. (132-133 del colega.)
+  Evidencia: `docs/evidence/round-134/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
