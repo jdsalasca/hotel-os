@@ -101,12 +101,13 @@ class RendimientoInventarioTest {
   }
 
   @Test
-  @DisplayName("el calendario de un mes no multiplica sin cota")
+  @DisplayName("el calendario de un mes trae las tarifas una vez, no una por día")
   void calendarioMensualAcotado() {
     var dias = svc.calendarioMensual(YearMonth.parse("2026-11"), 2);
 
     assertEquals(30, dias.size());
-    assertTrue(contador.consultas() <= 200,
-      "30 días × (1 libres + 1 tipos + 1 planes + 2 noches), fue " + contador.consultas());
+    assertTrue(contador.consultas() <= 50,
+      "30 días × 1 libres + 1 tipos + 1 planes + 1 tipo × 2 meses-tarifa, fue "
+        + contador.consultas());
   }
 }

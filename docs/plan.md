@@ -298,6 +298,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   Planes/tipos una vez y precio por (tipo, plan); `estaLibre()` para el detalle.
   `ContadorConsultas` + cotas que truenan ante un N+1. Evidencia:
   `docs/evidence/round-83/verificacion.md`.
+- [x] **Ronda 86 - El calendario trae las tarifas del mes una vez (Etapa L).**
+  Núcleo `ofertasDe()` compartido con caché mensual: de 150 a 34 consultas por mes,
+  cota ≤ 50. Evidencia: `docs/evidence/round-86/verificacion.md`.
 - [x] **Ronda 75 - La confirmación ofrece Mis reservas también al panel.** `conCuenta` con
   ambas sesiones + test del hilo de chat (20/20 vitest). Evidencia:
   `docs/evidence/round-75/verificacion.md`.

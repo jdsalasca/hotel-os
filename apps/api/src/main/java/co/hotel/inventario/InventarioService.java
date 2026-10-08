@@ -227,8 +227,19 @@ public class InventarioService {
     java.util.Map<Long, RoomType> tipos = new java.util.HashMap<>();
     for (RoomType tipo : inventario.tipos()) tipos.put(tipo.id(), tipo);
     List<PlanTarifario> planes = tarifas.planesActivos();
+    return ofertasDe(inventario.disponibles(desde, hasta), tipos, planes, desde, hasta, huespedes, null);
+  }
+
+  /**
+   * Núcleo de la oferta sobre habitaciones ya filtradas. Con caché trae las noches del periodo
+   * amplio una sola vez (el calendario) en vez de pedirlas por cada día; sin caché las pide por
+   * rango (la búsqueda). Misma regla en ambos: solo cambia de dónde salen las filas.
+   */
+  private List<OpcionOferta> ofertasDe(List<Habitacion> libres, java.util.Map<Long, RoomType> tipos,
+      List<PlanTarifario> planes, LocalDate desde, LocalDate hasta, int huespedes,
+      java.util.Map<String, List<TarifaRepository.TarifaNoche>> cache) {
     java.util.Map<Long, List<Habitacion>> porTipo = new java.util.HashMap<>();
-    for (Habitacion habitacion : inventario.disponibles(desde, hasta)) {
+    for (Habitacion habitacion : libres) {
       porTipo.computeIfAbsent(habitacion.roomTypeId(), k -> new java.util.ArrayList<>()).add(habitacion);
     }
     int noches = (int) java.time.temporal.ChronoUnit.DAYS.between(desde, hasta);
@@ -237,7 +248,10 @@ public class InventarioService {
       RoomType tipo = tipos.get(grupo.getKey());
       if (tipo == null || tipo.capacidadMax() < huespedes) continue;
       for (PlanTarifario plan : planes) {
-        var precio = detalleParaPlan(tipo, plan, desde, hasta);
+        List<TarifaRepository.TarifaNoche> configuradas = cache == null
+          ? tarifas.nochesDelPeriodo(plan.id(), tipo.id(), desde, hasta)
+          : recorte(cache.get(tipo.id() + ":" + plan.id()), desde, hasta);
+        var precio = detalleParaPlan(tipo, plan, desde, hasta, configuradas);
         if (precio.isEmpty()) continue;
         var p = precio.orElseThrow();
         for (Habitacion habitacion : grupo.getValue()) {
@@ -247,6 +261,13 @@ public class InventarioService {
       }
     }
     return ofertas;
+  }
+
+  private static List<TarifaRepository.TarifaNoche> recorte(
+      List<TarifaRepository.TarifaNoche> noches, LocalDate desde, LocalDate hasta) {
+    if (noches == null) return List.of();
+    return noches.stream()
+      .filter(n -> !n.fecha().isBefore(desde) && n.fecha().isBefore(hasta)).toList();
   }
 
   /**
@@ -264,9 +285,23 @@ public class InventarioService {
    */
   public List<DiaCalendario> calendarioMensual(java.time.YearMonth mes, int huespedes) {
     if (huespedes < 1) throw new DatosInvalidosException("número de huéspedes inválido");
+    java.util.Map<Long, RoomType> tipos = new java.util.HashMap<>();
+    for (RoomType tipo : inventario.tipos()) tipos.put(tipo.id(), tipo);
+    List<PlanTarifario> planes = tarifas.planesActivos();
+    // Las tarifas del mes entero, una vez por (tipo, plan): antes se repetían por cada día.
+    LocalDate inicio = mes.atDay(1);
+    LocalDate fin = mes.atEndOfMonth().plusDays(1);
+    java.util.Map<String, List<TarifaRepository.TarifaNoche>> cache = new java.util.HashMap<>();
+    for (RoomType tipo : tipos.values()) {
+      for (PlanTarifario plan : planes) {
+        cache.put(tipo.id() + ":" + plan.id(),
+          tarifas.nochesDelPeriodo(plan.id(), tipo.id(), inicio, fin));
+      }
+    }
     List<DiaCalendario> dias = new java.util.ArrayList<>();
-    for (LocalDate dia = mes.atDay(1); !dia.isAfter(mes.atEndOfMonth()); dia = dia.plusDays(1)) {
-      var ofertas = disponiblesConPrecio(dia, dia.plusDays(1), huespedes);
+    for (LocalDate dia = inicio; !dia.isAfter(mes.atEndOfMonth()); dia = dia.plusDays(1)) {
+      var ofertas = ofertasDe(inventario.disponibles(dia, dia.plusDays(1)), tipos, planes,
+        dia, dia.plusDays(1), huespedes, cache);
       long habitaciones = ofertas.stream().map(o -> o.habitacion().id()).distinct().count();
       var precios = ofertas.stream()
         .collect(java.util.stream.Collectors.groupingBy(OpcionOferta::moneda,
@@ -319,8 +354,13 @@ public class InventarioService {
    */
   private java.util.Optional<PrecioDetallado> detalleParaPlan(RoomType tipo, PlanTarifario plan,
       LocalDate desde, LocalDate hasta) {
+    return detalleParaPlan(tipo, plan, desde, hasta,
+      tarifas.nochesDelPeriodo(plan.id(), tipo.id(), desde, hasta));
+  }
+
+  private java.util.Optional<PrecioDetallado> detalleParaPlan(RoomType tipo, PlanTarifario plan,
+      LocalDate desde, LocalDate hasta, List<TarifaRepository.TarifaNoche> configuradas) {
     long noches = java.time.temporal.ChronoUnit.DAYS.between(desde, hasta);
-    var configuradas = tarifas.nochesDelPeriodo(plan.id(), tipo.id(), desde, hasta);
     if (configuradas.size() != noches) return java.util.Optional.empty();
     List<NochePrecio> detalle = new java.util.ArrayList<>();
     long total = 0;
