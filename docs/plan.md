@@ -485,6 +485,15 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   y la entrada muestra el aviso; saludo con etiqueta `Administrador`/`Huésped`.
   Backend 409/409, frontend 58/58, captura post-deploy. (Se numeró 125 por
   colisión.) Evidencia: `docs/evidence/round-128/verificacion.md`.
+- [x] **Ronda 130 - El huésped mueve sus fechas (Etapa H).**
+  `POST /api/mis-reservas/:codigo/fechas` con ownership (ajena 404 sin oráculo,
+  anónima 401), delegando en la misma transacción del panel. TDD 5/5; suite
+  414/414. Evidencia: `docs/evidence/round-130/verificacion.md`.
+- [x] **Ronda 131 - El calendario dice vacío en vez de fingir lleno (frontend).**
+  `PaginaInicio` lee `/api/hotel/venta` (R124): sin inventario muestra "Este
+  hotel aún no publica habitaciones" en vez de un mes de Llenos. TDD con mock e
+  interruptor, 5/5; `tsc` ×2, captura post-deploy. (Se numeró 129 y 130 por
+  colisión.) Evidencia: `docs/evidence/round-131/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.

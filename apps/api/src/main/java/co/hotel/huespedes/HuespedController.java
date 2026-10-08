@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -20,12 +21,15 @@ public class HuespedController {
   private final UsuariosHuespedRepository usuarios;
   private final ReservaServiceHuesped reservas;
   private final co.hotel.reservas.ComprobanteService comprobantes;
+  private final co.hotel.reservas.ReservaService servicioReservas;
 
   public HuespedController(UsuariosHuespedRepository usuarios, ReservaServiceHuesped reservas,
-      co.hotel.reservas.ComprobanteService comprobantes) {
+      co.hotel.reservas.ComprobanteService comprobantes,
+      co.hotel.reservas.ReservaService servicioReservas) {
     this.usuarios = usuarios;
     this.reservas = reservas;
     this.comprobantes = comprobantes;
+    this.servicioReservas = servicioReservas;
   }
 
   /**
@@ -67,6 +71,46 @@ public class HuespedController {
     return comprobantes.comprobante(codigo, null)
       .map(c -> ResponseEntity.ok().body((Object) c))
       .orElse(ResponseEntity.status(404).body(Map.of("error", "reserva no existe")));
+  }
+
+  public record CambiarFechasReq(String llegada, String salida) {}
+
+  /**
+   * El huésped mueve sus fechas sin llamar al hotel: solo las suyas (la ajena es 404,
+   * igual que en el comprobante propio), solo vigentes y solo a noches libres y
+   * vendibles, con el precio recalculado. 400 con fechas ausentes o invertidas.
+   */
+  @PostMapping("/api/mis-reservas/{codigo}/fechas")
+  public ResponseEntity<?> cambiarFechas(@PathVariable String codigo,
+      @RequestBody(required = false) CambiarFechasReq req) {
+    Long id = idActual();
+    if (id == null)
+      return ResponseEntity.status(401).body(Map.of("error", "sin sesión"));
+    Long duena = reservas.duenaDe(codigo);
+    if (duena == null || !duena.equals(id))
+      return ResponseEntity.status(404).body(Map.of("error", "reserva no existe"));
+    final java.time.LocalDate llegada;
+    final java.time.LocalDate salida;
+    try {
+      llegada = java.time.LocalDate.parse(req.llegada());
+      salida = java.time.LocalDate.parse(req.salida());
+    } catch (java.time.format.DateTimeParseException | NullPointerException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "las fechas deben tener formato YYYY-MM-DD"));
+    }
+    try {
+      var movida = servicioReservas.cambiarFechas(codigo, llegada, salida,
+        "huésped:" + currentEmail());
+      return ResponseEntity.ok(Map.of(
+        "codigo", movida.codigo(),
+        "llegada", movida.llegada().toString(),
+        "salida", movida.salida().toString(),
+        "huespedes", movida.huespedes(),
+        "estado", movida.estado().name()));
+    } catch (co.hotel.reservas.ExcepcionDeEstado | co.hotel.reservas.SinDisponibilidadException e) {
+      return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+    } catch (co.hotel.reservas.DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
   }
 
   /**
