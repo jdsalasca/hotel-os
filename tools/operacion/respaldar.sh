@@ -1,3 +1,4 @@
+#!/bin/sh
 # Copia de seguridad consistente de SQLite.
 #
 # ⚠️  Copiar el archivo a pelo con `cp` NO es una copia válida: si hay una escritura en curso, el
