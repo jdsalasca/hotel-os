@@ -369,6 +369,12 @@
 
     &:hover { background: $piedra-clara; color: $tinta; }
   }
+
+  .nav__error {
+    align-self: center;
+    color: $error;
+    font-size: $texto-sm;
+  }
 }
 
 // --- Pie ---

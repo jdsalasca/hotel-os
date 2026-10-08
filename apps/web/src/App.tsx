@@ -60,18 +60,28 @@ export function SaludoSesion() {
  */
 function CierreSesionPanel() {
   const sesion = useSesion();
+  const [fallo, setFallo] = useState(false);
 
   if (sesion.haySesion !== true) return null;
 
   async function salir() {
-    await sesion.salir();
-    window.location.assign('/admin/entrar');
+    setFallo(false);
+    const ok = await sesion.salir();
+    if (ok) window.location.assign('/admin/entrar');
+    else setFallo(true);
   }
 
   return (
-    <button type="button" className="nav__salir" onClick={() => void salir()}>
-      Cerrar sesión
-    </button>
+    <>
+      <button type="button" className="nav__salir" onClick={() => void salir()}>
+        Cerrar sesión
+      </button>
+      {fallo ? (
+        <span className="nav__error" role="alert">
+          No se pudo cerrar la sesión: sigue abierta.
+        </span>
+      ) : null}
+    </>
   );
 }
 

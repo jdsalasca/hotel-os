@@ -75,8 +75,12 @@ public class AdminAuthController {
         return ResponseEntity.ok(Map.of("estado", "cambio_requerido"));
       }
       SecurityContextHolder.getContext().setAuthentication(auth);
-      repoSesion.saveContext(SecurityContextHolder.getContext(), peticion, respuesta);
+      // La sesión se asegura primero y su identificador se rota siempre: si alguien plantó
+      // el JSESSIONID antes del login (fijación), ese id muere aquí y solo el nuevo entra.
+      // El filtro de Spring no corre en este login manual, así que su changeSessionId no aplica.
       peticion.getSession(true);
+      peticion.changeSessionId();
+      repoSesion.saveContext(SecurityContextHolder.getContext(), peticion, respuesta);
       return ResponseEntity.ok(Map.of("estado", "autenticado", "rol", auth.getAuthorities()));
     } catch (AuthenticationException e) {
       throttle.fallo(clave);

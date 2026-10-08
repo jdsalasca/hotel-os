@@ -77,15 +77,28 @@ export function useSesion() {
       const cuerpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(cuerpo.error ?? 'No se pudo cambiar la contraseña');
     },
-    async salir() {
+    /**
+     * Cierra en el servidor y solo entonces limpia lo local. Avisa true con la
+     * confirmación; con 403/500 o sin red avisa false y la sesión se conserva:
+     * declarar el cierre sin confirmarlo dejaba la cookie válida y al personal
+     * creyendo que había salido.
+     */
+    async salir(): Promise<boolean> {
       const csrf = leerCsrf();
-      await fetch(urlApi('/api/admin/logout'), {
-        method: 'POST',
-        headers: { 'X-XSRF-TOKEN': csrf },
-        credentials: 'same-origin',
-      });
+      let r: Response;
+      try {
+        r = await fetch(urlApi('/api/admin/logout'), {
+          method: 'POST',
+          headers: { 'X-XSRF-TOKEN': csrf },
+          credentials: 'same-origin',
+        });
+      } catch {
+        return false;
+      }
+      if (!r.ok) return false;
       sesionAdmin.olvidar();
       if (vigente.current) setEstado({ haySesion: false, email: '', nombre: '' });
+      return true;
     },
   };
 }

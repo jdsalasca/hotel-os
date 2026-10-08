@@ -51,16 +51,27 @@ export function useSesionHuesped() {
     nombre: yo?.nombre ?? '',
     tieneReservas: yo?.tieneReservas ?? false,
     comprobar,
-    async salir() {
-      await fetch(urlApi('/api/huesped/logout'), {
-        method: 'POST',
-        headers: { 'X-XSRF-TOKEN': leerCsrf() },
-        credentials: 'same-origin',
-      });
+    /**
+     * Igual que en el panel: true solo con confirmación del servidor; en caso
+     * contrario la sesión se conserva y se avisa false para mostrar el motivo.
+     */
+    async salir(): Promise<boolean> {
+      let r: Response;
+      try {
+        r = await fetch(urlApi('/api/huesped/logout'), {
+          method: 'POST',
+          headers: { 'X-XSRF-TOKEN': leerCsrf() },
+          credentials: 'same-origin',
+        });
+      } catch {
+        return false;
+      }
+      if (!r.ok) return false;
       sesionHuesped.olvidar();
-      if (!vigente.current) return;
+      if (!vigente.current) return true;
       setHaySesion(false);
       setYo(null);
+      return true;
     },
   };
 }

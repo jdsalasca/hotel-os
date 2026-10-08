@@ -427,6 +427,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   la sesión solo reclama su propio correo (H3: huésped y admin con identidad previa);
   `idPorEmail` determinista por antigüedad en vez de 500 con duplicados (H2 parcial).
   TDD rojo-verde; suite 393/393. Evidencia: `docs/evidence/round-115/verificacion.md`.
+- [x] **Ronda 116 - Sesiones honestas (Etapa G).** Login manual rota el `JSESSIONID`
+  (fijación cerrada, HTTP real 3/3); `salir()` avisa true solo con confirmación y
+  conserva la sesión si el servidor falla (vitest 5/5 nuevo, suite 12/42, `tsc` ×2
+  y `vite build` OK, capturas desktop+móvil del aviso). Evidencia:
+  `docs/evidence/round-116/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
