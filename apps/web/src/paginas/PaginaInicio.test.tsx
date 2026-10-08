@@ -10,7 +10,12 @@ import { fechaCorta } from '../api/formato';
  * valores vivos: con el formulario cambiado se pide otro desglose y el abierto se
  * pierde ("Ocultar detalle" sin nada debajo).
  */
-const estado = vi.hoisted(() => ({ llamadasDetalle: [] as string[], dosPlanes: false, sinVenta: false }));
+const estado = vi.hoisted(() => ({
+  llamadasDetalle: [] as string[],
+  dosPlanes: false,
+  sinVenta: false,
+  hotel: null as null | Record<string, string>,
+}));
 
 vi.mock('../api/cliente', () => {
   function oferta(planId: number, nombrePlan: string) {
@@ -58,6 +63,13 @@ vi.mock('../api/cliente', () => {
       return { mes: '2030-06', huespedes: 2, dias: [] };
     }
     if (url === '/api/hotel/venta') return { a_la_venta: !estado.sinVenta };
+    if (url === '/api/hotel') {
+      return estado.hotel ?? {
+        nombre: 'Hotel Eridu',
+        contacto_email: 'hola@hotel.test',
+        contacto_telefono: '+57 300 1234567',
+      };
+    }
     if (url.startsWith('/api/amenidades/por-tipo?')) return { porTipo: {} };
     if (url === '/api/lugares') return { hotel: { ubicado: false }, lugares: [] };
     throw new Error('ruta no esperada: ' + url);
@@ -70,6 +82,7 @@ afterEach(() => {
   estado.llamadasDetalle.length = 0;
   estado.dosPlanes = false;
   estado.sinVenta = false;
+  estado.hotel = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -107,6 +120,29 @@ describe('hotel sin nada que vender', () => {
     await waitFor(() => {
       expect(document.querySelector('.calendario-mes__rejilla')).not.toBeNull();
     });
+  });
+
+  it('el vacío trae cómo contactar al hotel', async () => {
+    estado.sinVenta = true;
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+    await screen.findByText(/hola@hotel\.test/);
+    await screen.findByText(/\+57 300 1234567/);
+  });
+
+  it('sin contacto igual dice que no hay nada publicado', async () => {
+    estado.sinVenta = true;
+    estado.hotel = {};
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Este hotel aún no publica habitaciones');
+    expect(screen.queryByText(/hola@hotel\.test/)).toBeNull();
   });
 });
 

@@ -528,6 +528,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   hoy rechazada en alta y en mover fechas (hoy sí vale); test de rendimiento a
   fechas futuras. TDD rojo→verde; suite 437 (5 rojos del colega). Evidencia:
   `docs/evidence/round-141/verificacion.md`.
+- [x] **Ronda 142 - El vacío trae cómo contactar (cierre R133).** `PaginaInicio`
+  suma email/teléfono públicos al mensaje honesto; sin contacto, el base igual
+  vale. 7/7, `tsc` limpio, captura post-deploy. Evidencia:
+  `docs/evidence/round-142/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.

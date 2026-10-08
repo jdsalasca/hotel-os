@@ -114,6 +114,20 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       .catch(() => setVenta(null));
   }, []);
 
+  /** Contacto público para el estado vacío: sin habitaciones, que al menos escriban. */
+  const [contacto, setContacto] = useState<{ email: string; telefono: string } | null>(null);
+
+  useEffect(() => {
+    void api
+      .get<Record<string, string>>('/api/hotel')
+      .then((h) => {
+        const email = (h.contacto_email ?? '').trim();
+        const telefono = (h.contacto_telefono ?? '').trim();
+        setContacto(email || telefono ? { email, telefono } : null);
+      })
+      .catch(() => setContacto(null));
+  }, []);
+
   // El calendario es una sola petición por mes: si el huésped cambia de mes o de huéspedes antes
   // de que vuelva, la respuesta vieja se ignora en vez de pintar otro mes.
   useEffect(() => {
@@ -573,7 +587,11 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           {venta === false && !errorCal ? (
             <Vacio
               titulo="Este hotel aún no publica habitaciones"
-              detalle="Estamos preparando el inventario: vuelve pronto o pregúntanos por otros medios."
+              detalle={`Estamos preparando el inventario: vuelve pronto${
+                contacto
+                  ? ` o escríbenos${contacto.email ? ` a ${contacto.email}` : ''}${contacto.telefono ? ` o llámanos al ${contacto.telefono}` : ''}.`
+                  : '.'
+              }`}
             />
           ) : null}
 
