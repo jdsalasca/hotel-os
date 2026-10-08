@@ -314,6 +314,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 105 - Tope de 1 MB a cuerpos JSON con 413 (Etapa F).**
   Filtro nuevo: corta por longitud declarada o contando el flujo; la auditoría lo
   registra. Evidencia: `docs/evidence/round-105/verificacion.md`.
+- [x] **Ronda 109 - f3_ocupación se nombra por lo que mide (Etapa D).**
+  Migración V17 ("Noches comprometidas", clave intacta) + infra axe lista sin
+  ejecutar (daemon caído, no tocado). Evidencia:
+  `docs/evidence/round-109/verificacion.md`.
 - [x] **Ronda 99 - El lote lee el rango una vez y no resuelve dos veces (Etapa L).**
   Previa de 10 en 3 lecturas y aplicar en 13 sentencias, con cotas que truenan.
   El `round-99/` lo ocupa la Ronda 99 del colega; ver `round-101/`. Evidencia:

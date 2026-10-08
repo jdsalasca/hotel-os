@@ -14,3 +14,4 @@ dist/
 backups/
 # Salida local de las herramientas de navegador (snapshots, logs de consola): nunca al repo.
 .playwright-mcp/
+tools/accesibilidad/salida/

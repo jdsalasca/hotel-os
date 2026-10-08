@@ -1,0 +1,13 @@
+# Solo para auditar accesibilidad. No forma parte del despliegue ni toca datos.
+services:
+  accesibilidad:
+    build: ./tools/accesibilidad
+    environment:
+      BASE_URL: http://web:80
+      SALIDA: /salida
+    volumes:
+      - ${EVIDENCIA:-./tools/accesibilidad/salida}:/salida
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: "no"

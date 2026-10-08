@@ -324,9 +324,17 @@ class IndicadoresServiceTest {
     @Test void cadaIndicadorMuestraDefinicionFormulaFuentePeriodoYUnidad() {
       var definicion = indicadores.definicion("f3_ocupacion");
       assertEquals(3, definicion.fase());
-      assertTrue(definicion.formula().contains("noches ocupadas"));
+      assertTrue(definicion.formula().contains("noches comprometidas"));
       assertEquals("porcentaje", definicion.unidad());
       assertFalse( definicion.fuente().isBlank());
+    }
+
+    @Test void ocupacionSeNombraPorLoQueMide() {
+      // Incluye PENDIENTE y CONFIRMADA: sin recepción no hay estancia efectiva que medir,
+      // así que el nombre no puede prometer "ocupación".
+      var definicion = indicadores.definicion("f3_ocupacion");
+      assertEquals("Noches comprometidas", definicion.nombre());
+      assertTrue(definicion.definicion().contains("reserva vigente"));
     }
 
     @Test void noSeInventanLineaBaseNiMeta() {
