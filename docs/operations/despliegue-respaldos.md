@@ -251,6 +251,10 @@ aplicó). El healthcheck lo detecta y lo dice:
 {"estado":"degradado","base":"esquema incompleto","tablas":"3"}
 ```
 
+Ese degradado responde HTTP 503, no 200: el orquestador deja de mandar tráfico solo.
+Para saber si el proceso sigue vivo sin tocar la base existe `/api/health/vivo`
+(siempre 200 con `{"estado":"ok"}`).
+
 La recuperación es restaurar un respaldo, no "reinstalar". Por eso `HealthController` consulta el
 esquema real y no solo responde `ok`.
 

@@ -51,4 +51,32 @@ class HealthControllerTest {
       .andExpect(jsonPath("$.estado").value("ok"))
       .andExpect(jsonPath("$.base").value("accesible"));
   }
+
+  @Test
+  @DisplayName("estar vivo no depende de la base: el proceso responde aunque SQLite no esté")
+  void vivoRespondeSinSesionNiBase() throws Exception {
+    mvc.perform(get("/api/health/vivo"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.estado").value("ok"));
+  }
+
+  @Test
+  @DisplayName("sin esquema completo, la readiness es 503 y no 200 con degradado")
+  void sinEsquemaLaReadinessEs503() {
+    var memoria = new org.sqlite.SQLiteDataSource();
+    memoria.setUrl("jdbc:sqlite::memory:");
+    var respuesta = new HealthController(new org.springframework.jdbc.core.JdbcTemplate(memoria)).salud();
+    assert respuesta.getStatusCode().value() == 503;
+    assert "degradado".equals(respuesta.getBody().get("estado"));
+  }
+
+  @Test
+  @DisplayName("sin base accesible, la readiness es 503 y no una excepción sin forma")
+  void sinBaseLaReadinessEs503() {
+    var rota = new org.sqlite.SQLiteDataSource();
+    rota.setUrl("jdbc:sqlite:/directorio-que-no-existe-xyz/base.sqlite3");
+    var respuesta = new HealthController(new org.springframework.jdbc.core.JdbcTemplate(rota)).salud();
+    assert respuesta.getStatusCode().value() == 503;
+    assert "no-lista".equals(respuesta.getBody().get("estado"));
+  }
 }

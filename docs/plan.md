@@ -259,6 +259,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   Actividad con fecha inválida ya no se inserta antes del 400; inventario-esperado
   inválido es 400 (no 200); `2026-99` es 400 (no 500); el CSV neutraliza con espacios
   o tabs antes de la fórmula. Evidencia: `docs/evidence/round-68/verificacion.md`.
+- [x] **Ronda 69 - Liveness y readiness con códigos correctos (Etapa M).**
+  `/api/health/vivo` (proceso, siempre 200) y `/api/health` como readiness real:
+  503 degradado o inaccesible en vez de 200 con aviso. Evidencia:
+  `docs/evidence/round-69/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
