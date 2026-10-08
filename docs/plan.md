@@ -398,6 +398,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 110 - Simulacro de restauración que sí muerde.** `verificar-respaldo.sh`:
   ok/exit 0 en bueno, ERROR/exit 1 en corrupto y vacío; cazó bug real de `set -eu` con
   `$()`. Evidencia: `docs/evidence/round-110/verificacion.md`.
+- [x] **Ronda 110 - Simulacro de restauración que sí muerde.** `verificar-respaldo.sh`
+  con positivo/negativos en prod + bug real de `set -eu` cazado. Evidencia:
+  `docs/evidence/round-110/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
