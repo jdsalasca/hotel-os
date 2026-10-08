@@ -17,7 +17,10 @@ public final class ActorActual {
   private ActorActual() {}
 
   public static String correo() {
-    var auth = SecurityContextHolder.getContext().getAuthentication();
+    return correo(SecurityContextHolder.getContext().getAuthentication());
+  }
+
+  static String correo(org.springframework.security.core.Authentication auth) {
     // AnonymousAuthenticationToken viene "autenticado" pero no es una persona.
     if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
       return ANONIMO;

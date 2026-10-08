@@ -285,6 +285,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 76 - El detalle es oferta vendible (Etapa F).** `detalleOferta()` exige
   habitación libre con la misma regla de la búsqueda: ocupada o bloqueada es 404.
   Evidencia: `docs/evidence/round-76/verificacion.md`.
+- [x] **Ronda 80 - Auditoría cubre PUT/DELETE y el logout queda atribuido (Etapa M).**
+  Filtro primero en la cadena con actor de sesión antes/después; `crear` de lugares
+  devuelve el id real. Deploy a prod bloqueado (sin usuario SSH). Evidencia:
+  `docs/evidence/round-80/verificacion.md`.
 - [x] **Ronda 75 - La confirmación ofrece Mis reservas también al panel.** `conCuenta` con
   ambas sesiones + test del hilo de chat (20/20 vitest). Evidencia:
   `docs/evidence/round-75/verificacion.md`.

@@ -58,6 +58,7 @@ class AuditoriaAdminTest {
 
   @Autowired MockMvc mvc;
   @Autowired JdbcTemplate jdbc;
+  @Autowired org.springframework.security.crypto.password.PasswordEncoder encoder;
 
   @BeforeEach
   void inventario() {
@@ -120,6 +121,45 @@ class AuditoriaAdminTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[0].actor").value("admin@hotel.test"))
       .andExpect(jsonPath("$[0].ruta").value("/api/admin/tipos"));
+  }
+
+  @Test
+  @DisplayName("el logout queda atribuido a quien salió, no a ANONIMO")
+  void elLogoutQuedaAtribuido() throws Exception {
+    mvc.perform(post("/api/admin/logout").with(ADMIN).with(csrf()))
+      .andExpect(status().isOk());
+
+    String actor = jdbc.queryForObject(
+      "SELECT actor FROM admin_actions WHERE ruta=? ORDER BY id DESC LIMIT 1",
+      String.class, "/api/admin/logout");
+    assertThat(actor).isEqualTo("admin@hotel.test");
+  }
+
+  @Test
+  @DisplayName("el login queda atribuido a quien entró y el fallido a ANONIMO")
+  void elLoginQuedaAtribuido() throws Exception {
+    jdbc.update("INSERT INTO users(email,hash,rol,activo,creado_en,debe_cambiar_clave)"
+      + " VALUES('auditor@hotel.test',?, 'ADMIN',1,datetime('now'),0)",
+      encoder.encode("ClaveAuditora12345"));
+    mvc.perform(post("/api/admin/login").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("email", "auditor@hotel.test", "password", "ClaveAuditora12345"))))
+      .andExpect(status().isOk());
+
+    String actor = jdbc.queryForObject(
+      "SELECT actor FROM admin_actions WHERE ruta=? ORDER BY id DESC LIMIT 1",
+      String.class, "/api/admin/login");
+    assertThat(actor).isEqualTo("auditor@hotel.test");
+
+    mvc.perform(post("/api/admin/login").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("email", "nadie@hotel.test", "password", "incorrecta"))))
+      .andExpect(status().is4xxClientError());
+
+    String fallido = jdbc.queryForObject(
+      "SELECT actor FROM admin_actions WHERE ruta=? ORDER BY id DESC LIMIT 1",
+      String.class, "/api/admin/login");
+    assertThat(fallido).isEqualTo("ANONIMO");
   }
 
   @Test
