@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
-import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
+import { Cargando, Etiqueta, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 
 type Accion = {
   actor: string;
@@ -62,11 +62,7 @@ export function PaginaAdminAuditoria() {
   }, []);
 
   if (sesion.haySesion === false) {
-    return (
-      <Aviso tono="aviso" titulo="Sesión requerida">
-        Inicia sesión para ver el rastro de acciones.
-      </Aviso>
-    );
+    return <PuertaAdmin>Inicia sesión para ver el rastro de acciones.</PuertaAdmin>;
   }
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
 

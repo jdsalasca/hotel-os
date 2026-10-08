@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 /** Estados compartidos: carga, error y vacío. Usarlos bien evita pantallas a medias. */
 
@@ -58,6 +59,22 @@ export function Etiqueta({
   children: ReactNode;
 }) {
   return <span className={`etiqueta etiqueta--${tono}`}>{children}</span>;
+}
+
+/**
+ * Puerta cerrada del panel: el mismo aviso en todas las pantallas, siempre con el
+ * botón para entrar. Nueve pantallas lo necesitan y cada una con su texto se
+ * volvía un callejón sin salida distinto; esto lo deja en un solo lugar.
+ */
+export function PuertaAdmin({ children }: { children: ReactNode }) {
+  return (
+    <Aviso tono="aviso" titulo="Sesión requerida">
+      <p>{children}</p>
+      <Link className="boton boton--primario" to="/admin/entrar">
+        Iniciar sesión
+      </Link>
+    </Aviso>
+  );
 }
 
 /**

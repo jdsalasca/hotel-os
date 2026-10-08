@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { hoyIso } from '../api/formato';
 import { useSesion } from '../api/useSesion';
-import { Aviso, Cargando, MensajeError, Vacio } from '../componentes/Estado';
+import { Cargando, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 
 type Movimiento = {
   codigo: string;
@@ -61,12 +60,7 @@ export function PaginaAdminHoy() {
     return (
       <main id="contenido" className="centrado">
         <section className="seccion">
-          <Aviso tono="aviso" titulo="Sesión requerida">
-            <p>Esta pantalla es para el personal del hotel.</p>
-            <Link className="boton boton--primario" to="/admin/entrar">
-              Iniciar sesión
-            </Link>
-          </Aviso>
+          <PuertaAdmin>Esta pantalla es para el personal del hotel.</PuertaAdmin>
         </section>
       </main>
     );
