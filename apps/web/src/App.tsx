@@ -32,12 +32,8 @@ export function SaludoSesion() {
   const admin = useSesion();
   const huesped = useSesionHuesped();
 
-  useEffect(() => {
-    void admin.comprobar();
-    void huesped.comprobar();
-    // Solo al montar la app: las sesiones cambian con login/logout, que recargan o navegan.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Sin comprobar() explícito: cada hook pregunta al montar y la pregunta es compartida
+  // (ver api/sesion.ts). Llamarlo aquí además duplicaba la petición por cada render.
 
   if (admin.haySesion === true && admin.email.length > 0) {
     return (

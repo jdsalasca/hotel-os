@@ -269,6 +269,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   protocolo, `usePeticion` con id y `abortar`, búsqueda/detalle/elección con
   snapshot en la pública y `npm test` con vitest (11 verdes). Evidencia:
   `docs/evidence/round-70/verificacion.md`.
+- [x] **Ronda 71 - Sesión compartida + `test:typecheck` (Etapa E).**
+  `api/sesion.ts` comparte el vuelo (6 → 2 peticiones por navegación, sin TTL para
+  no mentir) y los tests se comprueban en CI sin tocar el build de prod. Evidencia:
+  `docs/evidence/round-71/verificacion.md`.
 - [x] **Ronda 66 - Gestión descubrible.** Enlace Habitaciones en la nav, vacío con acción
   al alta guiada y test del saludo (11/11 vitest con los del colega). Evidencia:
   `docs/evidence/round-66/verificacion.md`.

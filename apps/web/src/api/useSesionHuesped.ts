@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { urlApi } from './cliente';
+import { crearEstadoSesion } from './sesion';
 
 type Yo = { email: string; nombre: string; tieneReservas: boolean };
+
+async function pedirYo(): Promise<Yo | null> {
+  const r = await fetch(urlApi('/api/yo'), { credentials: 'same-origin' });
+  if (!r.ok) return null;
+  return (await r.json()) as Yo;
+}
+
+/** Una sola pregunta para todos los montados: ver `sesion.ts`. */
+const sesionHuesped = crearEstadoSesion(pedirYo);
 
 /**
  * Sesión del huésped (Google). El backend usa sesión con cookie HttpOnly, igual que el panel: aquí
@@ -13,26 +23,27 @@ type Yo = { email: string; nombre: string; tieneReservas: boolean };
 export function useSesionHuesped() {
   const [yo, setYo] = useState<Yo | null>(null);
   const [haySesion, setHaySesion] = useState<boolean | null>(null);
+  const vigente = useRef(true);
 
-  const comprobar = useCallback(async () => {
-    try {
-      const r = await fetch(urlApi('/api/yo'), { credentials: 'same-origin' });
-      if (!r.ok) {
-        setHaySesion(false);
-        setYo(null);
-        return;
-      }
-      setYo((await r.json()) as Yo);
-      setHaySesion(true);
-    } catch {
-      setHaySesion(false);
-      setYo(null);
-    }
-  }, []);
+  async function comprobar(): Promise<void> {
+    sesionHuesped.olvidar();
+    const e = await sesionHuesped.leer();
+    if (!vigente.current) return;
+    setYo(e.datos);
+    setHaySesion(e.haySesion);
+  }
 
   useEffect(() => {
-    void comprobar();
-  }, [comprobar]);
+    vigente.current = true;
+    void sesionHuesped.leer().then((e) => {
+      if (!vigente.current) return;
+      setYo(e.datos);
+      setHaySesion(e.haySesion);
+    });
+    return () => {
+      vigente.current = false;
+    };
+  }, []);
 
   return {
     haySesion,
@@ -46,6 +57,8 @@ export function useSesionHuesped() {
         headers: { 'X-XSRF-TOKEN': leerCsrf() },
         credentials: 'same-origin',
       });
+      sesionHuesped.olvidar();
+      if (!vigente.current) return;
       setHaySesion(false);
       setYo(null);
     },

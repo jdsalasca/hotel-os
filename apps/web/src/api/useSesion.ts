@@ -1,38 +1,46 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { urlApi } from './cliente';
+import { crearEstadoSesion } from './sesion';
+
+type DatosAdmin = { email: string };
+
+async function pedirAdmin(): Promise<DatosAdmin | null> {
+  const r = await fetch(urlApi('/api/admin/sesion'), { credentials: 'same-origin' });
+  if (!r.ok) return null;
+  const cuerpo = (await r.json()) as { email?: string };
+  return { email: cuerpo.email ?? '' };
+}
+
+/** Una sola pregunta para todos los montados: ver `sesion.ts`. */
+const sesionAdmin = crearEstadoSesion(pedirAdmin);
 
 /**
  * Sesión administrativa. El backend usa sesión con cookie HttpOnly y CSRF por cookie: aquí solo
  * se sabe si hay sesión. Nunca se guarda el token en localStorage ni en memoria accesible.
  */
 export function useSesion() {
-  const [haySesion, setHaySesion] = useState<boolean | null>(null);
-  const [email, setEmail] = useState('');
-
-  async function comprobar() {
-    try {
-      const r = await fetch(urlApi('/api/admin/sesion'), { credentials: 'same-origin' });
-      if (!r.ok) {
-        setHaySesion(false);
-        setEmail('');
-        return;
-      }
-      const cuerpo = (await r.json()) as { email?: string };
-      setEmail(cuerpo.email ?? '');
-      setHaySesion(true);
-    } catch {
-      setHaySesion(false);
-      setEmail('');
-    }
-  }
+  const [estado, setEstado] = useState<{ haySesion: boolean; email: string } | null>(null);
+  const vigente = useRef(true);
 
   useEffect(() => {
-    void comprobar();
+    vigente.current = true;
+    void sesionAdmin.leer().then((e) => {
+      if (vigente.current) setEstado({ haySesion: e.haySesion, email: e.datos?.email ?? '' });
+    });
+    return () => {
+      vigente.current = false;
+    };
   }, []);
 
+  async function comprobar(): Promise<void> {
+    sesionAdmin.olvidar();
+    const e = await sesionAdmin.leer();
+    if (vigente.current) setEstado({ haySesion: e.haySesion, email: e.datos?.email ?? '' });
+  }
+
   return {
-    haySesion,
-    email,
+    haySesion: estado === null ? null : estado.haySesion,
+    email: estado?.email ?? '',
     comprobar,
     async entrar(email: string, clave: string): Promise<'autenticado' | 'cambio_requerido'> {
       const r = await fetch(urlApi('/api/admin/login'), {
@@ -47,6 +55,7 @@ export function useSesion() {
       const cuerpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(cuerpo.error ?? 'Credenciales inválidas');
       if (cuerpo.estado === 'cambio_requerido') return 'cambio_requerido';
+      sesionAdmin.olvidar();
       await comprobar();
       return 'autenticado';
     },
@@ -70,7 +79,8 @@ export function useSesion() {
         headers: { 'X-XSRF-TOKEN': csrf },
         credentials: 'same-origin',
       });
-      setHaySesion(false);
+      sesionAdmin.olvidar();
+      if (vigente.current) setEstado({ haySesion: false, email: '' });
     },
   };
 }
