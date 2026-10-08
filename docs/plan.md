@@ -503,6 +503,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   servidor. TDD 2/2, suite 19/20 (el rojo es TDD en curso del colega), `tsc` ×2
   OK, verificado en vivo desktop+móvil + capturas. (132-133 del colega.)
   Evidencia: `docs/evidence/round-134/verificacion.md`.
+- [x] **Ronda 135 - Sin 500 con correos duplicados (Etapa G, H2).** Blinda la
+  mitigación de la R115 en `/api/yo`, `/api/mis-reservas` y el alta (3 tests;
+  rojo probado por reversión). Suite backend en verde. Evidencia:
+  `docs/evidence/round-135/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
