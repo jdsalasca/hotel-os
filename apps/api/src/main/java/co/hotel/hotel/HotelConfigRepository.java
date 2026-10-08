@@ -33,4 +33,16 @@ public class HotelConfigRepository {
       + "ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor, actualizado_en=excluded.actualizado_en",
       filas);
   }
+
+  /**
+   * Hay algo que vender: al menos una habitación activa y al menos una tarifa. Sin
+   * precio no hay venta aunque haya cuartos, y la web lo dice en vez de fingir lleno.
+   */
+  public boolean hayVenta() {
+    Integer cuartos = jdbc.queryForObject("SELECT COUNT(*) FROM rooms WHERE estado='ACTIVA'",
+      Integer.class);
+    if (cuartos == null || cuartos == 0) return false;
+    Integer tarifas = jdbc.queryForObject("SELECT COUNT(*) FROM rates", Integer.class);
+    return tarifas != null && tarifas > 0;
+  }
 }
