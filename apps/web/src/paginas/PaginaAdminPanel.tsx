@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando } from '../componentes/Estado';
+import { ListaPreparacion } from '../componentes/ListaPreparacion';
 
 /**
  * Puerta de entrada del panel: a dónde va cada cosa, de una mirada. Entrar ya no te deja
@@ -36,6 +37,8 @@ export function PaginaAdminPanel() {
         <p className="seccion__intro">
           Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
         </p>
+
+        <ListaPreparacion />
 
         <div className="rejilla">
           <article className="tarjeta pila">

@@ -389,6 +389,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   español; TDD rojo→verde, 11/11 con vecinas. Evidencia: `docs/evidence/round-103/verificacion.md`.
 - [x] **Ronda 106 - Topes del colega, en vivo.** 1 MB verificado con 413 real, health `ok`.
   Evidencia: `docs/evidence/round-106/verificacion.md`.
+- [x] **Ronda 108 - Pon tu hotel a punto.** Checklist calculada + tarjeta en el panel;
+  TDD, 26/26 vitest. Evidencia: `docs/evidence/round-108/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
