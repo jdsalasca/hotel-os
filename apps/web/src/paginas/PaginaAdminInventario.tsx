@@ -26,6 +26,17 @@ const MONEDAS = [
   { codigo: 'GBP', nombre: 'Libra esterlina' },
 ];
 
+/** Días ISO para el rango: 1 lunes … 7 domingo, como los valida el backend. */
+const DIAS_SEMANA = [
+  { n: 1, nombre: 'Lunes' },
+  { n: 2, nombre: 'Martes' },
+  { n: 3, nombre: 'Miércoles' },
+  { n: 4, nombre: 'Jueves' },
+  { n: 5, nombre: 'Viernes' },
+  { n: 6, nombre: 'Sábado' },
+  { n: 7, nombre: 'Domingo' },
+];
+
 type Bloqueo = { id: number; habitacion: string; desde: string; hasta: string; motivo: string };
 type Amenidad = { id: number; codigo: string; nombre: string };
 /** Fila del calendario: una habitación con una entrada por noche del mes. */
@@ -134,6 +145,14 @@ export function PaginaAdminInventario() {
   const [cerradas, setCerradas] = useState<Record<string, boolean>>({});
   /** Previa del lote: lo que se guardaría al confirmar, sin haber escrito nada todavía. */
   const [previa, setPrevia] = useState<PreviaLote | null>(null);
+  /** De dónde salió la previa: el mes o un rango. Confirmar usa la misma fuente. */
+  const [previaOrigen, setPreviaOrigen] = useState<'mes' | 'rango'>('mes');
+  const [rangoEnviado, setRangoEnviado] = useState<{
+    rango: { desde: string; hasta: string; diasSemana: number[] };
+    precioCents: number;
+    cerrado: boolean;
+  } | null>(null);
+  const [rango, setRango] = useState({ desde: '', hasta: '', dias: [1, 2, 3, 4, 5, 6, 7], precio: '', cerrado: false });
   /** Al confirmar, las noches se releen para mostrar lo guardado de verdad, no el borrador. */
   const [versionTarifas, setVersionTarifas] = useState(0);
 
@@ -176,9 +195,13 @@ export function PaginaAdminInventario() {
       setBorrador({});
       setCerradas({});
       setPrevia(null);
+      setPreviaOrigen('mes');
+      setRangoEnviado(null);
       return;
     }
     setPrevia(null);
+    setPreviaOrigen('mes');
+    setRangoEnviado(null);
     void api
       .get<Noche[]>(`/api/admin/tarifas?planId=${tarifas.planId}&tipoId=${tarifas.tipoId}&desde=${desde}&hasta=${hasta}`)
       .then((lista) => {
@@ -191,8 +214,7 @@ export function PaginaAdminInventario() {
   }, [tarifas.planId, tarifas.tipoId, mesTarifas, versionTarifas]);
 
   /** Noches que cambiaron en el borrador, listas para la previa o el lote. */
-  function cambiosDelMes() {
-    return diasDelMes(mesTarifas)
+  function cambiosDelMes() {    return diasDelMes(mesTarifas)
       .filter((dia) => {
         const guardado = noches.get(dia);
         const texto = (borrador[dia] ?? '').trim();
@@ -210,6 +232,69 @@ export function PaginaAdminInventario() {
           cerrado: cerradas[dia] ?? false,
         };
       });
+  }
+
+  /** Confirma lo previado, venga del mes o de un rango: lo mismo que se revisó. */
+  function confirmarPrevia() {
+    setError(null);
+    const guardar =
+      previaOrigen === 'rango' && rangoEnviado
+        ? api.post('/api/admin/tarifas/lote/rango', {
+            ratePlanId: Number(tarifas.planId),
+            roomTypeId: Number(tarifas.tipoId),
+            rango: rangoEnviado.rango,
+            precioCents: rangoEnviado.precioCents,
+            cerrado: rangoEnviado.cerrado,
+          })
+        : api.post('/api/admin/tarifas/lote', {
+            ratePlanId: Number(tarifas.planId),
+            roomTypeId: Number(tarifas.tipoId),
+            noches: cambiosDelMes(),
+          });
+    void guardar
+      .then(() => {
+        setPrevia(null);
+        setPreviaOrigen('mes');
+        setRangoEnviado(null);
+        setVersionTarifas((v) => v + 1);
+        void cargar();
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo guardar el lote'));
+  }
+
+  /** Pide la previa de un rango (p. ej. fines de semana): la validación fina es por fila. */
+  function revisarRango(evento: React.FormEvent) {
+    evento.preventDefault();
+    const precio = Math.round(Number(rango.precio) * 100);
+    if (!rango.desde || !rango.hasta) {
+      setError('El rango necesita desde y hasta.');
+      return;
+    }
+    if (rango.precio.trim() === '' || Number.isNaN(precio)) {
+      setError('El rango necesita un precio.');
+      return;
+    }
+    if (rango.dias.length === 0) {
+      setError('Marca al menos un día de la semana.');
+      return;
+    }
+    setError(null);
+    setPrevia(null);
+    const enviado = {
+      rango: { desde: rango.desde, hasta: rango.hasta, diasSemana: [...rango.dias].sort() },
+      precioCents: precio,
+      cerrado: rango.cerrado,
+    };
+    setPreviaOrigen('rango');
+    setRangoEnviado(enviado);
+    void api
+      .post<PreviaLote>('/api/admin/tarifas/lote/rango/preview', {
+        ratePlanId: Number(tarifas.planId),
+        roomTypeId: Number(tarifas.tipoId),
+        ...enviado,
+      })
+      .then(setPrevia)
+      .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo previsualizar'));
   }
 
   async function accion<T>(tarea: () => Promise<T>) {
@@ -788,6 +873,8 @@ export function PaginaAdminInventario() {
               }
               setError(null);
               setPrevia(null);
+              setPreviaOrigen('mes');
+              setRangoEnviado(null);
               void api
                 .post<PreviaLote>('/api/admin/tarifas/lote/preview', {
                   ratePlanId: Number(tarifas.planId),
@@ -858,6 +945,89 @@ export function PaginaAdminInventario() {
             </button>
           </form>
 
+          <details className="tarjeta pila mt-e6">
+            <summary className="referencia__resumen">Tarifar por rango y días de la semana</summary>
+            <p className="campo__ayuda sin-margen">
+              Para subir los fines de semana de una vez, por ejemplo. Pasa por la misma
+              previa de abajo antes de guardar.
+            </p>
+            <form className="pila" onSubmit={revisarRango}>
+              <div className="campos">
+                <div className="campo">
+                  <label className="campo__etiqueta" htmlFor="rango-desde">Desde</label>
+                  <input
+                    id="rango-desde"
+                    type="date"
+                    required
+                    className="cifra"
+                    value={rango.desde}
+                    onChange={(e) => setRango({ ...rango, desde: e.target.value })}
+                  />
+                </div>
+                <div className="campo">
+                  <label className="campo__etiqueta" htmlFor="rango-hasta">Hasta</label>
+                  <input
+                    id="rango-hasta"
+                    type="date"
+                    required
+                    className="cifra"
+                    value={rango.hasta}
+                    onChange={(e) => setRango({ ...rango, hasta: e.target.value })}
+                  />
+                </div>
+              </div>
+              <fieldset className="grupo-chequeos">
+                <legend className="campo__etiqueta">Días de la semana</legend>
+                {DIAS_SEMANA.map((d) => (
+                  <label key={d.n} className="chequeo">
+                    <input
+                      type="checkbox"
+                      checked={rango.dias.includes(d.n)}
+                      onChange={() => setRango({
+                        ...rango,
+                        dias: rango.dias.includes(d.n)
+                          ? rango.dias.filter((m) => m !== d.n)
+                          : [...rango.dias, d.n],
+                      })}
+                    />
+                    {d.nombre}
+                  </label>
+                ))}
+              </fieldset>
+              <div className="campos">
+                <div className="campo">
+                  <label className="campo__etiqueta" htmlFor="rango-precio">Precio</label>
+                  <input
+                    id="rango-precio"
+                    className="cifra"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    inputMode="decimal"
+                    required
+                    placeholder="Sin fijar"
+                    value={rango.precio}
+                    onChange={(e) => setRango({ ...rango, precio: e.target.value })}
+                  />
+                </div>
+                <div className="campo">
+                  <label className="chequeo" htmlFor="rango-cerrada">
+                    <input
+                      id="rango-cerrada"
+                      type="checkbox"
+                      checked={rango.cerrado}
+                      onChange={(e) => setRango({ ...rango, cerrado: e.target.checked })}
+                    />
+                    No vendible
+                  </label>
+                </div>
+              </div>
+              <button className="boton boton--secundario no-estirar" type="submit">
+                Revisar rango
+              </button>
+            </form>
+          </details>
+
           {previa ? (
             <div className="tarjeta pila mt-e6" role="region" aria-label="Previa del lote">
               <h3 className="t-lg mb-0">Revisa antes de guardar</h3>
@@ -909,21 +1079,7 @@ export function PaginaAdminInventario() {
                   type="button"
                   disabled={!previa.lista}
                   title={!previa.lista ? 'Corrige las filas con error: si una falla, no se guarda ninguna' : undefined}
-                  onClick={() => {
-                    setError(null);
-                    void api
-                      .post('/api/admin/tarifas/lote', {
-                        ratePlanId: Number(tarifas.planId),
-                        roomTypeId: Number(tarifas.tipoId),
-                        noches: cambiosDelMes(),
-                      })
-                      .then(() => {
-                        setPrevia(null);
-                        setVersionTarifas((v) => v + 1);
-                        void cargar();
-                      })
-                      .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo guardar el lote'));
-                  }}
+                  onClick={() => confirmarPrevia()}
                 >
                   Confirmar y guardar {previa.filas.length} noches
                 </button>

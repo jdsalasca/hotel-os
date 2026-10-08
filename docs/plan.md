@@ -315,6 +315,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 101 - Tarifas por rango y días de semana (Etapa C/I).**
   Expansión a noches sobre el lote atómico (preview + confirmación). Evidencia:
   `docs/evidence/round-101/verificacion.md`.
+- [x] **Ronda 103 - Tarifar por rango desde el panel (Etapa C/I).**
+  Formulario por rango con días ISO reutilizando previa y confirmación; verificado
+  en desktop y móvil sin escribir en dev. Evidencia:
+  `docs/evidence/round-103/verificacion.md`.
 - [x] **Ronda 94 - Canales conectados cuenta canales, no intentos (Etapa D).**
   Conectados (configurados con sync exitosa) sobre configurados; sin ellos,
   SIN_DATOS. El `round-94/` lo ocupa la Ronda 94 del colega; esta evidencia vive
