@@ -432,6 +432,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   conserva la sesión si el servidor falla (vitest 5/5 nuevo, suite 12/42, `tsc` ×2
   y `vite build` OK, capturas desktop+móvil del aviso). Evidencia:
   `docs/evidence/round-116/verificacion.md`.
+- [x] **Ronda 118 - El detalle pertenece a la búsqueda (Etapas E + B).** `verDetalle`,
+  resumen y caché usan el snapshot buscado (no el formulario editado); clave con
+  plan y apertura por separado; sin llaves React duplicadas. TDD 3/3, suite 12/45,
+  `tsc` ×2 y build OK, verificado en vivo con ofertas reales + capturas. Evidencia:
+  `docs/evidence/round-118/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
