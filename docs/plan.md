@@ -355,6 +355,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   deploy 7c68555 verificado vivo. Evidencia: `docs/evidence/round-92/verificacion.md`.
 - [x] **Ronda 93 - Login en celular, verificado.** Captura 390px sin roturas; origin sin
   movimiento. Evidencia: `docs/evidence/round-93/verificacion.md`.
+- [x] **Ronda 94 - Contratos sin sesión, todos en orden.** 401 JSON en español, OAuth 302,
+  búsqueda mala 400, prod sincronizado. Evidencia: `docs/evidence/round-94/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
