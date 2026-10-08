@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,6 +49,33 @@ public class DisponibilidadController {
     } catch (java.time.format.DateTimeParseException e) {
       return ResponseEntity.badRequest().body(Map.of("error", "las fechas deben tener formato YYYY-MM-DD"));
     }
+  }
+
+  /**
+   * Parámetros que no son número (`huespedes=muchos`, `roomId=cualquiera`): Spring los
+   * rechaza antes de entrar al método con su 400 por defecto, sin `error` y en otro
+   * idioma. Aquí vuelven al contrato de la casa: 400 con motivo en español.
+   */
+  @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<?> parametroNoNumerico(
+      org.springframework.web.method.annotation.MethodArgumentTypeMismatchException e) {
+    String motivo = switch (e.getName()) {
+      case "huespedes" -> "número de huéspedes inválido";
+      case "roomId" -> "identificador de habitación inválido";
+      default -> "parámetro '" + e.getName() + "' inválido";
+    };
+    return ResponseEntity.badRequest().body(Map.of("error", motivo));
+  }
+
+  /**
+   * Parámetros obligatorios ausentes (`llegada`, `mes`…): mismo caso que el anterior,
+   * 400 de Spring sin `error`. Se nombra el que falta para que el formulario lo pida.
+   */
+  @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+  public ResponseEntity<?> parametroAusente(
+      org.springframework.web.bind.MissingServletRequestParameterException e) {
+    return ResponseEntity.badRequest().body(Map.of("error",
+      "falta el parámetro '" + e.getParameterName() + "' en la consulta"));
   }
 
   private static Map<String, Object> oferta(OpcionOferta o) {

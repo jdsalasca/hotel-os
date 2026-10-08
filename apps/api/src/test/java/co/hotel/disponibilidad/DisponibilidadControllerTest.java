@@ -118,6 +118,51 @@ class DisponibilidadControllerTest {
   }
 
   @Test
+  @DisplayName("huéspedes que no es número es 400 con motivo en español, no el 400 de Spring")
+  void huespedesNoNumericoEs400ConMotivo() throws Exception {
+    mvc.perform(get("/api/disponibilidad")
+        .param("llegada", "2026-11-01").param("salida", "2026-11-03").param("huespedes", "muchos"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
+  @DisplayName("cero huéspedes es 400 con motivo en las tres lecturas públicas")
+  void ceroHuespedesEs400EnLasTresLecturas() throws Exception {
+    mvc.perform(get("/api/disponibilidad")
+        .param("llegada", "2026-11-01").param("salida", "2026-11-03").param("huespedes", "0"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+    mvc.perform(get("/api/disponibilidad/detalle")
+        .param("roomId", "1")
+        .param("llegada", "2026-11-01").param("salida", "2026-11-03").param("huespedes", "0"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+    mvc.perform(get("/api/disponibilidad/calendario").param("mes", "2026-11").param("huespedes", "0"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
+  @DisplayName("detalle con habitación que no es número es 400 con motivo")
+  void detalleConRoomIdNoNumericoEs400() throws Exception {
+    mvc.perform(get("/api/disponibilidad/detalle")
+        .param("roomId", "cualquiera")
+        .param("llegada", "2026-11-01").param("salida", "2026-11-03").param("huespedes", "2"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
+  @DisplayName("sin llegada la búsqueda es 400 con motivo, no el 400 de Spring")
+  void busquedaSinLlegadaEs400ConMotivo() throws Exception {
+    mvc.perform(get("/api/disponibilidad")
+        .param("salida", "2026-11-03").param("huespedes", "2"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
   @DisplayName("200 con ofertas vacías es sin disponibilidad, no entrada inválida")
   void vacioEs200ConOfertasVacias() throws Exception {
     mvc.perform(get("/api/disponibilidad")
