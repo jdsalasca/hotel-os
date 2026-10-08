@@ -34,6 +34,9 @@ export function PaginaMisReservas() {
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState<string | null>(null);
+  const [moviendo, setMoviendo] = useState<string | null>(null);
+  const [nuevas, setNuevas] = useState({ llegada: '', salida: '' });
+  const [guardandoFechas, setGuardandoFechas] = useState(false);
   const [hiloAbierto, setHiloAbierto] = useState<string | null>(null);
   const [comprobanteAbierto, setComprobanteAbierto] = useState<string | null>(null);
   const [nuevos, setNuevos] = useState<Record<string, number>>({});
@@ -55,6 +58,28 @@ export function PaginaMisReservas() {
       setConfirmando(null);
     } finally {
       setCancelando(null);
+    }
+  }
+
+  /** Mueve las fechas de una reserva propia: tras guardar se relee la lista para
+   * mostrar lo guardado de verdad (el precio se recalcula en el servidor). */
+  async function guardarFechas(codigo: string) {
+    if (!nuevas.llegada || !nuevas.salida) return;
+    setGuardandoFechas(true);
+    setError(null);
+    try {
+      await api.post(`/api/mis-reservas/${codigo}/fechas`, {
+        llegada: nuevas.llegada,
+        salida: nuevas.salida,
+      });
+      setMoviendo(null);
+      setNuevas({ llegada: '', salida: '' });
+      const datos = await api.get<{ reservas: Reserva[] }>('/api/mis-reservas');
+      setReservas(datos.reservas);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudieron cambiar las fechas');
+    } finally {
+      setGuardandoFechas(false);
     }
   }
 
@@ -197,15 +222,27 @@ export function PaginaMisReservas() {
                     >
                       Comprobante
                     </button>{' '}{(r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') ? (
-                      <button
-                        className={`boton boton--chico ${confirmando === r.codigo ? 'boton--peligro' : 'boton--fantasma'}`}
-                        type="button"
-                        onClick={() => void cancelar(r.codigo)}
-                        disabled={cancelando !== null}
-                        aria-label={confirmando === r.codigo ? `Confirma cancelar la reserva ${r.codigo}` : `Cancelar la reserva ${r.codigo}`}
-                      >
-                        {cancelando === r.codigo ? 'Cancelando…' : confirmando === r.codigo ? 'Sí, cancelar' : 'Cancelar'}
-                      </button>
+                      <>
+                        <button
+                          className="boton boton--fantasma boton--chico"
+                          type="button"
+                          onClick={() =>
+                            setMoviendo((abierta) => (abierta === r.codigo ? null : r.codigo))
+                          }
+                          aria-expanded={moviendo === r.codigo}
+                        >
+                          Cambiar fechas
+                        </button>{' '}
+                        <button
+                          className={`boton boton--chico ${confirmando === r.codigo ? 'boton--peligro' : 'boton--fantasma'}`}
+                          type="button"
+                          onClick={() => void cancelar(r.codigo)}
+                          disabled={cancelando !== null}
+                          aria-label={confirmando === r.codigo ? `Confirma cancelar la reserva ${r.codigo}` : `Cancelar la reserva ${r.codigo}`}
+                        >
+                          {cancelando === r.codigo ? 'Cancelando…' : confirmando === r.codigo ? 'Sí, cancelar' : 'Cancelar'}
+                        </button>
+                      </>
                     ) : (
                       <span className="campo__ayuda">Sin acciones</span>
                     )}
@@ -214,6 +251,60 @@ export function PaginaMisReservas() {
               ))}
             </tbody>
           </table>
+        ) : null}
+
+        {moviendo ? (
+          <form
+            className="tarjeta pila mt-e6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void guardarFechas(moviendo);
+            }}
+          >
+            <h2 className="t-lg mb-0">Cambiar fechas de {moviendo}</h2>
+            <div className="campos">
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="mov-llegada">Nueva llegada</label>
+                <input
+                  id="mov-llegada"
+                  type="date"
+                  required
+                  value={nuevas.llegada}
+                  onChange={(e) => setNuevas({ ...nuevas, llegada: e.target.value })}
+                />
+              </div>
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="mov-salida">Nueva salida</label>
+                <input
+                  id="mov-salida"
+                  type="date"
+                  required
+                  min={nuevas.llegada || undefined}
+                  value={nuevas.salida}
+                  onChange={(e) => setNuevas({ ...nuevas, salida: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="pila gap-e2">
+              <button
+                className="boton boton--primario boton--chico"
+                type="submit"
+                disabled={!nuevas.llegada || !nuevas.salida || guardandoFechas}
+              >
+                {guardandoFechas ? 'Guardando…' : 'Guardar fechas'}
+              </button>
+              <button
+                className="boton boton--fantasma boton--chico"
+                type="button"
+                onClick={() => {
+                  setMoviendo(null);
+                  setNuevas({ llegada: '', salida: '' });
+                }}
+              >
+                Volver sin guardar
+              </button>
+            </div>
+          </form>
         ) : null}
 
         {hiloAbierto ? (
