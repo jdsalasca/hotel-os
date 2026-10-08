@@ -242,8 +242,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 64 - Chat huésped ↔ hotel.** Hilo por reserva en Mis reservas y en el detalle
   del panel, no-leídos que se apagan al leer, validación y componente compartido. Evidencia:
   `docs/evidence/round-64/verificacion.md`.
-- [ ] **Ronda 65 - El admin también reserva.** Entrar como huésped sin perder el panel.
-  En curso: identidad `panel:` al reservar con su correo; recepción intacta.
+- [x] **Ronda 65 - El admin también reserva.** Identidad `panel:` al reservar con su correo;
+  recepción y anónimo intactos; `/api/yo` y Mis reservas responden vacío con sesión sin fila.
+  Evidencia: `docs/evidence/round-65/verificacion.md`.
 - [x] **Ronda 61 - Tarifas atómicas, núcleo (Etapa C).** `fijarNoche()` valida todo antes
   de escribir en una transacción; lo omitido se conserva y lo rechazado no toca nada. Queda la
   edición masiva con preview. Evidencia: `docs/evidence/round-61/verificacion.md`.
