@@ -32,6 +32,20 @@ public class ChatRepository {
       ChatRepository::fila, reservationId, limite).reversed();
   }
 
+  /** Página anterior al mensaje `antesDeId`: los 50 con id menor, en cronológico. */
+  public List<Mensaje> hiloAntesDe(long reservationId, long antesDeId) {
+    return jdbc.query("SELECT id,autor,texto,creado_en,visto FROM mensajes"
+      + " WHERE reservation_id=? AND id<? ORDER BY id DESC LIMIT 50",
+      ChatRepository::fila, reservationId, antesDeId).reversed();
+  }
+
+  /** Queda historia por debajo del mensaje `primerId` de la página actual. */
+  public boolean hayAnteriores(long reservationId, long primerId) {
+    Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM mensajes"
+      + " WHERE reservation_id=? AND id<?", Integer.class, reservationId, primerId);
+    return n != null && n > 0;
+  }
+
   public int total(long reservationId) {
     Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM mensajes WHERE reservation_id=?",
       Integer.class, reservationId);

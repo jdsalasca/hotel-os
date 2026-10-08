@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Aviso } from './Estado';
 
 export type Mensaje = { id: number; autor: string; texto: string; en: string; visto: boolean };
-export type Hilo = { mensajes: Mensaje[]; total?: number };
+export type Hilo = { mensajes: Mensaje[]; total?: number; hay_mas?: boolean };
 
 /**
  * Hilo de conversación de una reserva, igual en la web del huésped y en el panel. Quien
@@ -17,11 +17,13 @@ export function HiloMensajes({
 }: {
   titulo: string;
   ladoPropio: 'HUESPED' | 'HOTEL';
-  cargar: () => Promise<Hilo>;
+  cargar: (antesDe?: number) => Promise<Hilo>;
   enviar: (texto: string) => Promise<void>;
 }) {
   const [mensajes, setMensajes] = useState<Mensaje[] | null>(null);
   const [total, setTotal] = useState<number | null>(null);
+  const [hayMas, setHayMas] = useState(false);
+  const [cargandoMas, setCargandoMas] = useState(false);
   const [texto, setTexto] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -31,8 +33,25 @@ export function HiloMensajes({
       const datos = await cargar();
       setMensajes(datos.mensajes);
       setTotal(datos.total ?? datos.mensajes.length);
+      setHayMas(datos.hay_mas ?? false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo leer la conversación');
+    }
+  }
+
+  async function cargarAnteriores() {
+    const primero = mensajes?.[0];
+    if (primero === undefined || cargandoMas) return;
+    setError(null);
+    setCargandoMas(true);
+    try {
+      const datos = await cargar(primero.id);
+      setMensajes([...datos.mensajes, ...(mensajes ?? [])]);
+      setHayMas(datos.hay_mas ?? false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo leer la conversación');
+    } finally {
+      setCargandoMas(false);
     }
   }
 
@@ -78,6 +97,16 @@ export function HiloMensajes({
         <p className="campo__ayuda sin-margen">
           Sin mensajes todavía: escribe el primero y te responden por aquí.
         </p>
+      ) : null}
+      {mensajes !== null && mensajes.length > 0 && hayMas ? (
+        <button
+          className="boton boton--fantasma boton--chico"
+          type="button"
+          disabled={cargandoMas}
+          onClick={() => void cargarAnteriores()}
+        >
+          {cargandoMas ? 'Cargando…' : 'Cargar anteriores'}
+        </button>
       ) : null}
       {mensajes !== null && mensajes.length > 0 ? (
         <ul className="hilo__lista" aria-live="polite">

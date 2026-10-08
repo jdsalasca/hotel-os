@@ -69,4 +69,38 @@ describe('HiloMensajes', () => {
     );
     await screen.findByText('Mostrando los últimos 2 de 60 mensajes.');
   });
+
+  it('carga anteriores y los pone arriba del hilo', async () => {
+    const primera = {
+      mensajes: [
+        { id: 51, autor: 'HOTEL', texto: 'msg 51', en: '2026-10-08T10:00:00', visto: true },
+        { id: 52, autor: 'HUESPED', texto: 'msg 52', en: '2026-10-08T10:05:00', visto: true },
+      ],
+      total: 60,
+      hay_mas: true,
+    };
+    const anteriores = {
+      mensajes: [
+        { id: 50, autor: 'HOTEL', texto: 'msg 50', en: '2026-10-08T09:55:00', visto: true },
+      ],
+      total: 60,
+      hay_mas: false,
+    };
+    const cargar = vi.fn().mockResolvedValueOnce(primera).mockResolvedValueOnce(anteriores);
+    render(
+      <HiloMensajes
+        titulo="Chat"
+        ladoPropio="HUESPED"
+        cargar={cargar}
+        enviar={() => Promise.resolve()}
+      />,
+    );
+    await screen.findByText('msg 52');
+    fireEvent.click(screen.getByText('Cargar anteriores'));
+    await waitFor(() => {
+      expect(cargar).toHaveBeenCalledWith(51);
+    });
+    await screen.findByText('msg 50');
+    expect(screen.queryByText('Cargar anteriores')).toBeNull();
+  });
 });

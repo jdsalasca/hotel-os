@@ -413,6 +413,18 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   por (habitación, noche): solapados, global+individual y duplicados restan una vez.
   TDD rojo (57/56, 55/54, 27/24) → verde; `IndicadoresServiceTest` 38/38.
   Evidencia: `docs/evidence/round-113/verificacion.md`.
+- [x] **Ronda 114 - Cargar anteriores en el hilo del chat.** `?antes_de=` +
+  `hay_mas` en ambos GET, botón que antepone historia en huésped y panel.
+  Backend 389 sin fallos, frontend 35/35, `tsc` limpio, `vite build` OK.
+  Evidencia: `docs/evidence/round-114/verificacion.md`.
+
+## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
+1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
+2. Recordatorio de llegada por correo el día antes (requiere refresh token Gmail) —
+   alto/bloqueado por credencial externa.
+3. Calendario del panel con arrastre para bloquear noches — alto/alto.
+4. Límite de tamaño y tipo en comprobantes adjuntos — bajo/bajo.
+5. Modo claro/oscuro en la web pública — bajo/medio.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

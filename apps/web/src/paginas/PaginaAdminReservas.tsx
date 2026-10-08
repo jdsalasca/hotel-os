@@ -4,7 +4,7 @@ import { api, urlApi } from '../api/cliente';
 import { fechaCorta, monto } from '../api/formato';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
-import { HiloMensajes, type Mensaje } from '../componentes/HiloMensajes';
+import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 
 type Estado = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'RECHAZADA';
 
@@ -411,8 +411,10 @@ export function PaginaAdminReservas() {
             <HiloMensajes
               titulo="Conversación con el huésped"
               ladoPropio="HOTEL"
-              cargar={() =>
-                api.get<{ mensajes: Mensaje[] }>(`/api/admin/reservas/${detalle.reserva.codigo}/mensajes`)
+              cargar={(antesDe) =>
+                api.get<Hilo>(
+                  `/api/admin/reservas/${detalle.reserva.codigo}/mensajes${antesDe ? `?antes_de=${antesDe}` : ''}`,
+                )
               }
               enviar={(texto) =>
                 api.post(`/api/admin/reservas/${detalle.reserva.codigo}/mensajes`, { texto }).then(() => undefined)
