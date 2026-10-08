@@ -447,6 +447,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   patrón, TDD 3/3 con orden invertido. Suite 16/52, `tsc` ×2 y build OK, informe
   real verificado en vivo + capturas. Evidencia:
   `docs/evidence/round-120/verificacion.md`.
+- [x] **Ronda 121 - Toda pantalla del panel ofrece entrar.** Reporte real en prod:
+  `/admin/hotel` pedía sesión sin ningún botón para iniciarla (7 de 9 pantallas
+  eran callejones). Nuevo `PuertaAdmin` compartido con enlace a `/admin/entrar`,
+  usado en las 9. `tsc` ×2 limpio, captura post-deploy del URL reportado.
+  Evidencia: `docs/evidence/round-121/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.

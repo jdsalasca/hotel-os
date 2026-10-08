@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
-import { Aviso, Cargando, MensajeError } from '../componentes/Estado';
+import { Aviso, Cargando, MensajeError, PuertaAdmin } from '../componentes/Estado';
 
 type ConfigHotel = Record<string, string>;
 
@@ -119,7 +119,7 @@ export function PaginaAdminHotel() {
     }
   }
 
-  if (sesion.haySesion === false) return <Aviso tono="aviso" titulo="Sesión requerida">Inicia sesión para configurar el hotel.</Aviso>;
+  if (sesion.haySesion === false) return <PuertaAdmin>Inicia sesión para configurar el hotel.</PuertaAdmin>;
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
 
   return (

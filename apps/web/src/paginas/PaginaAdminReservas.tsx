@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
 import { fechaCorta, monto } from '../api/formato';
 import { useSesion } from '../api/useSesion';
-import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
+import { Cargando, Etiqueta, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 
 type Estado = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'RECHAZADA';
@@ -498,12 +497,7 @@ function RequiereSesion() {
   return (
     <main id="contenido" className="centrado">
       <section className="seccion">
-        <Aviso tono="aviso" titulo="Sesión requerida">
-          <p>Esta pantalla es para el personal del hotel.</p>
-          <Link className="boton boton--primario" to="/admin/entrar">
-            Iniciar sesión
-          </Link>
-        </Aviso>
+        <PuertaAdmin>Esta pantalla es para el personal del hotel.</PuertaAdmin>
       </section>
     </main>
   );

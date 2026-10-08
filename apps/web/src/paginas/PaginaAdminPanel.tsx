@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
-import { Aviso, Cargando } from '../componentes/Estado';
+import { Cargando, PuertaAdmin } from '../componentes/Estado';
 import { ListaPreparacion } from '../componentes/ListaPreparacion';
 
 /**
@@ -23,11 +23,7 @@ export function PaginaAdminPanel() {
   }, [sesion.haySesion]);
 
   if (sesion.haySesion === false)
-    return (
-      <Aviso tono="aviso" titulo="Sesión requerida">
-        Inicia sesión para entrar al panel.
-      </Aviso>
-    );
+    return <PuertaAdmin>Inicia sesión para entrar al panel.</PuertaAdmin>;
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
 
   return (
