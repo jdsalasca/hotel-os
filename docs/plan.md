@@ -494,6 +494,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   hotel aún no publica habitaciones" en vez de un mes de Llenos. TDD con mock e
   interruptor, 5/5; `tsc` ×2, captura post-deploy. (Se numeró 129 y 130 por
   colisión.) Evidencia: `docs/evidence/round-131/verificacion.md`.
+- [x] **Ronda 132 - La CSP deja pasar el beacon de Cloudflare.** Reporte en prod:
+  `beacon.min.js` bloqueado por `script-src 'self'` en cada página. Se abre solo
+  ese host en nginx y vercel.json; resto igual de cerrado. Verificado en vivo.
+  Evidencia: `docs/evidence/round-132/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
