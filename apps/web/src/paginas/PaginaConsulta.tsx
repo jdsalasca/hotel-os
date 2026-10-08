@@ -97,7 +97,11 @@ export function PaginaConsulta() {
           Necesitas el código que te dimos al reservar y el mismo correo con el que lo hiciste.
         </p>
 
-        <form onSubmit={consultar} noValidate className="ancho-formulario">
+        <form
+          onSubmit={consultar}
+          noValidate
+          className={comprobante ? 'ancho-formulario no-imprimir' : 'ancho-formulario'}
+        >
           <div className="pila">
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="codigo">Código de reserva</label>
