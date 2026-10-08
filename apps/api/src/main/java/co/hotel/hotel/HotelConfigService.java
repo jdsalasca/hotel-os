@@ -52,6 +52,9 @@ public class HotelConfigService {
     return filtrar(repo.valores(), PUBLICAS);
   }
 
+  /** Para la web pública: si no hay nada vendible, lo dice en vez de mostrar llenos. */
+  public boolean aLaVenta() { return repo.hayVenta(); }
+
   /**
    * Guarda la identidad en una sola transacción: o entran todos los valores válidos o no entra
    * ninguno. Un guardado a medias dejaría marca y contacto de hoteles distintos.

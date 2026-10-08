@@ -20,6 +20,10 @@ public class HotelConfigController {
   @GetMapping("/api/hotel")
   public Map<String, String> publicos() { return hotel.publicos(); }
 
+  /** La web lo pregunta antes de pintar el calendario: vacío no es lo mismo que lleno. */
+  @GetMapping("/api/hotel/venta")
+  public Map<String, Boolean> venta() { return Map.of("a_la_venta", hotel.aLaVenta()); }
+
   @GetMapping("/api/admin/hotel-config")
   public Map<String, String> administracion() { return hotel.administracion(); }
 
