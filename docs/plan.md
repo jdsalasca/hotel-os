@@ -301,6 +301,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 86 - El calendario trae las tarifas del mes una vez (Etapa L).**
   Núcleo `ofertasDe()` compartido con caché mensual: de 150 a 34 consultas por mes,
   cota ≤ 50. Evidencia: `docs/evidence/round-86/verificacion.md`.
+- [x] **Ronda 90 - El calendario filtra libres en memoria (Etapa L).**
+  Habitaciones, reservas y bloqueos del mes una vez; por día se filtra en memoria
+  con paridad probada contra la consulta SQL: de 34 a 7 consultas, cota ≤ 12.
+  Evidencia: `docs/evidence/round-90/verificacion.md`.
 - [x] **Ronda 75 - La confirmación ofrece Mis reservas también al panel.** `conCuenta` con
   ambas sesiones + test del hilo de chat (20/20 vitest). Evidencia:
   `docs/evidence/round-75/verificacion.md`.

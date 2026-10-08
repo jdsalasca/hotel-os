@@ -288,9 +288,13 @@ public class InventarioService {
     java.util.Map<Long, RoomType> tipos = new java.util.HashMap<>();
     for (RoomType tipo : inventario.tipos()) tipos.put(tipo.id(), tipo);
     List<PlanTarifario> planes = tarifas.planesActivos();
-    // Las tarifas del mes entero, una vez por (tipo, plan): antes se repetían por cada día.
+    // Todo el mes de una vez: las habitaciones, sus reservas y bloqueos, y las tarifas por
+    // (tipo, plan). Por día solo se filtra en memoria; antes cada día repetía las 6 lecturas.
     LocalDate inicio = mes.atDay(1);
     LocalDate fin = mes.atEndOfMonth().plusDays(1);
+    List<Habitacion> todas = inventario.habitaciones();
+    var reservas = inventario.ocupacionesDeReservas(inicio, fin);
+    var bloqueos = inventario.bloqueosDe(inicio, fin);
     java.util.Map<String, List<TarifaRepository.TarifaNoche>> cache = new java.util.HashMap<>();
     for (RoomType tipo : tipos.values()) {
       for (PlanTarifario plan : planes) {
@@ -300,7 +304,13 @@ public class InventarioService {
     }
     List<DiaCalendario> dias = new java.util.ArrayList<>();
     for (LocalDate dia = inicio; !dia.isAfter(mes.atEndOfMonth()); dia = dia.plusDays(1)) {
-      var ofertas = ofertasDe(inventario.disponibles(dia, dia.plusDays(1)), tipos, planes,
+      final LocalDate noche = dia;
+      var libres = todas.stream()
+        .filter(h -> h.estado() == EstadoHabitacion.ACTIVA)
+        .filter(h -> bloqueos.stream().noneMatch(b -> cubreBloqueo(b, h, noche)))
+        .filter(h -> reservas.stream().noneMatch(r -> cubreReserva(r, h, noche)))
+        .toList();
+      var ofertas = ofertasDe(libres, tipos, planes,
         dia, dia.plusDays(1), huespedes, cache);
       long habitaciones = ofertas.stream().map(o -> o.habitacion().id()).distinct().count();
       var precios = ofertas.stream()

@@ -27,7 +27,7 @@ class RendimientoInventarioTest {
   private ContadorConsultas.Contador contador;
   private InventarioService svc;
   private TarifaService tarifas;
-  private long tipoId;
+  private org.springframework.jdbc.core.JdbcTemplate jdbc;
   private long habitacionId;
 
   @BeforeEach
@@ -58,13 +58,13 @@ class RendimientoInventarioTest {
         + " room_id INTEGER NOT NULL, desde TEXT NOT NULL, hasta TEXT NOT NULL)");
     }
     contador = ContadorConsultas.envolver(base);
-    JdbcTemplate jdbc = new JdbcTemplate(contador.fuente());
+    jdbc = new org.springframework.jdbc.core.JdbcTemplate(contador.fuente());
     var tx = new SqliteTransactionExecutor(contador.fuente());
     svc = new InventarioService(new InventarioRepository(jdbc), new TarifaRepository(jdbc), tx);
     tarifas = new TarifaService(new TarifaRepository(jdbc), new InventarioRepository(jdbc), tx);
 
     RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
-    tipoId = tipo.id();
+    long tipoId = tipo.id();
     PlanTarifario cop = tarifas.crearPlan("PES", "Plan pesos", "COP");
     PlanTarifario flex = tarifas.crearPlan("FLEX", "Flexible", "COP");
     LocalDate desde = LocalDate.parse("2026-11-01");
@@ -106,8 +106,47 @@ class RendimientoInventarioTest {
     var dias = svc.calendarioMensual(YearMonth.parse("2026-11"), 2);
 
     assertEquals(30, dias.size());
-    assertTrue(contador.consultas() <= 50,
-      "30 días × 1 libres + 1 tipos + 1 planes + 1 tipo × 2 meses-tarifa, fue "
-        + contador.consultas());
+    assertTrue(contador.consultas() <= 12,
+      "1 habitaciones + 1 reservas + 1 bloqueos + 1 tipos + 1 planes + 1 tipo × 2 "
+        + "meses-tarifa, fue " + contador.consultas());
+  }
+
+  @Test
+  @DisplayName("los libres en memoria coinciden con la consulta por día")
+  void libresEnMemoriaConParidadSql() {
+    RoomType tipo = svc.crearTipo("SUITE", "Habitación suite", 2);
+    PlanTarifario cop = tarifas.crearPlan("PES2", "Plan pesos 2", "COP");
+    LocalDate d1 = LocalDate.parse("2026-11-01");
+    for (int i = 0; i < 3; i++) tarifas.fijarPrecio(cop, tipo.id(), d1.plusDays(i), 150_000);
+    svc.crearHabitacion("201", tipo.id(), "Libre");
+    Habitacion ocupada = svc.crearHabitacion("202", tipo.id(), "Ocupada");
+    Habitacion bloqueada = svc.crearHabitacion("203", tipo.id(), "Bloqueada");
+    Habitacion retirada = svc.crearHabitacion("204", tipo.id(), "Retirada");
+    svc.cambiarEstado(retirada.id(), EstadoHabitacion.FUERA_DE_SERVICIO);
+    reservar(ocupada.id(), "2026-11-01", "2026-11-03");
+    svc.bloquear(bloqueada.id(), LocalDate.parse("2026-11-02"), LocalDate.parse("2026-11-04"), "Obra");
+
+    for (int i = 0; i < 3; i++) {
+      LocalDate dia = d1.plusDays(i);
+      var memoria = svc.calendarioMensual(YearMonth.parse("2026-11"), 2).stream()
+        .filter(d -> d.fecha().equals(dia)).findFirst().orElseThrow();
+      long esperadas = svc.disponibles(dia, dia.plusDays(1)).size();
+      assertEquals(esperadas, memoria.disponibles(),
+        "el día " + dia + " coincide con la consulta por día");
+    }
+    assertEquals(5, svc.calendarioMensual(YearMonth.parse("2026-11"), 2).stream()
+      .filter(d -> d.fecha().equals(LocalDate.parse("2026-11-02"))).findFirst().orElseThrow()
+      .disponibles(), "el día 2 quedan las 4 del setup + la 201 (ocupada, bloqueada y retirada, fuera)");
+  }
+
+  private void reservar(long roomId, String desde, String hasta) {
+    jdbc.update("INSERT INTO reservations(codigo,email,nombre,llegada,salida,huespedes,estado,"
+      + "origen,idempotencia,creado_en) VALUES(?,?,?,?,?,2,?,?,?,datetime('now'))",
+      "R-" + roomId + desde, "hotel@ejemplo.com", "Huésped", desde, hasta, "CONFIRMADA", "WEB",
+      "idem-" + roomId + desde);
+    Long id = jdbc.queryForObject("SELECT id FROM reservations WHERE codigo=?", Long.class,
+      "R-" + roomId + desde);
+    jdbc.update("INSERT INTO reservation_items(reservation_id,room_id,desde,hasta) VALUES(?,?,?,?)",
+      id, roomId, desde, hasta);
   }
 }
