@@ -326,6 +326,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 82 - Bienvenido con nombre + panel que orienta.** V16, nombre de Google
   guardado, puerta `/admin` con tarjetas y ambos logins llevándote ahí. Evidencia:
   `docs/evidence/round-82/verificacion.md`.
+- [x] **Ronda 84 - La puerta del panel, vista en vivo.** `/admin` servida con aviso sin
+  sesión, captura en evidencia. Evidencia: `docs/evidence/round-84/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
