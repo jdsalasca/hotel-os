@@ -417,10 +417,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `hay_mas` en ambos GET, botón que antepone historia en huésped y panel.
   Backend 389 sin fallos, frontend 35/35, `tsc` limpio, `vite build` OK.
   Evidencia: `docs/evidence/round-114/verificacion.md`.
-- [x] **Ronda 115 - Comprobante propio por sesión en Mis reservas.**
+- [x] **Ronda 117 - Comprobante propio por sesión en Mis reservas.**
   `GET /api/mis-reservas/{codigo}/comprobante` (dueño por sesión, ajena 404) +
   panel inline por fila. Backend 395 sin fallos, frontend 40/40, `tsc` limpio.
-  Evidencia: `docs/evidence/round-115/verificacion.md`.
+  (Se numeró 115 por colisión y se movió a 117, siguiente libre.)
+  Evidencia: `docs/evidence/round-117/verificacion.md`.
 - [x] **Ronda 115 - Reserva y vínculo a la cuenta en una sola unidad (Etapa G).**
   Alta + enganche en la misma transacción (antes dos escrituras: huérfanas con 500);
   la sesión solo reclama su propio correo (H3: huésped y admin con identidad previa);
