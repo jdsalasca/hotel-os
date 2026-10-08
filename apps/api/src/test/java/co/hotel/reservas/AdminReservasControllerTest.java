@@ -541,4 +541,88 @@ class AdminReservasControllerTest {
         .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("estado", "VOLADORA"))))
       .andExpect(status().isBadRequest());
   }
+
+  private String altaManual(Map<String, ?> cuerpo) throws Exception {
+    return mvc.perform(post("/api/admin/reservas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(cuerpo)))
+      .andReturn().getResponse().getContentAsString();
+  }
+
+  private Map<String, Object> cuerpoManual(long roomId) {
+    var cuerpo = new java.util.HashMap<String, Object>();
+    cuerpo.put("email", "mostrador@example.com");
+    cuerpo.put("nombre", "Mostrador");
+    cuerpo.put("llegada", "2026-11-01");
+    cuerpo.put("salida", "2026-11-03");
+    cuerpo.put("huespedes", 2);
+    cuerpo.put("roomId", roomId);
+    return cuerpo;
+  }
+
+  @Test
+  @DisplayName("el panel crea una reserva manual con origen OTRO y aparece listada")
+  void elPanelCreaReservaManual() throws Exception {
+    var escenario = habitacionTarifada("M" + System.nanoTime() % 100000);
+    String respuesta = altaManual(cuerpoManual(escenario.room()));
+    String codigo = JSON.readTree(respuesta).get("codigo").asText();
+
+    mvc.perform(get("/api/admin/reservas").with(ADMIN))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[?(@.codigo=='" + codigo + "')].origen").value("OTRO"))
+      .andExpect(jsonPath("$[?(@.codigo=='" + codigo + "')].estado").value("PENDIENTE"));
+  }
+
+  @Test
+  @DisplayName("la manual con correo malo es 400 y no deja fila")
+  void manualConCorreoMaloEs400SinFila() throws Exception {
+    var escenario = habitacionTarifada("N" + System.nanoTime() % 100000);
+    int antes = jdbc.queryForObject("SELECT COUNT(*) FROM reservations", Integer.class);
+    var cuerpo = cuerpoManual(escenario.room());
+    cuerpo.put("email", "no-es-correo");
+
+    mvc.perform(post("/api/admin/reservas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(cuerpo)))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+
+    assertEquals(antes, jdbc.queryForObject("SELECT COUNT(*) FROM reservations", Integer.class),
+      "lo rechazado no toca nada");
+  }
+
+  @Test
+  @DisplayName("la manual sin habitación es 400: la recepción asigna")
+  void manualSinHabitacionEs400() throws Exception {
+    var cuerpo = cuerpoManual(1);
+    cuerpo.remove("roomId");
+
+    mvc.perform(post("/api/admin/reservas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(cuerpo)))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
+  @DisplayName("la manual sobre fechas ocupadas es 409")
+  void manualSobreOcupadasEs409() throws Exception {
+    var escenario = habitacionTarifada("O" + System.nanoTime() % 100000);
+    crearReservaEn("primera@example.com", "2026-11-01", "2026-11-03", escenario.room());
+
+    mvc.perform(post("/api/admin/reservas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(cuerpoManual(escenario.room()))))
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
+  @Test
+  @DisplayName("la manual con fechas mal escritas es 400")
+  void manualConFechasMalEs400() throws Exception {
+    var escenario = habitacionTarifada("P" + System.nanoTime() % 100000);
+    var cuerpo = cuerpoManual(escenario.room());
+    cuerpo.put("llegada", "ayer");
+
+    mvc.perform(post("/api/admin/reservas").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(cuerpo)))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
 }
