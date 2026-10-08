@@ -334,6 +334,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 85 - Barrido con el colega en movimiento.** Suites 41/41 (un rojo
   transitorio sin failing), deploy de lo publicado con health `ok`. Evidencia:
   `docs/evidence/round-85/verificacion.md`.
+- [x] **Ronda 87 - El perf del colega, en vivo.** Calendario desplegado y respondiendo con
+  forma correcta; 400 de búsqueda inválida verificado en prod. Evidencia:
+  `docs/evidence/round-87/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
