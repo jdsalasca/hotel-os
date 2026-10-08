@@ -88,6 +88,21 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Respaldos programados: una copia consistente al día con retención configurable. Igual que
+  # en producción; el modo túnel los había dejado por fuera y el volumen estaba vacío. El
+  # volumen de datos va sin :ro a propósito: SQLite necesita sus archivos de bloqueo hasta
+  # para la copia de lectura.
+  respaldo:
+    build: ./tools/operacion
+    command: ["/usr/local/bin/programar.sh"]
+    environment:
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - hotel-data:/data
+      - hotel-backups:/backups
+    restart: unless-stopped
+
 volumes:
   hotel-data:
   hotel-backups:
