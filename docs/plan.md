@@ -305,6 +305,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 78 - Respaldos en modo túnel + higiene.** Servicio diario, shebang que
   faltaba, primer respaldo verificado con integridad + poda de 344 MB. Evidencia:
   `docs/evidence/round-78/verificacion.md`.
+- [x] **Ronda 79 - El verificador de despliegue, contra prod.** 18/18 estático + CSP viva
+  con frame-src OSM. Evidencia: `docs/evidence/round-79/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
