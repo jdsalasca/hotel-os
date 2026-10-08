@@ -366,6 +366,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 97 - El lote lee el rango una vez y no resuelve dos veces (Etapa L).** (del colega)
 - [x] **Ronda 98 - El verificador también cuida respaldos.** Sección 4: 24/24 verde y
   FALLA probado en composes rotos. Evidencia: `docs/evidence/round-98/verificacion.md`.
+- [x] **Ronda 99 - Aviso de mensajes sin leer en la nav.** Badge con el conteo existente,
+  TDD (rojo→verde), 23/23 vitest. Evidencia: `docs/evidence/round-99/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

@@ -1,5 +1,18 @@
 @use "tokens" as *;
 
+// --- Insignia de no leídos: solo aparece cuando hay algo que leer ---
+.insignia {
+  display: inline-block;
+  font-size: $texto-xs;
+  font-weight: $peso-fuerte;
+  color: #fff;
+  background: $teja;
+  border-radius: 999px;
+  padding: 0 $e-2;
+  margin-left: $e-1;
+  vertical-align: middle;
+}
+
 // --- Chat por reserva: hilo y caja de envío, igual en la web y en el panel ---
 .hilo {
   display: flex;

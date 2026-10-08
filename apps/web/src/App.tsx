@@ -15,6 +15,7 @@ import { PaginaAdminHoy } from './paginas/PaginaAdminHoy';
 import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
 import { PaginaAdminAuditoria } from './paginas/PaginaAdminAuditoria';
 import { PaginaAdminPanel } from './paginas/PaginaAdminPanel';
+import { BadgeMensajes } from './componentes/BadgeMensajes';
 import { PaginaAdminLugares } from './paginas/PaginaAdminLugares';
 import { PaginaMisReservas } from './paginas/PaginaMisReservas';
 import { PaginaPrivacidad } from './paginas/PaginaPrivacidad';
@@ -106,7 +107,7 @@ export function App() {
           <nav className="nav" aria-label="Navegación principal">
             <NavLink to="/" end>Reservar</NavLink>
             <NavLink to="/consulta">Consultar reserva</NavLink>
-            <NavLink to="/mis-reservas">Mis reservas</NavLink>
+            <NavLink to="/mis-reservas">Mis reservas <BadgeMensajes /></NavLink>
             <NavLink to="/admin/inventario">Habitaciones</NavLink>
             <NavLink to="/admin">Panel</NavLink>
           </nav>
