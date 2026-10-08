@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { SaludoSesion } from './App';
 
 function simularSesion(admin: { email: string } | null, huesped: object | null) {
@@ -21,6 +21,7 @@ function simularSesion(admin: { email: string } | null, huesped: object | null) 
 
 describe('SaludoSesion', () => {
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
   });
 
