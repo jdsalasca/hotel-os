@@ -37,6 +37,9 @@ public class InventarioAdminController {
   public record NocheLoteReq(String fecha, Long precioCents,
                              Integer minEstancia, Integer maxEstancia, Boolean cerrado) {}
   public record LoteReq(Long ratePlanId, Long roomTypeId, java.util.List<NocheLoteReq> noches) {}
+  public record RangoReq(String desde, String hasta, java.util.List<Integer> diasSemana) {}
+  public record LoteRangoReq(Long ratePlanId, Long roomTypeId, RangoReq rango, Long precioCents,
+                             Integer minEstancia, Integer maxEstancia, Boolean cerrado) {}
   public record BloqueoReq(Long roomId, String desde, String hasta, String motivo) {}
 
   @PostMapping("/api/admin/tipos")
@@ -157,9 +160,33 @@ public class InventarioAdminController {
     if (req == null || req.ratePlanId() == null || req.roomTypeId() == null || req.noches() == null)
       return ResponseEntity.badRequest()
         .body(Map.of("error", "ratePlanId, roomTypeId y noches son obligatorios"));
+    return vistaPrevia(req.ratePlanId(), req.roomTypeId(), req.noches());
+  }
+
+  /**
+   * Previa de un rango (p. ej. fines de semana del mes): se expande a noches y sigue el
+   * mismo camino del lote, con su misma atomicidad. Los días van en ISO (1 lunes … 7
+   * domingo); sin días, todos. El rango es inclusivo y no pasa de 366 noches.
+   */
+  @PostMapping("/api/admin/tarifas/lote/rango/preview")
+  public ResponseEntity<?> previsualizarRango(@RequestBody LoteRangoReq req) {
+    if (req == null || req.ratePlanId() == null || req.roomTypeId() == null || req.rango() == null)
+      return ResponseEntity.badRequest()
+        .body(Map.of("error", "ratePlanId, roomTypeId y rango son obligatorios"));
     try {
-      var previa = tarifas.previsualizarLote(req.ratePlanId(), req.roomTypeId(), convertirLote(req.noches()));
-      return ResponseEntity.ok(Map.of("lista", previa.lista(), "filas", filasJson(previa, req.noches())));
+      return vistaPrevia(req.ratePlanId(), req.roomTypeId(),
+        expandirRango(req.rango(), req.precioCents(), req.minEstancia(), req.maxEstancia(),
+          req.cerrado()));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  private ResponseEntity<?> vistaPrevia(Long planId, Long tipoId,
+      java.util.List<NocheLoteReq> noches) {
+    try {
+      var previa = tarifas.previsualizarLote(planId, tipoId, convertirLote(noches));
+      return ResponseEntity.ok(Map.of("lista", previa.lista(), "filas", filasJson(previa, noches)));
     } catch (DatosInvalidosException e) {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
@@ -174,15 +201,69 @@ public class InventarioAdminController {
     if (req == null || req.ratePlanId() == null || req.roomTypeId() == null || req.noches() == null)
       return ResponseEntity.badRequest()
         .body(Map.of("error", "ratePlanId, roomTypeId y noches son obligatorios"));
-    try {
-      var guardadas = tarifas.aplicarLote(req.ratePlanId(), req.roomTypeId(), convertirLote(req.noches()));
-      return ResponseEntity.status(201).body(Map.of("guardadas", guardadas.size(), "noches", guardadas));
-    } catch (TarifaService.LoteRechazadoException e) {
+    return aplicaLote(req.ratePlanId(), req.roomTypeId(), req.noches());
+  }
+
+  /** Confirmación del rango: lo previado es lo guardado, o nada si una fila falla. */
+  @PostMapping("/api/admin/tarifas/lote/rango")
+  public ResponseEntity<?> aplicarRango(@RequestBody LoteRangoReq req) {
+    if (req == null || req.ratePlanId() == null || req.roomTypeId() == null || req.rango() == null)
       return ResponseEntity.badRequest()
-        .body(Map.of("error", e.getMessage(), "filas", filasJson(e.previa(), req.noches())));
+        .body(Map.of("error", "ratePlanId, roomTypeId y rango son obligatorios"));
+    final java.util.List<NocheLoteReq> noches;
+    try {
+      noches = expandirRango(req.rango(), req.precioCents(), req.minEstancia(), req.maxEstancia(),
+        req.cerrado());
     } catch (DatosInvalidosException e) {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
+    return aplicaLote(req.ratePlanId(), req.roomTypeId(), noches);
+  }
+
+  private ResponseEntity<?> aplicaLote(Long planId, Long tipoId,
+      java.util.List<NocheLoteReq> noches) {
+    try {
+      var guardadas = tarifas.aplicarLote(planId, tipoId, convertirLote(noches));
+      return ResponseEntity.status(201).body(Map.of("guardadas", guardadas.size(), "noches", guardadas));
+    } catch (TarifaService.LoteRechazadoException e) {
+      return ResponseEntity.badRequest()
+        .body(Map.of("error", e.getMessage(), "filas", filasJson(e.previa(), noches)));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  /** Rango inclusivo expandido a noches con los mismos valores: la validación fina es por fila. */
+  private static java.util.List<NocheLoteReq> expandirRango(RangoReq rango, Long precioCents,
+      Integer minEstancia, Integer maxEstancia, Boolean cerrado) {
+    if (rango.desde() == null || rango.hasta() == null)
+      throw new DatosInvalidosException("el rango necesita desde y hasta");
+    final LocalDate desde;
+    final LocalDate hasta;
+    try {
+      desde = LocalDate.parse(rango.desde().trim());
+      hasta = LocalDate.parse(rango.hasta().trim());
+    } catch (DateTimeParseException e) {
+      throw new DatosInvalidosException("el rango debe tener fechas YYYY-MM-DD");
+    }
+    if (hasta.isBefore(desde))
+      throw new DatosInvalidosException("el hasta del rango no puede ser anterior al desde");
+    if (java.time.temporal.ChronoUnit.DAYS.between(desde, hasta) + 1 > 366)
+      throw new DatosInvalidosException("el rango no puede pasar de 366 noches");
+    var dias = rango.diasSemana() == null || rango.diasSemana().isEmpty()
+      ? java.util.Set.of(1, 2, 3, 4, 5, 6, 7)
+      : new java.util.HashSet<>(rango.diasSemana());
+    for (int dia : dias) {
+      if (dia < 1 || dia > 7)
+        throw new DatosInvalidosException("los días de semana van de 1 (lunes) a 7 (domingo)");
+    }
+    var noches = new java.util.ArrayList<NocheLoteReq>();
+    for (LocalDate dia = desde; !dia.isAfter(hasta); dia = dia.plusDays(1)) {
+      if (dias.contains(dia.getDayOfWeek().getValue())) {
+        noches.add(new NocheLoteReq(dia.toString(), precioCents, minEstancia, maxEstancia, cerrado));
+      }
+    }
+    return noches;
   }
 
   /** Convierte las filas del lote; una fecha mal escrita es error de su fila, no de la petición. */

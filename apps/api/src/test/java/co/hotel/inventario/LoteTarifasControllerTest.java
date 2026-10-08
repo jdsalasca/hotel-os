@@ -60,6 +60,13 @@ class LoteTarifasControllerTest {
     return Map.of("fecha", fecha, "precioCents", precioCents);
   }
 
+  private Map<String, Object> rango(Object planId, Object tipoId, String desde, String hasta,
+      List<Integer> dias, long precioCents) {
+    return Map.of("ratePlanId", planId, "roomTypeId", tipoId,
+      "rango", Map.of("desde", desde, "hasta", hasta, "diasSemana", dias),
+      "precioCents", precioCents);
+  }
+
   private long[] inventario(String sufijo) throws Exception {
     long tipoId = JSON.readTree(postear("/api/admin/tipos",
       Map.of("codigo", "LOTE" + sufijo, "nombre", "Doble lote", "capacidadMax", 2))).get("id").asLong();
@@ -75,10 +82,14 @@ class LoteTarifasControllerTest {
   }
 
   private String tarifas(long planId, long tipoId) throws Exception {
+    return tarifas(planId, tipoId, "2027-05-01", "2027-05-04");
+  }
+
+  private String tarifas(long planId, long tipoId, String desde, String hasta) throws Exception {
     return mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
         "/api/admin/tarifas").with(ADMIN)
         .param("planId", String.valueOf(planId)).param("tipoId", String.valueOf(tipoId))
-        .param("desde", "2027-05-01").param("hasta", "2027-05-04"))
+        .param("desde", desde).param("hasta", hasta))
       .andReturn().getResponse().getContentAsString();
   }
 
@@ -142,5 +153,47 @@ class LoteTarifasControllerTest {
       .andExpect(jsonPath("$.lista").value(false))
       .andExpect(jsonPath("$.filas[0].fecha").value("ayer"))
       .andExpect(jsonPath("$.filas[0].valida").value(false));
+  }
+
+  @Test
+  @DisplayName("el rango expande lunes a viernes en seis filas sin escribir")
+  void rangoEntreSemanaExpandeCinco() throws Exception {
+    long[] ids = inventario("E");
+    mvc.perform(post("/api/admin/tarifas/lote/rango/preview").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(
+          rango(ids[0], ids[1], "2027-05-03", "2027-05-10", List.of(1, 2, 3, 4, 5), 15000))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.lista").value(true))
+      .andExpect(jsonPath("$.filas.length()").value(6))
+      .andExpect(jsonPath("$.filas[0].fecha").value("2027-05-03"))
+      .andExpect(jsonPath("$.filas[5].fecha").value("2027-05-10"));
+    assert JSON.readTree(tarifas(ids[0], ids[1], "2027-05-01", "2027-05-11")).size() == 0 : "la previa no guarda";
+  }
+
+  @Test
+  @DisplayName("el rango se confirma atómico con lo previado")
+  void rangoSeConfirmaAtomico() throws Exception {
+    long[] ids = inventario("F");
+    mvc.perform(post("/api/admin/tarifas/lote/rango").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(
+          rango(ids[0], ids[1], "2027-05-03", "2027-05-04", List.of(1, 2), 15000))))
+      .andExpect(status().isCreated())
+      .andExpect(jsonPath("$.guardadas").value(2));
+    assert JSON.readTree(tarifas(ids[0], ids[1], "2027-05-01", "2027-05-05")).size() == 2;
+  }
+
+  @Test
+  @DisplayName("un día de semana imposible o un rango desmedido es 400")
+  void rangoInvalidoEs400() throws Exception {
+    long[] ids = inventario("G");
+    mvc.perform(post("/api/admin/tarifas/lote/rango/preview").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(
+          rango(ids[0], ids[1], "2027-05-03", "2027-05-10", List.of(0), 15000))))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+    mvc.perform(post("/api/admin/tarifas/lote/rango/preview").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(
+          rango(ids[0], ids[1], "2027-01-01", "2028-06-01", List.of(1), 15000))))
+      .andExpect(status().isBadRequest());
   }
 }
