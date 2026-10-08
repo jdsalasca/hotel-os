@@ -442,6 +442,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   deja baseline equivocado para el lote. TDD 3/3 con orden invertido, suite 14/48,
   `tsc` ×2 OK, grilla real verificada en vivo + capturas. Evidencia:
   `docs/evidence/round-119/verificacion.md`.
+- [x] **Ronda 120 - Informe y carga ignoran el período viejo (Etapa E).** Guarda en
+  el informe (más limpieza del error viejo) y en la carga del inventario; mismo
+  patrón, TDD 3/3 con orden invertido. Suite 16/52, `tsc` ×2 y build OK, informe
+  real verificado en vivo + capturas. Evidencia:
+  `docs/evidence/round-120/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
-import { Aviso, Cargando, Etiqueta, MensajeError } from '../componentes/Estado';
+import { Cargando, Etiqueta, MensajeError, PuertaAdmin } from '../componentes/Estado';
 import { fechaCorta } from '../api/formato';
 
 type Habitacion = { id: number; codigo: string; roomTypeId: number; nombre: string; estado: string };
@@ -163,7 +163,12 @@ export function PaginaAdminInventario() {
   /** Al confirmar, las noches se releen para mostrar lo guardado de verdad, no el borrador. */
   const [versionTarifas, setVersionTarifas] = useState(0);
 
+  /** Tandas de carga en vuelo: si el hotel cambia de mes antes de que vuelvan, la
+   * vieja se ignora en vez de pintar el calendario de otro mes. */
+  const peticionCarga = useRef(0);
+
   async function cargar() {
+    const id = ++peticionCarga.current;
     setCargando(true);
     setError(null);
     try {
@@ -175,17 +180,19 @@ export function PaginaAdminInventario() {
         api.get<CalendarioDia[]>(`/api/admin/calendario?desde=${desde}&hasta=${hasta}`),
         api.get<Bloqueo[]>('/api/admin/bloqueos'),
       ]);
+      if (peticionCarga.current !== id) return;
       setHabitaciones(habs);
       setTipos(tiposCargados);
       setPlanes(planesCargados);
       setCalendario(calendarioCargado);
       setBloqueos(bloqueosCargados);
     } catch (e) {
+      if (peticionCarga.current !== id) return;
       setCalendario(null);
       setBloqueos(null);
       setError(e instanceof Error ? e.message : 'No se pudo cargar el inventario');
     } finally {
-      setCargando(false);
+      if (peticionCarga.current === id) setCargando(false);
     }
   }
 
@@ -326,7 +333,7 @@ export function PaginaAdminInventario() {
     }
   }
 
-  if (sesion.haySesion === false) return <Aviso tono="aviso" titulo="Sesión requerida">Inicia sesión para gestionar el inventario.</Aviso>;
+  if (sesion.haySesion === false) return <PuertaAdmin>Inicia sesión para gestionar el inventario.</PuertaAdmin>;
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
 
   const dias = diasDelMes(mes);
