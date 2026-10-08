@@ -283,6 +283,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 67 - Regresión completa de ambos agentes.** Backend 337/337 y frontend
   17/17 en verde, despliegue de todo origin a prod verificado vivo. Evidencia:
   `docs/evidence/round-67/verificacion.md`.
+- [x] **Ronda 73 - Integración con el refactor de sesión.** tsc con tests + vitest 17/17
+  contra su `sesion.ts` compartido, deploy de todo origin a prod verificado. Evidencia:
+  `docs/evidence/round-73/verificacion.md`.
+- [ ] **Nota de coordinación.** Las rondas 60-67 son mías; el colega lleva 68-72 y otras sin
+  registrar en el plan. Antes de crear evidencia, listar el directorio (ya me pasó una vez).
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
