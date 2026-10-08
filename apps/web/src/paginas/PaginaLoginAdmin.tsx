@@ -21,6 +21,7 @@ export function PaginaLoginAdmin() {
   const [nueva2, setNueva2] = useState('');
 
   const denegado = parametros.get('error') === 'denegado';
+  const falloGoogle = parametros.get('error') === 'oauth2';
 
   async function entrar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -144,6 +145,12 @@ export function PaginaLoginAdmin() {
               <Aviso tono="aviso">
                 Esa cuenta de Google no está autorizada para el panel. Pide que la añadan o entra
                 con contraseña.
+              </Aviso>
+            ) : null}
+            {falloGoogle && !error ? (
+              <Aviso tono="aviso">
+                Google no completó la entrada (¿cancelaste o la cuenta no respondió?). Prueba de
+                nuevo o entra con contraseña.
               </Aviso>
             ) : null}
             <button className="boton boton--primario boton--bloque" type="submit" disabled={enviando}>

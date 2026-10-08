@@ -31,6 +31,7 @@ describe('SaludoSesion', () => {
     await waitFor(() => {
       expect(screen.getByText('Bienvenido de vuelta, Juan')).toBeTruthy();
     });
+    expect(screen.getByText('Administrador')).toBeTruthy();
   });
 
   it('cae al correo si el panel no tiene nombre', async () => {
@@ -47,6 +48,7 @@ describe('SaludoSesion', () => {
     await waitFor(() => {
       expect(screen.getByText('Bienvenido de vuelta, Luz')).toBeTruthy();
     });
+    expect(screen.getByText('Huésped')).toBeTruthy();
   });
 
   it('no muestra nada sin sesión', async () => {

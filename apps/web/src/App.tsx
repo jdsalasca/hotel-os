@@ -16,6 +16,7 @@ import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
 import { PaginaAdminAuditoria } from './paginas/PaginaAdminAuditoria';
 import { PaginaAdminPanel } from './paginas/PaginaAdminPanel';
 import { BadgeMensajes } from './componentes/BadgeMensajes';
+import { Etiqueta } from './componentes/Estado';
 import { PaginaAdminLugares } from './paginas/PaginaAdminLugares';
 import { PaginaMisReservas } from './paginas/PaginaMisReservas';
 import { PaginaPrivacidad } from './paginas/PaginaPrivacidad';
@@ -41,14 +42,18 @@ export function SaludoSesion() {
     const quien = admin.nombre.length > 0 ? admin.nombre : admin.email;
     return (
       <span className="cabecera__saludo" title={`Sesión del panel (${admin.email})`}>
-        Bienvenido de vuelta, {quien}
+        Bienvenido de vuelta, {quien} <Etiqueta tono="info">Administrador</Etiqueta>
       </span>
     );
   }
   if (admin.haySesion !== true && huesped.haySesion === true) {
     const quien = huesped.nombre.length > 0 ? huesped.nombre : huesped.email;
     if (quien.length === 0) return null;
-    return <span className="cabecera__saludo">Bienvenido de vuelta, {quien}</span>;
+    return (
+      <span className="cabecera__saludo">
+        Bienvenido de vuelta, {quien} <Etiqueta tono="info">Huésped</Etiqueta>
+      </span>
+    );
   }
   return null;
 }

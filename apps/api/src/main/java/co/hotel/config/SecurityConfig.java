@@ -1,6 +1,7 @@
 package co.hotel.config;
 
 import co.hotel.seguridad.EnrutadorOauth2;
+import co.hotel.seguridad.FalloOauth2;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
@@ -35,7 +36,8 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http,
                                            ObjectProvider<ClientRegistrationRepository> registros,
-                                           EnrutadorOauth2 enrutador) throws Exception {
+                                           EnrutadorOauth2 enrutador,
+                                           FalloOauth2 fallo) throws Exception {
     var csrfCookie = CookieCsrfTokenRepository.withHttpOnlyFalse();
     csrfCookie.setCookiePath("/");
 
@@ -92,13 +94,7 @@ public class SecurityConfig {
       http.oauth2Login(o -> o
         .clientRegistrationRepository(repo)
         .successHandler(enrutador)
-        .failureHandler((peticion, respuesta, ex) -> {
-          // La vuelta fallida trae el registro en la ruta (/login/oauth2/code/{registro}):
-          // cada entrada vuelve a su puerta, no a la del otro.
-          String destino = peticion.getRequestURI().endsWith(EnrutadorOauth2.HUESPED)
-            ? "/?error=oauth2" : "/admin/entrar?error=oauth2";
-          respuesta.sendRedirect(destino);
-        }));
+        .failureHandler(fallo));
     }
     return http.build();
   }
