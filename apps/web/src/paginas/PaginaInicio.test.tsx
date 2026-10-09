@@ -253,6 +253,9 @@ describe('reservas en línea pausadas', () => {
     });
     expect(screen.getByLabelText('Llegada')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Buscar disponibilidad' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Ver disponibilidad' }).getAttribute('href')).toBe('#titulo-buscar');
+    expect(screen.getByRole('link', { name: 'Gestionar una reserva' }).getAttribute('href')).toBe('/mis-reservas');
+    expect(screen.queryByRole('link', { name: 'Gestionar o consultar una reserva' })).toBeNull();
   });
 
   it('el vacío trae cómo contactar al hotel', async () => {
