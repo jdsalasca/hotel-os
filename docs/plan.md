@@ -606,6 +606,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   "Estado" a origen+historial (el estado ya sale en la etiqueta). Split en dos
   filas; E2E del dinero completo en stack local (reserva H-F469608A) + captura.
   95/95. Evidencia: `docs/evidence/round-161/verificacion.md`.
+- [x] **Ronda 162 - Caché HTTP con criterio.** Assets con hash a un año
+  inmutable; HTML siempre revalidado (los deploys tardaban horas en verse).
+  Cabeceras repetidas por la herencia de nginx + `nginx -t` real. Verificado en
+  origen tras el deploy. Evidencia: `docs/evidence/round-162/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»
