@@ -536,6 +536,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   suma email/teléfono públicos al mensaje honesto; sin contacto, el base igual
   vale. 7/7, `tsc` limpio, captura post-deploy. Evidencia:
   `docs/evidence/round-142/verificacion.md`.
+- [x] **Ronda 144 - Base SEO: robots, sitemap y previa para compartir.**
+  `/robots.txt` devolvía el SPA; ahora reglas + sitemap con 5 rutas y OG en el
+  HTML. Sección 5 en `verificar-despliegue.mjs`: 6 FALLA sin archivos, exit 0
+  con ellos; verificado en vivo. Evidencia:
+  `docs/evidence/round-144/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.

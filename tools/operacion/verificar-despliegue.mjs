@@ -101,6 +101,42 @@ for (const compose of ['compose.yaml', 'compose.production.yaml', 'compose.tunne
     `${compose} monta datos y destino del respaldo`);
 }
 
+// 5. Base SEO/compartir: sin robots.txt el SPA contesta su index.html a los
+// rastreadores, y sin OG el enlace compartido sale pelado (ver round-144).
+let robots = '';
+try {
+  robots = readFileSync('apps/web/public/robots.txt', 'utf8');
+} catch (e) {
+  comprobar(false, 'existe apps/web/public/robots.txt');
+}
+if (robots) {
+  comprobar(robots.includes('Disallow: /admin/'), 'robots.txt cierra el panel a rastreadores');
+  comprobar(robots.includes('Sitemap:'), 'robots.txt anuncia el sitemap');
+}
+let mapa = '';
+try {
+  mapa = readFileSync('apps/web/public/sitemap.xml', 'utf8');
+} catch (e) {
+  comprobar(false, 'existe apps/web/public/sitemap.xml');
+}
+if (mapa) {
+  for (const ruta of ['/', '/consulta', '/mis-reservas', '/privacidad', '/terminos']) {
+    comprobar(mapa.includes(`<loc>https://hotel.eridu.top${ruta}</loc>`),
+      `el sitemap lista ${ruta}`);
+  }
+}
+let raiz = '';
+try {
+  raiz = readFileSync('apps/web/index.html', 'utf8');
+} catch (e) {
+  comprobar(false, 'se encuentra apps/web/index.html');
+}
+if (raiz) {
+  for (const etiqueta of ['og:title', 'og:description', 'og:type', 'og:image']) {
+    comprobar(raiz.includes(etiqueta), `index.html trae ${etiqueta} para compartir`);
+  }
+}
+
 console.log('');
 if (fallos.length > 0) {
   console.error(`DESPLIEGUE: ${fallos.length} comprobación(es) sin cuadrar`);
