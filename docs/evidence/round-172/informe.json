@@ -1,0 +1,72 @@
+{
+  "base": "http://web:80",
+  "panelAuditado": true,
+  "paginas": [
+    {
+      "ruta": "/",
+      "violaciones": [],
+      "graves": 0,
+      "erroresConsola": []
+    },
+    {
+      "ruta": "/consulta",
+      "violaciones": [],
+      "graves": 0,
+      "erroresConsola": []
+    },
+    {
+      "ruta": "/reserva",
+      "violaciones": [],
+      "graves": 0,
+      "erroresConsola": []
+    },
+    {
+      "ruta": "/mis-reservas",
+      "violaciones": [],
+      "graves": 0,
+      "erroresConsola": []
+    },
+    {
+      "ruta": "/privacidad",
+      "violaciones": [],
+      "graves": 0,
+      "erroresConsola": []
+    },
+    {
+      "ruta": "/terminos",
+      "violaciones": [],
+      "graves": 0,
+      "erroresConsola": []
+    },
+    {
+      "ruta": "/admin/hoy",
+      "violaciones": [],
+      "graves": 0
+    },
+    {
+      "ruta": "/admin/reservas",
+      "violaciones": [],
+      "graves": 0
+    },
+    {
+      "ruta": "/admin/inventario",
+      "violaciones": [],
+      "graves": 0
+    },
+    {
+      "ruta": "/admin/indicadores",
+      "violaciones": [],
+      "graves": 0
+    },
+    {
+      "ruta": "/admin/actividad",
+      "violaciones": [],
+      "graves": 0
+    },
+    {
+      "ruta": "/admin/integraciones",
+      "violaciones": [],
+      "graves": 0
+    }
+  ]
+}

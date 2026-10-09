@@ -1,13 +1,42 @@
 # Solo para auditar accesibilidad. No forma parte del despliegue ni toca datos.
 services:
+  # El panel necesita sesión y el único login de prueba es el usuario demo. Sin él, el
+  # auditor recorre solo las páginas públicas y lo dice en la salida (no finge cobertura).
+  # HOTEL_DEMO_ADMIN solo arranca con HOTEL_AMBIENTE distinto de produccion; lo verifica
+  # la propia API al iniciar. Base aparte (a11y.sqlite3): no toca la del hotel.
+  api-demo:
+    build: ./apps/api
+    environment:
+      JDBC_URL: jdbc:sqlite:/data/a11y.sqlite3
+      HOTEL_AMBIENTE: dev
+      HOTEL_DEMO_ADMIN: "true"
+    volumes:
+      - a11y-datos:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health | grep -q '\"estado\":\"ok\"' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: "no"
+
   accesibilidad:
     build: ./tools/accesibilidad
     environment:
       BASE_URL: http://web:80
       SALIDA: /salida
+      # Credenciales del usuario demo para entrar al panel. Vacías = el panel se omite.
+      # El usuario lo crea el propio servicio al arrancar con HOTEL_DEMO_ADMIN.
+      ADMIN: ${ADMIN_DEMO:-admin}
+      CLAVE: ${CLAVE_DEMO:-admin}
     volumes:
       - ${EVIDENCIA:-./tools/accesibilidad/salida}:/salida
     depends_on:
       web:
         condition: service_healthy
+      api-demo:
+        condition: service_healthy
     restart: "no"
+
+volumes:
+  a11y-datos:
