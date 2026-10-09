@@ -610,6 +610,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   inmutable; HTML siempre revalidado (los deploys tardaban horas en verse).
   Cabeceras repetidas por la herencia de nginx + `nginx -t` real. Verificado en
   origen tras el deploy. Evidencia: `docs/evidence/round-162/verificacion.md`.
+- [x] **Ronda 163 - Hotel en datos estructurados.** `application/ld+json` con
+  `@type Hotel` (nombre, URL, imagen y Sáchica/Boyacá/CO, nada inventado).
+  Verificador lo exige; JSON validado + presente en prod. Evidencia:
+  `docs/evidence/round-163/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»
@@ -621,12 +625,13 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   copia limpia de develop. Evidencia: docs/evidence/round-153/verificacion.md.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
-1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
+1. ~~Recibo descargable~~ — hecho en R129 (imprimir + no-imprimir).
 2. Recordatorio de llegada por correo el día antes (requiere refresh token Gmail) —
    alto/bloqueado por credencial externa.
 3. Calendario del panel con arrastre para bloquear noches — alto/alto.
-4. `/consulta` para logueados sin email en la URL (reusa R115) — bajo/bajo.
-5. Modo claro/oscuro en la web pública — bajo/medio.
+4. ~~`/consulta` sin email para logueados~~ — hecho en R122 (prefill) + R117.
+5. Modo claro/oscuro en la web pública — bajo/medio (requiere pasar tokens SCSS
+   a custom properties; medido: no cabe en una ronda chica).
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
