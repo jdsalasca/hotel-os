@@ -2,6 +2,7 @@ package co.hotel.reservas;
 
 import co.hotel.auditoria.ActorActual;
 import co.hotel.auditoria.AuditoriaRepository;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -175,8 +176,9 @@ public class AdminReservasController {
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(Map.of("error", "estado no válido: " + estado));
     }
+    LocalDate hoyHotel = svc.hoyEnHotel();
     return ResponseEntity.ok(svc.listar(q, filtro, limite).stream()
-      .map(AdminReservasController::fila).toList());
+      .map(reserva -> fila(reserva, hoyHotel)).toList());
   }
 
   @GetMapping("/api/admin/reservas/{codigo}")
@@ -277,7 +279,11 @@ public class AdminReservasController {
       .body(csv.toString());
   }
 
-  private static Map<String, Object> fila(Reserva r) {
+  private Map<String, Object> fila(Reserva r) {
+    return fila(r, svc.hoyEnHotel());
+  }
+
+  private Map<String, Object> fila(Reserva r, LocalDate hoyHotel) {
     return Map.ofEntries(
       Map.entry("codigo", r.codigo()),
       Map.entry("email", r.email()),
@@ -290,7 +296,7 @@ public class AdminReservasController {
       // Los estados alcanzables los decide el dominio, no el panel. El navegador no lleva su propia
       // copia de las reglas: cuando V6 perdió RECHAZADA del CHECK, dos listas de transiciones
       // divergentes se habrían desincronizado en silencio.
-      Map.entry("siguientes", r.estado().desde().stream().map(Enum::name).toList()),
+      Map.entry("siguientes", svc.siguientes(r, hoyHotel).stream().map(Enum::name).toList()),
       Map.entry("origen", r.origen().name()),
       Map.entry("creadoEn", r.creadoEn()));
   }

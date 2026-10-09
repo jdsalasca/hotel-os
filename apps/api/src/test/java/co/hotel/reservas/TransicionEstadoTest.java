@@ -39,10 +39,12 @@ class TransicionEstadoTest {
     }
 
     @Test
-    @DisplayName("CONFIRMADA solo se puede cancelar")
-    void confirmadaSoloSeCancela() {
-      assertEquals(1, EstadoReserva.CONFIRMADA.desde().size());
-      assertEquals(EstadoReserva.CANCELADA, EstadoReserva.CONFIRMADA.desde().get(0));
+    @DisplayName("CONFIRMADA se puede cancelar o cerrar como no presentada")
+    void confirmadaSePuedeCerrar() {
+      EstadoReserva noPresentada = EstadoReserva.valueOf("NO_PRESENTADA");
+      assertEquals(2, EstadoReserva.CONFIRMADA.desde().size());
+      assertTrue(EstadoReserva.CONFIRMADA.puede(EstadoReserva.CANCELADA));
+      assertTrue(EstadoReserva.CONFIRMADA.puede(noPresentada));
     }
 
     @ParameterizedTest
@@ -59,10 +61,11 @@ class TransicionEstadoTest {
   class Prohibidas {
 
     @ParameterizedTest
-    @EnumSource(value = EstadoReserva.class, names = {"CANCELADA", "RECHAZADA"})
-    @DisplayName("cancelada y rechazada no vuelven a la vida")
+    @EnumSource(value = EstadoReserva.class, names = {"CANCELADA", "RECHAZADA", "NO_PRESENTADA"})
+    @DisplayName("los estados terminales no vuelven a la vida")
     void losTerminalesSonTerminales(EstadoReserva terminal) {
       assertTrue(terminal.esTerminal());
+      assertFalse(terminal.vigente());
       assertEquals(0, terminal.desde().size(),
         "desde " + terminal + " no se puede cambiar a nada: el hotel ya liberó la fecha");
     }

@@ -55,6 +55,12 @@ public class HotelConfigService {
   /** Para la web pública: si no hay nada vendible, lo dice en vez de mostrar llenos. */
   public boolean aLaVenta() { return repo.hayVenta(); }
 
+  /** Zona local administrada por el hotel, con la configuración de arranque como respaldo. */
+  public ZoneId zonaHoraria(String predeterminada) {
+    String configurada = repo.valores().get("zona_horaria");
+    return ZoneId.of(configurada == null || configurada.isBlank() ? predeterminada : configurada);
+  }
+
   /**
    * Guarda la identidad en una sola transacción: o entran todos los valores válidos o no entra
    * ninguno. Un guardado a medias dejaría marca y contacto de hoteles distintos.
