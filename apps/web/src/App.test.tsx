@@ -92,4 +92,47 @@ describe('App', () => {
     expect(nav?.textContent).toContain('Inventario');
     expect(nav?.textContent).not.toContain('Consultar reserva');
   });
+
+  it('el pie esconde los accesos del panel sin sesión de personal', async () => {
+    window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/hotel')) return new Response('{}', { status: 200 });
+      return new Response('{"error":"sin sesión"}', { status: 401 });
+    }) as unknown as typeof fetch;
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findByText('¿Cuándo quieres venir?');
+    await waitFor(() => {
+      expect(document.querySelector('footer nav[aria-label="Navegación del panel"]')).toBeNull();
+    });
+    expect(
+      document.querySelector('footer nav[aria-label="Información legal"]'),
+    ).not.toBeNull();
+  });
+
+  it('el pie muestra los accesos con sesión de personal', async () => {
+    window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/admin/sesion')) {
+        return new Response(JSON.stringify({ email: 'a@h.test', nombre: 'A' }), { status: 200 });
+      }
+      if (ruta.includes('/api/hotel')) return new Response('{}', { status: 200 });
+      return new Response('{"error":"sin sesión"}', { status: 401 });
+    }) as unknown as typeof fetch;
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findByText('¿Cuándo quieres venir?');
+    await waitFor(() => {
+      const nav = document.querySelector('footer nav[aria-label="Navegación del panel"]');
+      expect(nav?.textContent).toContain('Inventario');
+    });
+  });
 });
