@@ -9,10 +9,13 @@ import { PaginaAdminReservas } from './PaginaAdminReservas';
  */
 const estado = vi.hoisted(() => ({
   postes: [] as { url: string; cuerpo: unknown }[],
-  detalle: 'PENDIENTE' as 'PENDIENTE' | 'CANCELADA',
+  fila: 'PENDIENTE' as 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'NO_PRESENTADA',
+  detalle: 'PENDIENTE' as 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'NO_PRESENTADA',
 }));
 
-function reservaFila(estadoReserva: 'PENDIENTE' | 'CANCELADA' = 'PENDIENTE') {
+function reservaFila(
+  estadoReserva: 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'NO_PRESENTADA' = 'PENDIENTE',
+) {
   return {
     codigo: 'H-PANEL1',
     email: 'panel@example.com',
@@ -22,8 +25,9 @@ function reservaFila(estadoReserva: 'PENDIENTE' | 'CANCELADA' = 'PENDIENTE') {
     noches: 2,
     huespedes: 1,
     estado: estadoReserva,
-    siguientes:
-      estadoReserva === 'PENDIENTE' ? ['CONFIRMADA', 'CANCELADA', 'RECHAZADA'] : [],
+    siguientes: estadoReserva === 'PENDIENTE'
+      ? ['CONFIRMADA', 'CANCELADA', 'RECHAZADA']
+      : estadoReserva === 'CONFIRMADA' ? ['CANCELADA', 'NO_PRESENTADA'] : [],
     origen: 'OTRO',
     creadoEn: '2030-01-01',
   };
@@ -32,7 +36,7 @@ function reservaFila(estadoReserva: 'PENDIENTE' | 'CANCELADA' = 'PENDIENTE') {
 vi.mock('../api/cliente', () => ({
   api: {
     get: (url: string) => {
-      if (url.startsWith('/api/admin/reservas?')) return Promise.resolve([reservaFila()]);
+      if (url.startsWith('/api/admin/reservas?')) return Promise.resolve([reservaFila(estado.fila)]);
       if (url === '/api/admin/habitaciones') {
         return Promise.resolve([{ id: 7, codigo: '101', nombre: 'Habitación 101' }]);
       }
@@ -82,6 +86,7 @@ function sesionConectada() {
 afterEach(() => {
   cleanup();
   estado.postes.length = 0;
+  estado.fila = 'PENDIENTE';
   estado.detalle = 'PENDIENTE';
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -201,6 +206,43 @@ describe('cambiar huespedes desde el panel', () => {
       expect(screen.getByText(/no admite abonos/)).toBeTruthy();
     });
     expect(screen.queryByRole('button', { name: 'Cambiar huéspedes' })).toBeNull();
+  });
+});
+
+describe('marcar una reserva como no presentada', () => {
+  it('traduce el estado cerrado y ya no muestra acciones de transición', async () => {
+    estado.fila = 'NO_PRESENTADA';
+    await montar();
+
+    expect(document.querySelector('[data-label="Estado"] .etiqueta')?.textContent).toBe('No se presentó');
+    expect(screen.getByText('Sin acciones')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'No se presentó la reserva H-PANEL1' })).toBeNull();
+  });
+
+  it('muestra la acción que autoriza el servidor y envía el nuevo estado', async () => {
+    estado.fila = 'CONFIRMADA';
+    await montar();
+
+    expect(document.querySelector('[data-label="Estado"] .etiqueta')?.textContent).toBe('Confirmada');
+    fireEvent.click(screen.getByRole('button', { name: 'No se presentó la reserva H-PANEL1' }));
+
+    await waitFor(() => {
+      expect(estado.postes).toContainEqual({
+        url: '/api/admin/reservas/H-PANEL1/estado',
+        cuerpo: { estado: 'NO_PRESENTADA' },
+      });
+    });
+  });
+
+  it('una reserva no presentada queda cerrada y no ofrece registrar abonos', async () => {
+    estado.detalle = 'NO_PRESENTADA';
+    await montar();
+    fireEvent.click(screen.getByText('Ver detalle'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/no admite abonos/)).toBeTruthy();
+    });
+    expect(screen.queryByRole('button', { name: 'Registrar abono' })).toBeNull();
   });
 });
 

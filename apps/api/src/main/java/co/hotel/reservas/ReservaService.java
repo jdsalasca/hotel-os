@@ -1,12 +1,15 @@
 package co.hotel.reservas;
 
 import co.hotel.auditoria.AuditoriaService;
+import co.hotel.config.HotelProperties;
+import co.hotel.hotel.HotelConfigService;
 import co.hotel.huespedes.ReservaServiceHuesped;
 import co.hotel.inventario.InventarioService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
@@ -26,14 +29,32 @@ public class ReservaService {
   private final AuditoriaService auditoria;
   private final InventarioService inventario;
   private final ReservaServiceHuesped huespedes;
+  private final Supplier<LocalDate> hoyHotel;
 
+  @org.springframework.beans.factory.annotation.Autowired
+  public ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
+                        InventarioService inventario, ReservaServiceHuesped huespedes,
+                        HotelConfigService configuracion, HotelProperties propiedades) {
+    this(repo, tx, auditoria, inventario, huespedes,
+      () -> LocalDate.now(configuracion.zonaHoraria(propiedades.zonaHoraria())));
+  }
+
+  /** Constructor directo para pruebas de servicio que no levantan el contexto Spring. */
   public ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
                         InventarioService inventario, ReservaServiceHuesped huespedes) {
+    this(repo, tx, auditoria, inventario, huespedes,
+      () -> LocalDate.now(java.time.ZoneId.of("America/Bogota")));
+  }
+
+  private ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
+                        InventarioService inventario, ReservaServiceHuesped huespedes,
+                        Supplier<LocalDate> hoyHotel) {
     this.repo = repo;
     this.tx = tx;
     this.auditoria = auditoria;
     this.inventario = inventario;
     this.huespedes = huespedes;
+    this.hoyHotel = hoyHotel;
   }
 
   public String crear(CrearReserva datos) {
@@ -153,6 +174,9 @@ public class ReservaService {
       var actual = repo.porCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
       long id = repo.idPorCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
       EstadoReserva.validar(actual.estado(), nuevo);
+      if (nuevo == EstadoReserva.NO_PRESENTADA && !actual.llegada().isBefore(hoyHotel.get())) {
+        throw new ExcepcionDeEstado("solo se marca no presentada después del día de llegada");
+      }
       repo.actualizarEstado(codigo, nuevo);
       auditoria.cambioEstado(id, actual.estado().name(), nuevo.name(), actor);
       return actual.cambiarEstado(nuevo);
@@ -204,7 +228,7 @@ public class ReservaService {
     if (llegada == null || salida == null || !llegada.isBefore(salida)) {
       throw new DatosInvalidosException("la salida debe ser posterior a la llegada");
     }
-    if (llegada.isBefore(java.time.LocalDate.now())) {
+    if (llegada.isBefore(hoyHotel.get())) {
       throw new DatosInvalidosException("la llegada no puede ser en el pasado");
     }
     return tx.enTransaccion(estado -> {
@@ -265,6 +289,20 @@ public class ReservaService {
 
   public Optional<Reserva> buscar(String codigo) { return repo.porCodigo(codigo); }
 
+  /** Acciones visibles en el panel: no presenta opciones que todavía no se pueden ejecutar. */
+  public List<EstadoReserva> siguientes(Reserva reserva) {
+    return siguientes(reserva, hoyHotel.get());
+  }
+
+  public List<EstadoReserva> siguientes(Reserva reserva, LocalDate hoy) {
+    return reserva.estado().desde().stream()
+      .filter(destino -> destino != EstadoReserva.NO_PRESENTADA
+        || reserva.llegada().isBefore(hoy))
+      .toList();
+  }
+
+  public LocalDate hoyEnHotel() { return hoyHotel.get(); }
+
   /** Identificador interno, para consultar el historial. */
   public long idDe(String codigo) {
     return repo.idPorCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
@@ -308,7 +346,7 @@ public class ReservaService {
       throw new DatosInvalidosException("la salida debe ser posterior a la llegada");
     // Una PENDIENTE en el pasado nacería siendo no-show: se rechaza en la frontera.
     // Hoy sí vale (el walk-in existe). Vale para web, panel y lo que venga.
-    if (datos.llegada().isBefore(java.time.LocalDate.now()))
+    if (datos.llegada().isBefore(hoyHotel.get()))
       throw new DatosInvalidosException("la llegada no puede ser en el pasado");
     if (datos.huespedes() < 1)
       throw new DatosInvalidosException("número de huéspedes inválido");

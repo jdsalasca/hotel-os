@@ -5,7 +5,7 @@ import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, Etiqueta, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 
-type Estado = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'RECHAZADA';
+type Estado = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'RECHAZADA' | 'NO_PRESENTADA';
 
 type Reserva = {
   codigo: string;
@@ -44,7 +44,16 @@ const ESTADOS: { valor: Estado; texto: string }[] = [
   { valor: 'CONFIRMADA', texto: 'Confirmar' },
   { valor: 'CANCELADA', texto: 'Cancelar' },
   { valor: 'RECHAZADA', texto: 'Rechazar' },
+  { valor: 'NO_PRESENTADA', texto: 'No se presentó' },
 ];
+
+const TEXTO_ESTADO: Record<Estado, string> = {
+  PENDIENTE: 'Pendiente',
+  CONFIRMADA: 'Confirmada',
+  CANCELADA: 'Cancelada',
+  RECHAZADA: 'Rechazada',
+  NO_PRESENTADA: 'No se presentó',
+};
 
 /**
  * Los botones son los que el servidor dice que valen, no una copia local de las reglas.
@@ -65,12 +74,12 @@ function accionesPosibles(reserva: Reserva) {
  */
 function tonoEstado(estado: Estado): 'exito' | 'error' | 'aviso' {
   if (estado === 'CONFIRMADA') return 'exito';
-  if (estado === 'CANCELADA' || estado === 'RECHAZADA') return 'error';
+  if (estado === 'CANCELADA' || estado === 'RECHAZADA' || estado === 'NO_PRESENTADA') return 'error';
   return 'aviso';
 }
 
 /**
- * Una reserva cerrada (CANCELADA o RECHAZADA) ya soltó la fecha: no admite dinero. El servidor lo
+ * Una reserva cerrada ya soltó la fecha: no admite dinero. El servidor lo
  * rechaza con 400, así que el panel tampoco ofrece el formulario, que solo produciría un error.
  */
 function admiteDinero(estado: Estado): boolean {
@@ -398,6 +407,7 @@ export function PaginaAdminReservas() {
               <option value="CONFIRMADA">Confirmada</option>
               <option value="CANCELADA">Cancelada</option>
               <option value="RECHAZADA">Rechazada</option>
+              <option value="NO_PRESENTADA">No se presentó</option>
             </select>
           </div>
           <button className="boton boton--secundario" type="submit">Filtrar</button>
@@ -445,7 +455,7 @@ export function PaginaAdminReservas() {
                     <td data-label="Origen"><Etiqueta tono="neutra">{r.origen}</Etiqueta></td>
                     <td data-label="Estado">
                       <Etiqueta tono={tonoEstado(r.estado)}>
-                        {r.estado}
+                        {TEXTO_ESTADO[r.estado]}
                       </Etiqueta>
                     </td>
                     <td data-label="Acciones">
@@ -574,7 +584,7 @@ export function PaginaAdminReservas() {
               {detalle.historial.map((h, i) => (
                 <li key={i} className="campo__ayuda">
                   {h.estado_ant ? `${h.estado_ant} → ` : 'creada como '}
-                  <strong>{h.estado_nuevo}</strong>
+                  <strong>{TEXTO_ESTADO[h.estado_nuevo as Estado] ?? h.estado_nuevo}</strong>
                   {h.detalle ? ` · ${h.detalle}` : null} por {h.actor} el {h.en.slice(0, 16).replace('T', ' ')}
                 </li>
               ))}

@@ -68,14 +68,15 @@ class EsquemaReservationsTest {
   }
 
   @Test
-  @DisplayName("los cuatro estados se pueden guardar de verdad")
-  void losCuatroEstadosSeGuardan() {
+  @DisplayName("todos los estados se pueden guardar de verdad")
+  void todosLosEstadosSeGuardan() {
     for (var estado : EstadoReserva.values()) {
       jdbc.update("INSERT INTO reservations(codigo,email,nombre,llegada,salida,huespedes,estado,origen,"
         + " idempotencia,creado_en) VALUES(?,?,?,?,?,?,?,?,?,?)",
         "H-ESQ" + estado.name(), "esquema@example.com", null, "2036-01-01", "2036-01-02", 1,
         estado.name(), "WEB", "k-esq-" + estado.name(), "2036-01-01");
     }
-    assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM reservations", Integer.class));
+    assertEquals(EstadoReserva.values().length,
+      jdbc.queryForObject("SELECT count(*) FROM reservations", Integer.class));
   }
 }

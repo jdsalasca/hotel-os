@@ -690,6 +690,12 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   cubre 12 rutas (6 públicas + 6 del panel) con login demo y su propia base: **0
   violaciones WCAG A/AA, exit 0**. La app era accesible; lo roto era lo que lo medía.
   Evidencia: `docs/evidence/round-172/verificacion.md`.
+- [x] **Ronda 173 - Recepción puede cerrar una no presentación.** Reserva confirmada con
+  llegada anterior al día local del hotel: la acción queda en el panel, conserva el actor
+  en el historial y libera el inventario. El servidor la oculta y rechaza si la llegada es
+  hoy o futura. V19 conserva también asignaciones, pagos, mensajes, historial, índices y
+  secuencias al ampliar los CHECK de SQLite con claves foráneas activas. Evidencia:
+  `docs/evidence/round-173/verificacion.md`.
 - [x] **Ronda 175 - El huésped ve las condiciones antes de confirmar.** El panel ya
    guardaba hora de entrada/salida y política de cancelación y `/api/hotel` las publica,
    pero **el frontend no llamaba a `/api/hotel` en ningún sitio**: el huésped solo las

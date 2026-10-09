@@ -15,6 +15,7 @@ import co.hotel.pruebas.HotelDePrueba;
 import java.nio.file.Files;
 import java.time.LocalDate;
 import java.nio.file.Path;
+import java.time.ZoneId;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -540,6 +541,80 @@ class AdminReservasControllerTest {
     String pendiente = crearReserva("siguientes3@example.com", "2026-12-25", "2026-12-27");
     mvc.perform(get("/api/admin/reservas/" + pendiente).with(ADMIN))
       .andExpect(jsonPath("$.reserva.siguientes.length()").value(3));
+  }
+
+  @Test
+  @DisplayName("no ofrece ni acepta no presentada antes de que termine la llegada")
+  void noShowAntesDeLaLlegadaDevuelveConflicto() throws Exception {
+    LocalDate hoy = LocalDate.now(ZoneId.of("America/Bogota"));
+    long roomId = habitacionParaFechas(hoy.plusDays(2), hoy.plusDays(5));
+    for (int dias = 0; dias <= 1; dias++) {
+      String codigo = crearReservaEn("no-show-futuro-" + dias + "@example.com",
+        hoy.plusDays(2).toString(), hoy.plusDays(4).toString(), roomId);
+      cambiarEstado(codigo, "CONFIRMADA");
+      cambiarFechasDirecto(codigo, hoy.plusDays(dias), hoy.plusDays(dias + 2));
+
+      mvc.perform(get("/api/admin/reservas/" + codigo).with(ADMIN))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.reserva.siguientes.length()").value(1))
+        .andExpect(jsonPath("$.reserva.siguientes[0]").value("CANCELADA"));
+
+      mvc.perform(post("/api/admin/reservas/" + codigo + "/estado").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("estado", "NO_PRESENTADA"))))
+        .andExpect(status().isConflict());
+    }
+  }
+
+  @Test
+  @DisplayName("una llegada vencida se puede marcar no presentada y libera su habitación")
+  void noShowVencidoQuedaAuditadoYLiberaInventario() throws Exception {
+    LocalDate hoy = LocalDate.now(ZoneId.of("America/Bogota"));
+    long roomId = habitacionParaFechas(hoy.minusDays(1), hoy.plusDays(5));
+    String codigo = crearReservaEn("no-show-vencido@example.com",
+      hoy.plusDays(2).toString(), hoy.plusDays(4).toString(), roomId);
+    cambiarEstado(codigo, "CONFIRMADA");
+    cambiarFechasDirecto(codigo, hoy.minusDays(1), hoy.plusDays(1));
+
+    mvc.perform(get("/api/admin/reservas/" + codigo).with(ADMIN))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.reserva.siguientes.length()").value(2))
+      .andExpect(jsonPath("$.reserva.siguientes[0]").value("CANCELADA"))
+      .andExpect(jsonPath("$.reserva.siguientes[1]").value("NO_PRESENTADA"));
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/estado").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("estado", "NO_PRESENTADA"))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.estado").value("NO_PRESENTADA"))
+      .andExpect(jsonPath("$.siguientes").isEmpty());
+
+    mvc.perform(get("/api/admin/reservas/" + codigo).with(ADMIN))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.historial[2].estado_nuevo").value("NO_PRESENTADA"))
+      .andExpect(jsonPath("$.historial[2].actor").value("admin@hotel.test"));
+
+    mvc.perform(get("/api/disponibilidad")
+        .param("llegada", hoy.toString()).param("salida", hoy.plusDays(1).toString())
+        .param("huespedes", "2"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.ofertas[?(@.habitacion.id == " + roomId + ")]").isNotEmpty());
+  }
+
+  private long habitacionParaFechas(LocalDate desde, LocalDate hasta) {
+    HotelDePrueba.tarifarTodo(jdbc, desde, hasta);
+    Long tipoId = jdbc.queryForObject(
+      "SELECT id FROM room_types WHERE codigo='DOBLE-PRUEBA'", Long.class);
+    String codigo = "NS" + Long.toString(System.nanoTime(), 36).toUpperCase();
+    jdbc.update("INSERT INTO rooms(codigo,estado,nombre,room_type_id) VALUES(?, 'ACTIVA', ?, ?)",
+      codigo, "Habitación " + codigo, tipoId);
+    return jdbc.queryForObject("SELECT id FROM rooms WHERE codigo=?", Long.class, codigo);
+  }
+
+  private void cambiarFechasDirecto(String codigo, LocalDate llegada, LocalDate salida) {
+    Long id = jdbc.queryForObject("SELECT id FROM reservations WHERE codigo=?", Long.class, codigo);
+    jdbc.update("UPDATE reservations SET llegada=?, salida=? WHERE id=?",
+      llegada.toString(), salida.toString(), id);
+    jdbc.update("UPDATE reservation_items SET desde=?, hasta=? WHERE reservation_id=?",
+      llegada.toString(), salida.toString(), id);
   }
 
   @Test
