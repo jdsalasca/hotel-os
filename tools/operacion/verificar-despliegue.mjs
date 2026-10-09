@@ -175,6 +175,11 @@ if (raiz) {
   for (const etiqueta of ['og:title', 'og:description', 'og:type', 'og:image']) {
     comprobar(raiz.includes(etiqueta), `index.html trae ${etiqueta} para compartir`);
   }
+  // Datos estructurados de hotel para buscadores (rich results): tipo Hotel con
+  // nombre, URL y localidad, sin inventar dirección ni teléfono (ver ronda 163).
+  comprobar(raiz.includes('application/ld+json'), 'index.html trae JSON-LD');
+  comprobar(raiz.includes('"@type":"Hotel"') || raiz.includes('"@type": "Hotel"'),
+    'el JSON-LD declara un Hotel');
 }
 
 console.log('');
