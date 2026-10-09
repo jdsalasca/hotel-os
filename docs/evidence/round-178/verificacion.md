@@ -1,35 +1,24 @@
-# Ronda 178 — Distancias de lugares más legibles
+# Ronda 178 - El panel también dice la distancia de cada lugar
+
+## El hueco
+R177 puso la distancia en el mapa público (`/api/lugares`). El **panel del hotelero**
+(`/api/admin/lugares`) seguía devolviendo el lugar crudo: el hotelero no podía verificar
+que un sitio "quedó cerquita" antes de publicarlo.
 
 ## Cambio
+- `todos()` calcula `metros` igual que la web pública, y ambos comparten ahora un solo
+  helper `conDistancia()`: la distancia se calculaba en un sitio y se escribe el lugar de
+  una sola forma. Antes el bucle vivía enterrado en la web pública y el panel no lo tenía.
+- Sin hotel ubicado no se inventa distancia (el campo no existe).
 
-- Los lugares a menos de 1.000 m ahora muestran metros redondeados; los de 1 km o más muestran kilómetros con coma decimal colombiana.
-- Una nota aclara que la distancia es en línea recta y que «Cómo llegar» abre la ruta real; solo aparece cuando el hotel está ubicado.
-- En móvil, el enlace «Cómo llegar» conserva una sola línea.
-- La portada mantiene su cálculo existente; no se añadió una API duplicada ni dependencias.
+## TDD rojo-verde
+- `panelVeDistancias`: **RED** sin el cambio
+  (`NullPointerException` al leer `metros` — el campo no existía en la respuesta admin).
+  **GREEN** con él, comprobando el rango real: a menos de 300 m para el lugar de al lado.
+- `LugaresTest`: `Tests run: 4, Failures: 0, Errors: 0` (los 3 de R177 siguen verdes).
+- Suite backend completa: **`Tests run: 454, Failures: 0, Errors: 0, Skipped: 1` — BUILD SUCCESS**.
 
-## TDD
-
-- Los dos primeros casos fallaron antes del cambio: faltaba `a 44 m` y el formato esperado `a 1,1 km`.
-- Al probar sobre la implementación anterior, los tres casos de unidad/locale/valor cero fallaron por la razón esperada.
-- El caso de claridad falló antes de agregar la nota.
-- El caso de hotel sin ubicación falló al principio porque la nota aparecía sin una distancia calculable.
-- Resultado enfocado final: `npm test -- src/paginas/PaginaInicio.test.tsx --reporter=dot` — 23/23.
-
-## Verificación
-
-- `npm test` — 24 archivos, 123/123 pruebas. Se mantiene el aviso existente de jsdom: `Window's scrollTo() method` no está implementado.
-- `npm run test:typecheck` — exit 0.
-- `npm run build` — exit 0; 70 módulos transformados. JS 373,39 kB (107,39 kB gzip), CSS 22,25 kB (4,77 kB gzip).
-- Playwright en Chrome local con datos sintéticos para dos lugares; no se usaron datos de huéspedes.
-- Consola y errores de página: 0.
-
-## Revisión visual
-
-| Vista | Viewport | Ancho documento / viewport | Límites de la sección del mapa | Resultado |
-|---|---:|---:|---|---|
-| Escritorio | 1440 × 1000 | 1440 / 1440 px | x=168–1272, y=236–764 | `a 44 m`, `a 1,1 km`; nota visible; enlace 103 × 35 px en una línea |
-| Móvil | 390 × 844 | 390 / 390 px | x=16–374, y=74–771 | `a 44 m`, `a 1,1 km`; nota visible; enlace 103 × 35 px en una línea |
-
-El iframe de OpenStreetMap es externo y su contenido varió entre las capturas; esta revisión valida las etiquetas, el enlace y el ajuste responsive, no la disponibilidad de sus teselas.
-
-Capturas guardadas junto a este informe: `desktop.png` y `mobile.png`.
+## Nota de entorno
+Hecha en worktree limpio de `origin/develop`. El checkout compartido tiene un `V20`
+sin trackear que rompe Flyway ahí (`duplicate column name: hora_entrada`); ese archivo
+es de otro agente y no se tocó.

@@ -39,19 +39,7 @@ public class LugaresController {
     // La distancia en metros solo existe si el hotel está ubicado: sin su punto no hay a qué
     // medir, y un número inventado es peor que un campo ausente. Cada lugar sale con su
     // `metros` (o sin él), que es lo que el mapa muestra como "a X m" / "a X km".
-    var lugares = new java.util.ArrayList<Map<String, Object>>();
-    for (var l : repo.activos()) {
-      var fila = new java.util.LinkedHashMap<String, Object>();
-      fila.put("id", l.id());
-      fila.put("nombre", l.nombre());
-      fila.put("descripcion", l.descripcion());
-      fila.put("latitud", l.latitud());
-      fila.put("longitud", l.longitud());
-      if (lat != null && lng != null) {
-        fila.put("metros", Math.round(metros(lat, lng, l.latitud(), l.longitud())));
-      }
-      lugares.add(fila);
-    }
+    var lugares = repo.activos().stream().map(l -> conDistancia(l, lat, lng)).toList();
     return Map.of("hotel", hotel, "lugares", lugares);
   }
 
@@ -66,12 +54,34 @@ public class LugaresController {
     return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a)));
   }
 
+  /**
+   * El lugar listo para el navegador, con `metros` al hotel si se sabe dónde está el hotel. Lo
+   * comparten la web pública y el panel: una sola forma de escribir un lugar y la distancia
+   * calculada en un solo sitio. Sin hotel ubicado no se inventa distancia: el campo no existe.
+   */
+  private static Map<String, Object> conDistancia(LugaresRepository.Lugar l, Double lat, Double lng) {
+    var fila = new java.util.LinkedHashMap<String, Object>();
+    fila.put("id", l.id());
+    fila.put("nombre", l.nombre());
+    fila.put("descripcion", l.descripcion());
+    fila.put("latitud", l.latitud());
+    fila.put("longitud", l.longitud());
+    fila.put("activo", l.activo());
+    if (lat != null && lng != null) {
+      fila.put("metros", Math.round(metros(lat, lng, l.latitud(), l.longitud())));
+    }
+    return fila;
+  }
+
   public record LugarReq(String nombre, String descripcion, Double latitud, Double longitud,
                          Boolean activo) {}
 
   @GetMapping("/api/admin/lugares")
   public Map<String, Object> todos() {
-    return Map.of("lugares", repo.todos());
+    Map<String, String> valores = config.valores();
+    Double lat = numero(valores.get("latitud"));
+    Double lng = numero(valores.get("longitud"));
+    return Map.of("lugares", repo.todos().stream().map(l -> conDistancia(l, lat, lng)).toList());
   }
 
   @PostMapping("/api/admin/lugares")

@@ -141,6 +141,26 @@ class LugaresTest {
   }
 
   @Test
+  @DisplayName("el panel tambien ve la distancia de cada lugar")
+  void panelVeDistancias() throws Exception {
+    var admin = user("admin@hotel.test").roles("ADMIN");
+    jdbc.update("INSERT INTO hotel_config(clave,valor,actualizado_en) VALUES"
+      + "('latitud','5.65',datetime('now')),('longitud','-73.52',datetime('now'))");
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "Cerca", "latitud", 5.651, "longitud", -73.521))))
+      .andExpect(status().isCreated());
+
+    var panel = mvc.perform(get("/api/admin/lugares").with(admin))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.lugares.length()").value(1))
+      .andReturn().getResponse().getContentAsString();
+    long metros = JSON.readTree(panel).get("lugares").get(0).get("metros").asLong();
+    assertTrue(metros >= 0 && metros < 300,
+      "el panel debe decir que esta a menos de 300 m, no " + metros + " m");
+  }
+
+  @Test
   @DisplayName("sin hotel ubicado no se inventa ninguna distancia")
   void sinHotelNoHayDistancias() throws Exception {
     var admin = user("admin@hotel.test").roles("ADMIN");
