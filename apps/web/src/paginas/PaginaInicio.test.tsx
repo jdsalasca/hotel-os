@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PaginaInicio } from './PaginaInicio';
 import { fechaCorta } from '../api/formato';
@@ -18,6 +18,11 @@ const estado = vi.hoisted(() => ({
   sinVenta: false,
   fallaVenta: false,
   hotel: null as null | Record<string, string>,
+  diasCalendario: [] as Array<{
+    fecha: string;
+    disponibles: number;
+    precios: Array<{ moneda: string; desdeCents: number }>;
+  }>,
 }));
 
 vi.mock('../api/cliente', () => {
@@ -66,7 +71,7 @@ vi.mock('../api/cliente', () => {
       };
     }
     if (url.startsWith('/api/disponibilidad/calendario?')) {
-      return { mes: '2030-06', huespedes: 2, dias: [] };
+      return { mes: '2030-06', huespedes: 2, dias: estado.diasCalendario };
     }
     if (url === '/api/hotel/venta') {
       if (estado.fallaVenta) throw new Error('venta caída');
@@ -95,6 +100,7 @@ afterEach(() => {
   estado.sinVenta = false;
   estado.fallaVenta = false;
   estado.hotel = null;
+  estado.diasCalendario.length = 0;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -193,6 +199,97 @@ describe('hotel sin nada que vender', () => {
       name: 'Buscar disponibilidad',
     }) as HTMLButtonElement;
     expect(boton.disabled).toBe(false);
+  });
+});
+
+describe('búsqueda usable con teclado y lector de pantalla', () => {
+  it('enfoca y desplaza la página hasta las habitaciones encontradas', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
+    const desplazar = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: desplazar,
+    });
+
+    try {
+      await buscar();
+      const resultados = document.querySelector('.resultados-busqueda') as HTMLElement;
+      await waitFor(() => expect(document.activeElement).toBe(resultados));
+      expect(desplazar).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', descriptor);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+      }
+    }
+  });
+
+  it('enfoca también el aviso cuando no hay habitaciones disponibles', async () => {
+    estado.sinResultados = true;
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
+    fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar disponibilidad' }));
+
+    const vacio = await screen.findByText('No hay habitaciones disponibles para esas fechas');
+    await waitFor(() => expect(document.activeElement).toBe(vacio.closest('.resultados-busqueda')));
+  });
+
+  it('no consulta fechas inválidas y enfoca la salida que debe corregirse', async () => {
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-12' } });
+    const salida = screen.getByLabelText('Salida') as HTMLInputElement;
+    fireEvent.change(salida, { target: { value: '2030-06-12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar disponibilidad' }));
+
+    expect(await screen.findByText('La salida debe ser posterior a la llegada.')).toBeTruthy();
+    expect(salida.getAttribute('aria-invalid')).toBe('true');
+    expect(document.activeElement).toBe(salida);
+    expect(estado.llamadasBusqueda).toHaveLength(0);
+  });
+
+  it('rechaza más de 20 huéspedes con error junto al campo y sin consultar', async () => {
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
+    fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
+    const huespedes = screen.getByLabelText('Huéspedes') as HTMLInputElement;
+    fireEvent.change(huespedes, { target: { value: '21' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar disponibilidad' }));
+
+    expect(await screen.findByText('Elige entre 1 y 20 huéspedes.')).toBeTruthy();
+    expect(huespedes.getAttribute('aria-invalid')).toBe('true');
+    expect(document.activeElement).toBe(huespedes);
+    expect(estado.llamadasBusqueda).toHaveLength(0);
+  });
+
+  it('expone los días como botones accesibles e indica cuándo están llenos', async () => {
+    estado.diasCalendario = [
+      {
+        fecha: '2030-06-10',
+        disponibles: 1,
+        precios: [{ moneda: 'COP', desdeCents: 150000 }],
+      },
+      { fecha: '2030-06-11', disponibles: 0, precios: [] },
+    ];
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    const calendario = await screen.findByRole('group', { name: /disponibilidad de/i });
+    const dia = within(calendario).getByRole('button', { name: /habitación libre/i });
+    const lleno = within(calendario).getByRole('button', { name: /sin habitaciones/i }) as HTMLButtonElement;
+    expect(dia.getAttribute('role')).toBeNull();
+    expect(lleno.disabled).toBe(true);
+  });
+
+  it('bloquea las opciones antiguas cuando cambian los criterios de búsqueda', async () => {
+    await buscar();
+    fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-15' } });
+
+    expect(await screen.findByText(/cambiaste los criterios de búsqueda/i)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Elegir Doble' }) as HTMLButtonElement).disabled)
+      .toBe(true);
+    expect(document.querySelector('section[aria-labelledby="titulo-habitaciones"]')?.textContent)
+      .toContain('al 12 de jun de 2030');
   });
 });
 

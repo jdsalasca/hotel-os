@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api, nuevaClaveIdempotencia } from '../api/cliente';
 import { fechaCorta, hoyIso, mananaIso, monto } from '../api/formato';
-import { HuecoImagen, MensajeError, Vacio } from '../componentes/Estado';
+import { Aviso, HuecoImagen, MensajeError, Vacio } from '../componentes/Estado';
 
 type Oferta = {
   habitacion: { id: number; codigo: string; nombre: string };
@@ -100,6 +100,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [buscado, setBuscado] = useState(false);
+  const resultadosRef = useRef<HTMLDivElement | null>(null);
   const [detalles, setDetalles] = useState<Record<string, DetalleOferta>>({});
   const [servicios, setServicios] = useState<Record<number, string[]>>({});
   const [mapa, setMapa] = useState<{
@@ -220,8 +221,28 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
 
   async function buscar(evento: React.FormEvent) {
     evento.preventDefault();
+    if (fechasInvalidas) {
+      document.getElementById(llegadaInvalida ? 'llegada' : 'salida')?.focus();
+      return;
+    }
+    if (huespedesInvalidos) {
+      document.getElementById('huespedes')?.focus();
+      return;
+    }
     await buscarCon(llegada, salida, huespedes);
   }
+
+  useEffect(() => {
+    if (cargando || (!buscado && !error)) return;
+    const resultados = resultadosRef.current;
+    if (!resultados) return;
+
+    const reducirMovimiento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    resultados.focus({ preventScroll: true });
+    if (typeof resultados.scrollIntoView === 'function') {
+      resultados.scrollIntoView({ behavior: reducirMovimiento ? 'auto' : 'smooth', block: 'start' });
+    }
+  }, [buscado, cargando, error, ofertas]);
 
   function elegir(oferta: Oferta) {    // Clave de idempotencia por intento: el respaldo cubre entornos sin secure context (HTTP local).
     const clave = nuevaClaveIdempotencia();
@@ -303,10 +324,17 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
     setLlegada(dia.fecha);
     setSalida(siguiente);
     void buscarCon(dia.fecha, siguiente, huespedes);
-    document.getElementById('titulo-habitaciones')?.scrollIntoView({ block: 'start' });
   }
 
-  const fechasInvalidas = llegada && salida && salida <= llegada;
+  const llegadaInvalida = Boolean(llegada && llegada < mananaIso());
+  const salidaInvalida = Boolean(salida && (!llegada || salida <= llegada || salida < mananaIso()));
+  const fechasInvalidas = llegadaInvalida || salidaInvalida;
+  const huespedesInvalidos = !Number.isInteger(huespedes) || huespedes < 1 || huespedes > 20;
+  const resultadosDesactualizados = Boolean(
+    buscado &&
+    busqueda &&
+    (busqueda.llegada !== llegada || busqueda.salida !== salida || busqueda.huespedes !== huespedes),
+  );
   const hoy = hoyIso();
   const [anioCal = 0, mesCal = 1] = mes.split('-').map(Number);
   const huecoInicial = (new Date(anioCal, mesCal - 1, 1).getDay() + 6) % 7;
@@ -544,8 +572,8 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                   required
                   min={mananaIso()}
                   value={llegada}
-                  aria-invalid={fechasInvalidas ? 'true' : undefined}
-                  aria-describedby={fechasInvalidas ? 'error-fechas' : undefined}
+                  aria-invalid={llegadaInvalida ? 'true' : undefined}
+                  aria-describedby={llegadaInvalida ? 'error-fechas' : undefined}
                   onChange={(e) => setLlegada(e.target.value)}
                 />
               </div>
@@ -557,8 +585,8 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                   required
                   min={llegada || mananaIso()}
                   value={salida}
-                  aria-invalid={fechasInvalidas ? 'true' : undefined}
-                  aria-describedby={fechasInvalidas ? 'error-fechas' : undefined}
+                  aria-invalid={salidaInvalida ? 'true' : undefined}
+                  aria-describedby={salidaInvalida ? 'error-fechas' : undefined}
                   onChange={(e) => setSalida(e.target.value)}
                 />
               </div>
@@ -569,7 +597,10 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                   type="number"
                   min={1}
                   max={20}
+                  step={1}
                   value={huespedes}
+                  aria-invalid={huespedesInvalidos ? 'true' : undefined}
+                  aria-describedby={huespedesInvalidos ? 'error-huespedes' : undefined}
                   onChange={(e) => setHuespedes(Number(e.target.value))}
                 />
               </div>
@@ -577,7 +608,14 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
 
             {fechasInvalidas ? (
               <p className="campo__error" id="error-fechas">
-                La salida debe ser posterior a la llegada.
+                {llegadaInvalida
+                  ? 'La llegada debe ser una fecha futura.'
+                  : 'La salida debe ser posterior a la llegada.'}
+              </p>
+            ) : null}
+            {huespedesInvalidos ? (
+              <p className="campo__error" id="error-huespedes">
+                Elige entre 1 y 20 huéspedes.
               </p>
             ) : null}
 
@@ -662,7 +700,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           ) : null}
 
           {venta !== false && !cargandoCal && !errorCal ? (
-            <div className="calendario-mes__rejilla" role="list" aria-label={`Disponibilidad de ${nombreMes}`}>
+            <div className="calendario-mes__rejilla" role="group" aria-label={`Disponibilidad de ${nombreMes}`}>
               {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => (
                 <span key={d} className="calendario-mes__semana" aria-hidden="true">{d}</span>
               ))}
@@ -679,32 +717,20 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                   : dia.disponibles > 0
                     ? `${fechaCorta(dia.fecha)}: ${dia.disponibles} ${dia.disponibles === 1 ? 'habitación libre' : 'habitaciones libres'}${desde ? ` desde ${desde}` : ''}`
                     : `${fechaCorta(dia.fecha)}: sin habitaciones`;
-                return libre ? (
+                return (
                   <button
                     key={dia.fecha}
                     type="button"
-                    role="listitem"
-                    className="calendario-mes__dia calendario-mes__dia--libre"
+                    className={`calendario-mes__dia${libre ? ' calendario-mes__dia--libre' : ''}${pasado ? ' calendario-mes__dia--pasado' : ''}`}
                     aria-label={etiqueta}
+                    disabled={!libre}
                     onClick={() => elegirDia(dia)}
                   >
                     <span className="calendario-mes__numero" aria-hidden="true">{numero}</span>
                     <span className="calendario-mes__detalle" aria-hidden="true">
-                      {dia.disponibles} · {desde}
+                      {libre ? `${dia.disponibles} · ${desde}` : pasado ? '—' : 'Lleno'}
                     </span>
                   </button>
-                ) : (
-                  <span
-                    key={dia.fecha}
-                    role="listitem"
-                    aria-label={etiqueta}
-                    className={`calendario-mes__dia${pasado ? ' calendario-mes__dia--pasado' : ''}`}
-                  >
-                    <span className="calendario-mes__numero" aria-hidden="true">{numero}</span>
-                    <span className="calendario-mes__detalle" aria-hidden="true">
-                      {pasado ? '—' : 'Lleno'}
-                    </span>
-                  </span>
                 );
               })}
             </div>
@@ -712,110 +738,121 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           <p className="campo__ayuda">El precio del día es el de una noche; el total del viaje lo confirma la búsqueda.</p>
         </section>
 
-        {error ? <MensajeError texto={error} /> : null}
-
         {cargando ? <p className="cargando" role="status">Consultando disponibilidad…</p> : null}
 
-        {buscado && !cargando && ofertas && ofertas.length === 0 ? (
-          <div className="vacio" role="status" aria-live="polite" aria-atomic="true">
-            <p className="vacio__titulo">No hay habitaciones disponibles para esas fechas</p>
-            <p>Prueba otras fechas. Si el hotel aún no ha publicado tarifas para este periodo, tampoco hay precios que mostrar.</p>
-          </div>
-        ) : null}
+        {(error || (buscado && !cargando && ofertas)) ? (
+          <div ref={resultadosRef} className="resultados-busqueda" tabIndex={-1}>
+            {error ? <MensajeError texto={error} /> : null}
+            {resultadosDesactualizados ? (
+              <Aviso tono="aviso" titulo="Actualiza la búsqueda">
+                <p>Cambiaste los criterios de búsqueda. Vuelve a buscar antes de elegir una habitación.</p>
+              </Aviso>
+            ) : null}
+            {buscado && !cargando && ofertas?.length === 0 ? (
+              <div className="vacio" role="status" aria-live="polite" aria-atomic="true">
+                <p className="vacio__titulo">No hay habitaciones disponibles para esas fechas</p>
+                <p>Prueba otras fechas. Si el hotel aún no ha publicado tarifas para este periodo, tampoco hay precios que mostrar.</p>
+              </div>
+            ) : null}
+            {buscado && !cargando && ofertas && ofertas.length > 0 ? (
+              <section className="seccion" aria-labelledby="titulo-habitaciones">
+                <h2 id="titulo-habitaciones" className="seccion__titulo">
+                  Habitaciones disponibles
+                </h2>
+                <p className="seccion__intro" role="status" aria-live="polite" aria-atomic="true">
+                  Encontramos {ofertas.length}{' '}
+                  {ofertas.length === 1 ? 'opción disponible' : 'opciones disponibles'}.
+                </p>
+                <p className="seccion__intro">
+                  Del {fechaCorta(baseBusqueda.llegada)} al {fechaCorta(baseBusqueda.salida)} para{' '}
+                  {baseBusqueda.huespedes}{' '}
+                  {baseBusqueda.huespedes === 1 ? 'huésped' : 'huéspedes'}.
+                </p>
+                <div className="rejilla">
+                  {ofertas.map((oferta) => {
+                    const id = oferta.habitacion.id;
+                    const clave = claveDetalle(oferta);
+                    const abierto = !!detalleAbierto[clave];
+                    const detalle = detalles[clave];
 
-        {buscado && !cargando && ofertas && ofertas.length > 0 ? (
-          <section className="seccion" aria-labelledby="titulo-habitaciones">
-            <h2 id="titulo-habitaciones" className="seccion__titulo">
-              Habitaciones disponibles
-            </h2>
-            <p className="seccion__intro" role="status" aria-live="polite" aria-atomic="true">
-              Encontramos {ofertas.length} {ofertas.length === 1 ? 'opción disponible' : 'opciones disponibles'}.
-            </p>
-            <p className="seccion__intro">
-              Del {fechaCorta(baseBusqueda.llegada)} al {fechaCorta(baseBusqueda.salida)} para {baseBusqueda.huespedes}{' '}
-              {baseBusqueda.huespedes === 1 ? 'huésped' : 'huéspedes'}.
-            </p>
-              <div className="rejilla">
-                {ofertas.map((oferta) => {
-                  const id = oferta.habitacion.id;
-                  const clave = claveDetalle(oferta);
-                  const abierto = !!detalleAbierto[clave];
-                  const detalle = detalles[clave];
-                  return (
-                  <article className="tarjeta pila" key={`${id}|${oferta.plan.id}`}>
-                  <HuecoImagen texto="Fotografía de la habitación" />
-                  <h3>{oferta.tipo.nombre}</h3>
-                  {oferta.descuentoPct > 0 ? (
-                    <p className="sin-margen">
-                      <span className="etiqueta etiqueta--exito">−{oferta.descuentoPct} %</span>
-                    </p>
-                  ) : null}
-                  <p className="campo__ayuda">
-                    {oferta.habitacion.nombre || oferta.habitacion.codigo} · Hasta{' '}
-                    {oferta.tipo.capacidadMax} huéspedes · Plan {oferta.plan.nombre}
-                  </p>
-                  {(servicios[oferta.tipo.id] ?? []).length > 0 ? (
-                    <ul className="servicios" aria-label={`Servicios de ${oferta.tipo.nombre}`}>
-                      {(servicios[oferta.tipo.id] ?? []).map((s) => (
-                        <li key={s} className="servicios__item">{s}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  <p className="precio">
-                    {monto(oferta.totalCents, oferta.moneda)}
-                    {oferta.descuentoPct > 0 ? (
-                      <span className="precio__detalle">
-                        antes {monto(oferta.totalSinDescuentoCents, oferta.moneda)} · total por{' '}
-                        {oferta.noches} {oferta.noches === 1 ? 'noche' : 'noches'}
-                      </span>
-                    ) : (
-                      <span className="precio__detalle">
-                        total por {oferta.noches} {oferta.noches === 1 ? 'noche' : 'noches'}
-                      </span>
-                    )}
-                  </p>
-                  <button
-                    className="boton boton--fantasma boton--chico"
-                    type="button"
-                    onClick={() => void verDetalle(oferta)}
-                    aria-expanded={abierto}
-                    aria-label={`Ver el precio noche por noche de ${oferta.tipo.nombre}`}
-                  >
-                    {abierto ? 'Ocultar detalle' : 'Ver detalle por noche'}
-                  </button>
-                  {detalleCargando[clave] ? (
-                    <p className="cargando" role="status">Cargando el desglose…</p>
-                  ) : null}
-                  {abierto && detalle ? (
-                    <div className="desglose">
-                      <p className="campo__ayuda sin-margen">
-                        Plan {detalle.plan.nombre}
-                        {detalle.descuentoPct > 0 ? (
-                          <> · −{detalle.descuentoPct} % (antes {monto(detalle.totalSinDescuentoCents, detalle.moneda)})</>
+                    return (
+                      <article className="tarjeta pila" key={`${id}|${oferta.plan.id}`}>
+                        <HuecoImagen texto="Fotografía de la habitación" />
+                        <h3>{oferta.tipo.nombre}</h3>
+                        {oferta.descuentoPct > 0 ? (
+                          <p className="sin-margen">
+                            <span className="etiqueta etiqueta--exito">−{oferta.descuentoPct} %</span>
+                          </p>
                         ) : null}
-                      </p>
-                      <dl className="desglose__noches">
-                        {detalle.noches.map((noche) => (
-                          <div key={noche.fecha} className="desglose__noche">
-                            <dt>{fechaCorta(noche.fecha)}</dt>
-                            <dd className="cifra">{monto(noche.precioCents, detalle.moneda)}</dd>
+                        <p className="campo__ayuda">
+                          {oferta.habitacion.nombre || oferta.habitacion.codigo} · Hasta{' '}
+                          {oferta.tipo.capacidadMax} huéspedes · Plan {oferta.plan.nombre}
+                        </p>
+                        {(servicios[oferta.tipo.id] ?? []).length > 0 ? (
+                          <ul className="servicios" aria-label={`Servicios de ${oferta.tipo.nombre}`}>
+                            {(servicios[oferta.tipo.id] ?? []).map((servicio) => (
+                              <li key={servicio} className="servicios__item">{servicio}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        <p className="precio">
+                          {monto(oferta.totalCents, oferta.moneda)}
+                          {oferta.descuentoPct > 0 ? (
+                            <span className="precio__detalle">
+                              antes {monto(oferta.totalSinDescuentoCents, oferta.moneda)} · total por{' '}
+                              {oferta.noches} {oferta.noches === 1 ? 'noche' : 'noches'}
+                            </span>
+                          ) : (
+                            <span className="precio__detalle">
+                              total por {oferta.noches} {oferta.noches === 1 ? 'noche' : 'noches'}
+                            </span>
+                          )}
+                        </p>
+                        <button
+                          className="boton boton--fantasma boton--chico"
+                          type="button"
+                          onClick={() => void verDetalle(oferta)}
+                          aria-expanded={abierto}
+                          aria-label={`Ver el precio noche por noche de ${oferta.tipo.nombre}`}
+                        >
+                          {abierto ? 'Ocultar detalle' : 'Ver detalle por noche'}
+                        </button>
+                        {detalleCargando[clave] ? (
+                          <p className="cargando" role="status">Cargando el desglose…</p>
+                        ) : null}
+                        {abierto && detalle ? (
+                          <div className="desglose">
+                            <p className="campo__ayuda sin-margen">
+                              Plan {detalle.plan.nombre}
+                              {detalle.descuentoPct > 0 ? (
+                                <> · −{detalle.descuentoPct} % (antes {monto(detalle.totalSinDescuentoCents, detalle.moneda)})</>
+                              ) : null}
+                            </p>
+                            <dl className="desglose__noches">
+                              {detalle.noches.map((noche) => (
+                                <div key={noche.fecha} className="desglose__noche">
+                                  <dt>{fechaCorta(noche.fecha)}</dt>
+                                  <dd className="cifra">{monto(noche.precioCents, detalle.moneda)}</dd>
+                                </div>
+                              ))}
+                            </dl>
                           </div>
-                        ))}
-                      </dl>
-                    </div>
-                  ) : null}
-                  <button
-                    className="boton boton--primario boton--bloque"
-                    onClick={() => elegir(oferta)}
-                    aria-label={`Elegir ${oferta.tipo.nombre}`}
-                  >
-                    Elegir esta habitación
-                  </button>
-                </article>
-                  );
-                })}
-            </div>
-          </section>
+                        ) : null}
+                        <button
+                          className="boton boton--primario boton--bloque"
+                          onClick={() => elegir(oferta)}
+                          aria-label={`Elegir ${oferta.tipo.nombre}`}
+                          disabled={resultadosDesactualizados}
+                        >
+                          Elegir esta habitación
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </main>
