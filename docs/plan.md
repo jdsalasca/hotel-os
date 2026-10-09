@@ -564,6 +564,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 150 - Al navegar se vuelve arriba.** Medido en prod (1500 → 492 al
   ir a /consulta): `VolverArribaAlNavegar` con cada ruta. 1/1 a nivel App, suite
   81/81, captura post-deploy. Evidencia: `docs/evidence/round-150/verificacion.md`.
+- [x] **Ronda 151 - OAuth: SameSite=Lax + fin del silencio.** El rebote era
+  `authorization_request_not_found`: Strict retenía la cookie en la vuelta de
+  Google (en dev regía Lax y nunca se vio). Lax en composes + test que lo exige,
+  `FalloOauth2` con causa, handlers que no lanzan, aviso y rol. Suite 437/442
+  (5 rojos del colega). Evidencia: `docs/evidence/round-151/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.

@@ -19,7 +19,9 @@ import org.springframework.test.context.DynamicPropertySource;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * La cookie de sesión en producción: solo HTTPS y solo mismo sitio. Este test habla HTTP de
+ * La cookie de sesión en producción: solo HTTPS y Lax. Lax y no Strict a propósito:
+ * la vuelta de Google es una navegación iniciada en otro sitio y con Strict el
+ * navegador la retiene, matando el login (ronda 151). Este test habla HTTP de
  * verdad contra el contenedor embebido, porque MockMvc no aplica las banderas de la cookie del
  * contenedor real. Si estas banderas no llegan a la Set-Cookie, el endurecimiento del compose es
  * papel mojado.
@@ -27,7 +29,7 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
   properties = {
     "server.servlet.session.cookie.secure=true",
-    "server.servlet.session.cookie.same-site=strict"
+    "server.servlet.session.cookie.same-site=lax"
   })
 class CookieSesionTest {
 
@@ -62,7 +64,7 @@ class CookieSesionTest {
   }
 
   @Test
-  @DisplayName("el login emite JSESSIONID con Secure y SameSite=Strict")
+  @DisplayName("el login emite JSESSIONID con Secure y SameSite=Lax")
   void cookieDeSesionEndurecida() throws Exception {
     String base = "http://127.0.0.1:" + puerto;
 
@@ -83,7 +85,7 @@ class CookieSesionTest {
 
     String sesion = galleta(acceso.headers().allValues("set-cookie"), "JSESSIONID");
     assertTrue(sesion.contains("Secure"), "falta Secure: " + sesion);
-    assertTrue(sesion.toLowerCase().contains("samesite=strict"), "falta SameSite=Strict: " + sesion);
+    assertTrue(sesion.toLowerCase().contains("samesite=lax"), "falta SameSite=Lax: " + sesion);
     assertTrue(sesion.contains("HttpOnly"), "falta HttpOnly: " + sesion);
   }
 

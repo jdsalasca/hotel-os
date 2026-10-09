@@ -51,7 +51,17 @@ public class ManejadorHuespedOauth2 implements AuthenticationSuccessHandler {
       return;
     }
 
-    long id = usuarios.porSubOCrear(sub, email, principal.getAttribute("name"));
+    long id;
+    try {
+      id = usuarios.porSubOCrear(sub, email, principal.getAttribute("name"));
+    } catch (Exception e) {
+      // Igual que en el panel: caerse a mitad no puede ser un 500 mudo.
+      SecurityContextHolder.clearContext();
+      log.warn("entrada de huésped con Google falló para {}: {}: {}", email,
+        e.getClass().getSimpleName(), e.getMessage());
+      res.sendRedirect("/?error=oauth2");
+      return;
+    }
     // La sesión se identifica por el correo, igual que el panel: /api/yo lo lee de ahí.
     var renombrado = new DefaultOAuth2User(principal.getAuthorities(), principal.getAttributes(),
       "email");

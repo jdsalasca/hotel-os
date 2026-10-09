@@ -99,6 +99,14 @@ for (const compose of ['compose.yaml', 'compose.production.yaml', 'compose.tunne
   comprobar(servicio, `${compose} define el servicio respaldo`);
   comprobar(texto.includes('hotel-data:/data') && texto.includes('hotel-backups:/backups'),
     `${compose} monta datos y destino del respaldo`);
+  // 4b. La sesión NO puede ser SameSite=Strict en prod: la vuelta de Google es una
+  // navegación iniciada en otro sitio y el navegador retiene la cookie estricta, con lo
+  // que el callback llega sin sesión (authorization_request_not_found, ver ronda 151).
+  // Lax deja pasar ese GET de vuelta y el CSRF lo sigue cubriendo el token XSRF.
+  if (compose !== 'compose.yaml') {
+    comprobar(!texto.includes('SAME_SITE: "strict"'),
+      `${compose} sin SameSite=Strict (rompe el login con Google)`);
+  }
 }
 
 // 5. Base SEO/compartir: sin robots.txt el SPA contesta su index.html a los
