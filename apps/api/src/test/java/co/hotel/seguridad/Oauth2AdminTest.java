@@ -161,4 +161,48 @@ class Oauth2AdminTest {
     assertEquals("Jefa", jdbc.queryForObject(
       "SELECT nombre FROM users WHERE email='jefa@hotel.test'", String.class));
   }
+
+  @Test
+  @DisplayName("si la petición guardada era un JSON de la API, al panel y no al JSON crudo")
+  void peticionApiGuardadaNoSecuestraElLogin() throws Exception {
+    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"), jdbc);
+    var req = new MockHttpServletRequest("GET", "/api/yo");
+    req.setQueryString("continue");
+    req.getSession(true);
+    // Igual que el filtro real: la visita anónima a la API queda guardada en la sesión,
+    // y el continuador la honraría tal cual al volver de Google.
+    new org.springframework.security.web.savedrequest.HttpSessionRequestCache()
+      .saveRequest(req, new MockHttpServletResponse());
+    var respuesta = new MockHttpServletResponse();
+
+    manejador.onAuthenticationSuccess(req, respuesta, ficha("google-admin", "jefa@hotel.test"));
+
+    try {
+      assertEquals("/admin", respuesta.getRedirectedUrl(),
+        "volver a un JSON crudo es la pantalla negra del reporte: el login debe aterrizar en el panel");
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
+  }
+
+  @Test
+  @DisplayName("si la petición guardada era una página del panel, se respeta")
+  void peticionDePaginaGuardadaSeRespeta() throws Exception {
+    var manejador = new ManejadorAdminOauth2(Set.of("jefa@hotel.test"), jdbc);
+    var req = new MockHttpServletRequest("GET", "/admin/reservas");
+    req.getSession(true);
+    new org.springframework.security.web.savedrequest.HttpSessionRequestCache()
+      .saveRequest(req, new MockHttpServletResponse());
+    var respuesta = new MockHttpServletResponse();
+
+    manejador.onAuthenticationSuccess(req, respuesta, ficha("google-admin", "jefa@hotel.test"));
+
+    try {
+      assertTrue(respuesta.getRedirectedUrl() != null
+          && respuesta.getRedirectedUrl().startsWith("http://localhost/admin/reservas"),
+        "la página que el dueño quería sigue valiendo: " + respuesta.getRedirectedUrl());
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
+  }
 }

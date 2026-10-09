@@ -659,6 +659,12 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   sección activa también en `/consulta`. Pausa y venta activa verificadas en
   escritorio y móvil con Playwright local. Evidencia:
   `docs/evidence/round-170/verificacion.md`.
+- [x] **Ronda 171 - OAuth aterriza siempre en la app.** Tras "Entrar con Google" el
+  navegador mostraba el JSON crudo de `/api/yo?continue`: el login SÍ funcionaba
+  (probado en el log de prod) pero la petición guardada era una URL de datos y el
+  continuador la honraba. Ahora las rutas de API/OAuth guardadas se descartan y
+  vale el `/admin`; las páginas del panel se siguen respetando. Evidencia:
+  `docs/evidence/round-171/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. ~~Recibo descargable~~ — hecho en R129 (imprimir + no-imprimir).
