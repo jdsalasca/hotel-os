@@ -541,6 +541,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   HTML. Sección 5 en `verificar-despliegue.mjs`: 6 FALLA sin archivos, exit 0
   con ellos; verificado en vivo. Evidencia:
   `docs/evidence/round-144/verificacion.md`.
+- [x] **Ronda 145 - Sin venta, la búsqueda se deshabilita con motivo.** Con
+  `a_la_venta: false`, Buscar se apaga y avisa que no traerá nada; si la lectura
+  falla, sigue abierta (fail-open). 9/9, `tsc` limpio, captura post-deploy.
+  Evidencia: `docs/evidence/round-145/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
