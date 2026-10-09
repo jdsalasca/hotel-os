@@ -531,6 +531,46 @@
   }
 }
 
+// --- Condiciones del hotel antes de confirmar ---
+// Lo que el hotel fijó (check-in/out y cancelación) junto al resumen. Va en la tarjeta
+// y no en una caja llamativa: informa, no grita. El texto usa $tinta-suave (6.9:1) para
+// seguir siendo legible; $tinta-tenue (3.6:1) queda solo para la etiqueta.
+.condiciones {
+  margin: $e-3 0 0;
+  padding: $e-3;
+  border-left: 3px solid $ocre;
+  background: $blanco-fachada;
+
+  &__titulo {
+    margin: 0 0 $e-2;
+    font-size: $texto-sm;
+    font-weight: $peso-fuerte;
+    color: $tinta;
+  }
+
+  &__lista {
+    display: grid;
+    gap: $e-2;
+    margin: 0;
+  }
+
+  &__fila {
+    display: grid;
+    gap: $e-1;
+
+    dt {
+      font-size: $texto-xs;
+      color: $tinta-tenue;
+    }
+
+    dd {
+      margin: 0;
+      font-size: $texto-sm;
+      color: $tinta-suave;
+    }
+  }
+}
+
 // --- Desglose noche por noche de una oferta ---
 .desglose {
   border-top: 1px solid $borde;

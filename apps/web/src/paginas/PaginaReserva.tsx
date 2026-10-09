@@ -49,6 +49,24 @@ export function PaginaReserva() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    // Un fallo aquí no debe impedir reservar: las condiciones son información, no un
+    // requisito. Si no se pueden leer, no se muestra bloque (y no se inventa nada).
+    api.get<Record<string, string>>('/api/hotel')
+      .then((datos) => {
+        const entrada = datos.hora_entrada?.trim();
+        const salida = datos.hora_salida?.trim();
+        const cancelacion = datos.politica_cancelacion?.trim();
+        if (!entrada && !salida && !cancelacion) return;
+        setCondiciones({
+          entrada: entrada || undefined,
+          salida: salida || undefined,
+          cancelacion: cancelacion || undefined,
+        });
+      })
+      .catch(() => setCondiciones(null));
+  }, []);
+
   const conCuenta = sesion.haySesion === true || panel.haySesion === true;
   const [email, setEmail] = useState('');
   const [nombre, setNombre] = useState('');
@@ -60,6 +78,15 @@ export function PaginaReserva() {
   // para que el huésped lo confirme de nuevo con conocimiento, no en silencio.
   const [precioNuevo, setPrecioNuevo] = useState<{ totalCents: number; moneda: string; ratePlanId: number } | null>(null);
   const [planNuevo, setPlanNuevo] = useState<string | null>(null);
+  /**
+   * Condiciones que el hotel fijó (horas y cancelación). El backend ya las guarda y las
+   * publica en /api/hotel, pero el huésped no las veía hasta llegar a /terminos, después
+   * de decidir. Se piden aquí, antes de confirmar. Si no hay nada configurado no se
+   * inventa ninguna: el bloque no aparece (mejor callar que mentir).
+   */
+  const [condiciones, setCondiciones] = useState<{
+    entrada?: string; salida?: string; cancelacion?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (sesion.haySesion !== true) return;
@@ -263,6 +290,29 @@ export function PaginaReserva() {
               {monto(esperado.totalCents, esperado.moneda)}
               <span className="precio__detalle">total del periodo</span>
             </p>
+            {condiciones ? (
+              <section aria-label="Condiciones del hotel" className="condiciones">
+                <h4 className="condiciones__titulo">Antes de confirmar</h4>
+                <dl className="condiciones__lista">
+                  {condiciones.entrada || condiciones.salida ? (
+                    <div className="condiciones__fila">
+                      <dt>Check-in y check-out</dt>
+                      <dd>
+                        {condiciones.entrada ? <>desde las {condiciones.entrada}</> : null}
+                        {condiciones.entrada && condiciones.salida ? ' · ' : null}
+                        {condiciones.salida ? <>hasta las {condiciones.salida}</> : null}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {condiciones.cancelacion ? (
+                    <div className="condiciones__fila">
+                      <dt>Cancelación</dt>
+                      <dd>{condiciones.cancelacion}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </section>
+            ) : null}
             <Link
               className="boton boton--fantasma boton--chico"
               to="/"

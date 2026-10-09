@@ -92,6 +92,27 @@ describe('PaginaReserva', () => {
     expect(nombre.value).toBe('Ana Martínez');
   });
 
+  it('enseña las condiciones del hotel antes de confirmar la reserva', async () => {
+    api.get.mockImplementation((url: string) =>
+      Promise.resolve(url === '/api/hotel'
+        ? { hora_entrada: '15:00', hora_salida: '12:00', politica_cancelacion: 'Gratis hasta 24 h antes' }
+        : {}));
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    const condiciones = await screen.findByRole('region', { name: /condiciones/i });
+    expect(condiciones.textContent).toContain('15:00');
+    expect(condiciones.textContent).toContain('12:00');
+    expect(condiciones.textContent).toContain('Gratis hasta 24 h antes');
+  });
+
+  it('no inventa condiciones: si el hotel no ha configurado nada, no muestra el bloque', async () => {
+    api.get.mockResolvedValue({});
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    await screen.findByRole('heading', { name: 'Tu selección' });
+    expect(screen.queryByRole('region', { name: /condiciones/i })).toBeNull();
+  });
+
   it('devuelve a la búsqueda con las fechas y huéspedes elegidos', () => {
     render(<MemoryRouter><PaginaReserva /><EstadoNavegacion /></MemoryRouter>);
 
