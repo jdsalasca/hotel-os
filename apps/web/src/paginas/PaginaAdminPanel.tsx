@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
-import { Aviso, Cargando, MensajeError, PuertaAdmin } from '../componentes/Estado';
+import { Cargando, MensajeError, PuertaAdmin } from '../componentes/Estado';
 import { ListaPreparacion } from '../componentes/ListaPreparacion';
 
 /**
@@ -15,7 +15,6 @@ export function PaginaAdminPanel() {
   const [nuevos, setNuevos] = useState<number | null>(null);
   const [nombre, setNombre] = useState<string | null>(null);
   const [guardandoNombre, setGuardandoNombre] = useState(false);
-  const [nombreOk, setNombreOk] = useState(false);
   const [nombreError, setNombreError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,13 +34,12 @@ export function PaginaAdminPanel() {
     evento.preventDefault();
     if (nombre === null || guardandoNombre) return;
     setGuardandoNombre(true);
-    setNombreOk(false);
     setNombreError(null);
     try {
-      const r = await api.post<{ nombre: string }>('/api/admin/perfil', { nombre });
-      setNombre(r.nombre);
-      setNombreOk(true);
-      await sesion.comprobar();
+      await api.post<{ nombre: string }>('/api/admin/perfil', { nombre });
+      // Recarga completa a propósito: refrescar el hook no repinta la cabecera ya
+      // montada (verificado en vivo), igual que al entrar y al salir.
+      window.location.reload();
     } catch (e) {
       setNombreError(e instanceof Error ? e.message : 'No se pudo guardar el nombre');
     } finally {
@@ -78,7 +76,6 @@ export function PaginaAdminPanel() {
             />
           </div>
           {nombreError ? <MensajeError texto={nombreError} /> : null}
-          {nombreOk ? <Aviso tono="exito">Nombre guardado</Aviso> : null}
           <p className="sin-margen">
             <button className="boton boton--secundario boton--chico" type="submit" disabled={guardandoNombre}>
               {guardandoNombre ? 'Guardando…' : 'Guardar nombre'}

@@ -9,7 +9,12 @@ describe('PaginaAdminPanel', () => {
     vi.unstubAllGlobals();
   });
 
-  it('el admin ajusta su nombre visible y se guarda', async () => {
+  it('el admin ajusta su nombre visible y recarga con el saludo fresco', async () => {
+    const recargar = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { assign: vi.fn(), reload: recargar },
+      writable: true,
+    });
     const llamadas: { url: string; cuerpo: string }[] = [];
     globalThis.fetch = vi.fn(async (url: unknown, init?: { body?: string }) => {
       const ruta = String(url);
@@ -40,6 +45,8 @@ describe('PaginaAdminPanel', () => {
       expect(llamadas.length).toBe(1);
     });
     expect(llamadas[0]?.cuerpo).toContain('Carolina Ruiz');
-    await screen.findByText('Nombre guardado');
+    await waitFor(() => {
+      expect(recargar).toHaveBeenCalled();
+    });
   });
 });

@@ -597,6 +597,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   para todo el mundo; ahora solo con sesión de personal (el visitante ve marca,
   contacto y legal). 5/5 a nivel App, suite 94/94, captura post-deploy.
   Evidencia: `docs/evidence/round-159/verificacion.md`.
+- [x] **Ronda 160 - Guardar nombre recarga (cazado en E2E real).** Stack local
+  throwaway con admin propio: guardar no actualizaba el saludo (el refresco no
+  repinta la cabecera montada). Ahora recarga como entrar/salir; probado en
+  vivo hasta el logout. 94/94, captura. Evidencia:
+  `docs/evidence/round-160/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»
