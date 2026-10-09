@@ -683,7 +683,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   8. ~~Venta pausada sin callejones sin salida~~ — hecho en R170 (estado explicado,
      navegación a Mis reservas unificada, sin búsqueda ni calendario mientras está pausada).
      Evidencia: docs/evidence/round-170/verificacion.md.
-- [x] **Ronda 172 - El auditor de accesibilidad arrancaba y cubria el panel.**
+- [x] **Ronda 172 - El auditor de accesibilidad arrancaba y cubría el panel.**
   `tools/accesibilidad/auditar.mjs` no llegaba a medir ni una página: `networkidle` nunca
   se cumple (la web mantiene conexiones) y `browser.newPage()` está prohibido por axe
   (exige `newContext()`). Además solo miraba las 6 rutas públicas, nunca el panel. Ahora
