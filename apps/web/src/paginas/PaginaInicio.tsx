@@ -594,14 +594,33 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           {cargandoCal ? <p className="cargando" role="status">Cargando el mes…</p> : null}
 
           {venta === false && !errorCal ? (
-            <Vacio
-              titulo="Este hotel aún no publica habitaciones"
-              detalle={`Estamos preparando el inventario: vuelve pronto${
-                contacto
-                  ? ` o escríbenos${contacto.email ? ` a ${contacto.email}` : ''}${contacto.telefono ? ` o llámanos al ${contacto.telefono}` : ''}.`
-                  : '.'
-              }`}
-            />
+            <>
+              <Vacio
+                titulo="Este hotel aún no publica habitaciones"
+                detalle="Estamos preparando el inventario: vuelve pronto."
+              />
+              {contacto && (contacto.email || contacto.telefono) ? (
+                <p className="campo__ayuda">
+                  Mientras tanto,{' '}
+                  {contacto.email ? (
+                    <>
+                      escríbenos a{' '}
+                      <a href={`mailto:${contacto.email}`}>{contacto.email}</a>
+                    </>
+                  ) : null}
+                  {contacto.email && contacto.telefono ? ' o ' : null}
+                  {contacto.telefono ? (
+                    <>
+                      llámanos al{' '}
+                      <a href={`tel:${contacto.telefono.replace(/[\s-]/g, '')}`}>
+                        {contacto.telefono}
+                      </a>
+                    </>
+                  ) : null}
+                  .
+                </p>
+              ) : null}
+            </>
           ) : null}
 
           {venta !== false && !cargandoCal && !errorCal ? (

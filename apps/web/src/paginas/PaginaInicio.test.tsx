@@ -136,6 +136,12 @@ describe('hotel sin nada que vender', () => {
     );
     await screen.findByText(/hola@hotel\.test/);
     await screen.findByText(/\+57 300 1234567/);
+    expect(screen.getByRole('link', { name: 'hola@hotel.test' }).getAttribute('href')).toBe(
+      'mailto:hola@hotel.test',
+    );
+    expect(screen.getByRole('link', { name: '+57 300 1234567' }).getAttribute('href')).toBe(
+      'tel:+573001234567',
+    );
   });
 
   it('sin contacto igual dice que no hay nada publicado', async () => {
