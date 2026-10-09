@@ -548,6 +548,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 146 - El vacío contacta de verdad (mailto/tel).** El contacto del
   vacío es clicable (tel: sin espacios); sin contacto no hay párrafo. 9/9,
   `tsc` limpio. Evidencia: `docs/evidence/round-146/verificacion.md`.
+- [x] **Ronda 147 - Ruta falsa con salidas.** Las URL sin ruta mostraban un hueco
+  mudo (verificado en prod). Comodín `*` con `Vacio` + botones a inicio y
+  consulta. 1/1 a nivel App, captura post-deploy. Evidencia:
+  `docs/evidence/round-147/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
