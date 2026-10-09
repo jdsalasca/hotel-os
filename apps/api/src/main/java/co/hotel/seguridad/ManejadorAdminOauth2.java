@@ -73,20 +73,29 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
     // El nombre visible sale de Google y se guarda: es el "bienvenido de vuelta" sin pedir
     // nada más. Solo se escribe si Google trae algo no vacío, para no borrar un nombre puesto
     // a mano con un login sin atributos.
-    String visible = texto(principal.getAttribute("given_name"));
-    if (visible.isEmpty()) visible = texto(principal.getAttribute("name"));
-    if (!visible.isEmpty()) {
-      jdbc.update("UPDATE users SET nombre=? WHERE email=?", visible, email);
+    try {
+      String visible = texto(principal.getAttribute("given_name"));
+      if (visible.isEmpty()) visible = texto(principal.getAttribute("name"));
+      if (!visible.isEmpty()) {
+        jdbc.update("UPDATE users SET nombre=? WHERE email=?", visible, email);
+      }
+      // El nombre de la sesión es el correo: DefaultOAuth2User lo toma del atributo nombrado.
+      var conNombre = new DefaultOAuth2User(principal.getAuthorities(), principal.getAttributes(), "email");
+      var conRol = new OAuth2AuthenticationToken(conNombre,
+        List.of(new SimpleGrantedAuthority("ROLE_ADMIN")), token.getAuthorizedClientRegistrationId());
+      SecurityContextHolder.getContext().setAuthentication(conRol);
+      // El redirect no guarda el contexto: hay que hacerlo a mano, igual que en el huésped.
+      repoSesion.saveContext(SecurityContextHolder.getContext(), req, res);
+      log.info("entrada al panel con Google: {}", email);
+      continuacion.onAuthenticationSuccess(req, res, conRol);
+    } catch (Exception e) {
+      // Caerse a mitad (base caída, atributo raro) no puede ser un 500 mudo: se limpia,
+      // se registra con la causa y se vuelve a la puerta con motivo, como siempre.
+      SecurityContextHolder.clearContext();
+      log.warn("entrada al panel con Google falló para {}: {}: {}", email,
+        e.getClass().getSimpleName(), e.getMessage());
+      res.sendRedirect("/admin/entrar?error=oauth2");
     }
-    // El nombre de la sesión es el correo: DefaultOAuth2User lo toma del atributo nombrado.
-    var conNombre = new DefaultOAuth2User(principal.getAuthorities(), principal.getAttributes(), "email");
-    var conRol = new OAuth2AuthenticationToken(conNombre,
-      List.of(new SimpleGrantedAuthority("ROLE_ADMIN")), token.getAuthorizedClientRegistrationId());
-    SecurityContextHolder.getContext().setAuthentication(conRol);
-    // El redirect no guarda el contexto: hay que hacerlo a mano, igual que en el huésped.
-    repoSesion.saveContext(SecurityContextHolder.getContext(), req, res);
-    log.info("entrada al panel con Google: {}", email);
-    continuacion.onAuthenticationSuccess(req, res, conRol);
   }
 
   private static String texto(Object valor) {

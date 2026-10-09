@@ -51,9 +51,10 @@ services:
       AIRBNB_ENV: ${AIRBNB_ENV:-sandbox}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
       # Cloudflare termina TLS, así que el navegador sigue viendo HTTPS: la cookie de sesión
-      # necesita Secure. SameSite strict también, por lo mismo que en el modo directo.
+      # necesita Secure. SameSite es Lax a propósito, NO Strict: ver el comentario en
+      # compose.production.yaml (ronda 151: Strict mataba la vuelta de Google).
       SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
-      SERVER_SERVLET_SESSION_COOKIE_SAME_SITE: "strict"
+      SERVER_SERVLET_SESSION_COOKIE_SAME_SITE: "lax"
     volumes:
       - hotel-data:/data
       - hotel-backups:/backups

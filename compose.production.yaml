@@ -62,10 +62,13 @@ services:
       AIRBNB_LISTING_IDS: ${AIRBNB_LISTING_IDS:-}
       AIRBNB_ENV: ${AIRBNB_ENV:-sandbox}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
-      # La sesión solo viaja por HTTPS y solo en el mismo sitio: detrás de Caddy con TLS,
-      # la cookie sin Secure sería visible en texto plano y sin SameSite llegaría desde otros sitios.
+      # La sesión solo viaja por HTTPS. SameSite es Lax a propósito, NO Strict: la
+      # vuelta de Google es una navegación iniciada en otro sitio y con Strict el
+      # navegador retiene la cookie, el callback llega sin sesión y el login con
+      # Google muere con authorization_request_not_found (ronda 151). El CSRF lo
+      # sigue cubriendo el token XSRF, no la cookie.
       SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
-      SERVER_SERVLET_SESSION_COOKIE_SAME_SITE: "strict"
+      SERVER_SERVLET_SESSION_COOKIE_SAME_SITE: "lax"
     volumes:
       - hotel-data:/data
       - hotel-backups:/backups
