@@ -581,6 +581,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `[sondeo]` cuando la vuelta trae `sondeo=1`; el sondeo lo manda. 3/3 + 2/2;
   suite 438/443 (5 rojos del colega). Evidencia:
   `docs/evidence/round-155/verificacion.md`.
+- [x] **Ronda 156 - Simulacro semanal automático.** Bucle + servicio `simulacro`
+  que corre `verificar-respaldo.sh` cada semana (`/backups` en solo lectura);
+  el verificador lo exige. Probado en contenedor contra copia real, logs verdes
+  en prod. Evidencia: `docs/evidence/round-156/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»
