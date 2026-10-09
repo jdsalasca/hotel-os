@@ -640,8 +640,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 4. ~~`/consulta` sin email para logueados~~ — hecho en R122 (prefill) + R117.
 5. Modo claro/oscuro en la web pública — bajo/medio (requiere pasar tokens SCSS
    a custom properties; medido: no cabe en una ronda chica).
+6. ~~Abono en reserva cerrada~~ — hecho en R166 (400 en el servidor + el panel
+   no ofrece el formulario; verificado en el stack real, no en mocks).
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
-  siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
+   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 
 
 ## Criterios de aceptación, verificados con ejecución real
