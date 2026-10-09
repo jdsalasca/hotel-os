@@ -1,4 +1,7 @@
-# Ronda 153 - El sondeo cubre las dos puertas OAuth
+# Ronda 154 - El sondeo cubre las dos puertas OAuth
+
+(Nota de numeración: se trabajó como 153 sin saber que el colega ya había tomado
+ese número para usabilidad del flujo. Siguiente número libre: 154.)
 
 ## Cambio
 - `probar-oauth2.mjs`: `--registro google-admin|google-huesped` y por defecto

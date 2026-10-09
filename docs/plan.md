@@ -573,10 +573,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   corre el sondeo a diario y lo deja en el log; el verificador lo exige para que
   no se pierda. Loop probado en contenedor, logs verdes en prod. Evidencia:
   `docs/evidence/round-152/verificacion.md`.
-- [x] **Ronda 153 - El sondeo cubre las dos puertas OAuth.** `--registro` +
+- [x] **Ronda 154 - El sondeo cubre las dos puertas OAuth.** `--registro` +
   ambas por defecto (el vigía las hereda sin cambios); redirect contra el host
-  de la base; base inválida falla limpio. 7 ok por puerta en prod. Evidencia:
-  `docs/evidence/round-153/verificacion.md`.
+  de la base; base inválida falla limpio. 7 ok por puerta en prod. (Se numeró
+  153 por colisión.) Evidencia: `docs/evidence/round-154/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
