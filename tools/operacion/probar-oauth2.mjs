@@ -52,10 +52,11 @@ async function sondear(base, registro) {
   const galleta = sesion.split(';')[0];
 
   // 2. La vuelta con código falso: tiene que rebotar a la puerta con motivo, no colgar ni 500.
+  // Lleva sondeo=1 para que el log la marque como ruido conocido (ver FalloOauth2).
   let vuelta;
   try {
     vuelta = await fetch(
-      `${base}/login/oauth2/code/${registro}?code=codigo-falso-sondeo&state=${estado}`,
+      `${base}/login/oauth2/code/${registro}?code=codigo-falso-sondeo&state=${estado}&sondeo=1`,
       { redirect: 'manual', headers: { cookie: galleta } },
     );
   } catch (e) {

@@ -577,6 +577,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   ambas por defecto (el vigía las hereda sin cambios); redirect contra el host
   de la base; base inválida falla limpio. 7 ok por puerta en prod. (Se numeró
   153 por colisión.) Evidencia: `docs/evidence/round-154/verificacion.md`.
+- [x] **Ronda 155 - El sondeo se marca en el log.** `FalloOauth2` antepone
+  `[sondeo]` cuando la vuelta trae `sondeo=1`; el sondeo lo manda. 3/3 + 2/2;
+  suite 438/443 (5 rojos del colega). Evidencia:
+  `docs/evidence/round-155/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»
