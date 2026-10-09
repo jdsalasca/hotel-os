@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, MensajeError, PuertaAdmin } from '../componentes/Estado';
+import { MONEDAS } from '../dominio/monedas';
 
 type ConfigHotel = Record<string, string>;
 
@@ -54,9 +55,7 @@ const CAMPOS: {
   {
     clave: 'moneda',
     etiqueta: 'Moneda',
-    maxLength: 3,
-    placeholder: 'COP',
-    ayuda: 'Código ISO 4217 de tres letras.',
+    ayuda: 'La moneda de cada plan tarifario se configura en Inventario.',
   },
   {
     clave: 'latitud',
@@ -86,15 +85,18 @@ export function PaginaAdminHotel() {
   const [guardado, setGuardado] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [cargaFallida, setCargaFallida] = useState(false);
 
   useEffect(() => {
     async function cargar() {
       setCargando(true);
+      setCargaFallida(false);
       setError(null);
       try {
         const actual = await api.get<ConfigHotel>('/api/admin/hotel-config');
         setValores({ ...VACIO, ...actual });
       } catch (e) {
+        setCargaFallida(true);
         setError(e instanceof Error ? e.message : 'No se pudo cargar la configuración del hotel');
       } finally {
         setCargando(false);
@@ -111,6 +113,7 @@ export function PaginaAdminHotel() {
     try {
       const actual = await api.post<ConfigHotel>('/api/admin/hotel-config', valores);
       setValores({ ...VACIO, ...actual });
+      setCargaFallida(false);
       setGuardado(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'La configuración no pudo guardarse');
@@ -146,7 +149,34 @@ export function PaginaAdminHotel() {
                 <label className="campo__etiqueta" htmlFor={`hotel-${campo.clave}`}>
                   {campo.etiqueta}
                 </label>
-                {campo.clave === 'politica_cancelacion' ? (
+                {campo.clave === 'moneda' && cargaFallida ? (
+                  <input
+                    id={`hotel-${campo.clave}`}
+                    type="text"
+                    maxLength={3}
+                    placeholder="COP"
+                    disabled={cargando}
+                    value={valores[campo.clave] ?? ''}
+                    onChange={(e) => setValores({ ...valores, [campo.clave]: e.target.value })}
+                  />
+                ) : campo.clave === 'moneda' ? (
+                  <select
+                    id={`hotel-${campo.clave}`}
+                    disabled={cargando}
+                    value={valores[campo.clave] ?? ''}
+                    onChange={(e) => setValores({ ...valores, [campo.clave]: e.target.value })}
+                  >
+                    <option value="">Selecciona una moneda</option>
+                    {valores.moneda && !MONEDAS.some((moneda) => moneda.codigo === valores.moneda) ? (
+                      <option value={valores.moneda}>Código actual ({valores.moneda})</option>
+                    ) : null}
+                    {MONEDAS.map((moneda) => (
+                      <option key={moneda.codigo} value={moneda.codigo}>
+                        {moneda.codigo} — {moneda.nombre}
+                      </option>
+                    ))}
+                  </select>
+                ) : campo.clave === 'politica_cancelacion' ? (
                   <textarea
                     id={`hotel-${campo.clave}`}
                     rows={4}
@@ -169,7 +199,13 @@ export function PaginaAdminHotel() {
                     onChange={(e) => setValores({ ...valores, [campo.clave]: e.target.value })}
                   />
                 )}
-                {campo.ayuda ? <p className="campo__ayuda sin-margen">{campo.ayuda}</p> : null}
+                {campo.ayuda ? (
+                  <p className="campo__ayuda sin-margen">
+                    {campo.clave === 'moneda' && cargaFallida
+                      ? 'Código ISO 4217 de tres letras, por ejemplo CHF.'
+                      : campo.ayuda}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>

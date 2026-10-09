@@ -4,6 +4,7 @@ import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
 import { Cargando, Etiqueta, MensajeError, PuertaAdmin } from '../componentes/Estado';
 import { fechaCorta } from '../api/formato';
+import { MONEDAS } from '../dominio/monedas';
 
 type Habitacion = { id: number; codigo: string; roomTypeId: number; nombre: string; estado: string };
 type Tipo = { id: number; codigo: string; nombre: string; capacidadMax: number };
@@ -11,20 +12,6 @@ type Plan = { id: number; codigo: string; nombre: string; moneda: string; descue
 type Noche = { fecha: string; precioCents: number; minEstancia: number | null; maxEstancia: number | null; cerrado: boolean };
 type FilaPrevia = { fecha: string; valida: boolean; motivo?: string; precioCents?: number; cerrado?: boolean; nueva?: boolean };
 type PreviaLote = { lista: boolean; filas: FilaPrevia[] };
-
-/** Monedas que el hotel puede usar en sus planes. El backend acepta cualquier ISO 4217;
- * esta lista cerrada es para no escribir COP como "cop", "Cop" o "COL" en un campo abierto. */
-const MONEDAS = [
-  { codigo: 'COP', nombre: 'Peso colombiano' },
-  { codigo: 'USD', nombre: 'Dólar estadounidense' },
-  { codigo: 'EUR', nombre: 'Euro' },
-  { codigo: 'MXN', nombre: 'Peso mexicano' },
-  { codigo: 'BRL', nombre: 'Real brasileño' },
-  { codigo: 'PEN', nombre: 'Sol peruano' },
-  { codigo: 'ARS', nombre: 'Peso argentino' },
-  { codigo: 'CLP', nombre: 'Peso chileno' },
-  { codigo: 'GBP', nombre: 'Libra esterlina' },
-];
 
 /** Días ISO para el rango: 1 lunes … 7 domingo, como los valida el backend. */
 const DIAS_SEMANA = [

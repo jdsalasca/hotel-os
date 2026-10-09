@@ -86,4 +86,65 @@ describe('configuración del hotel durante la carga', () => {
     );
     expect(await screen.findByText('Datos guardados')).toBeTruthy();
   });
+
+  it('permite reingresar un código de moneda no listado si falla la lectura', async () => {
+    estado.get.mockRejectedValueOnce(new Error('No hay conexión'));
+    estado.post.mockResolvedValueOnce({ nombre: 'Hotel actualizado', moneda: 'CHF' });
+    montar();
+
+    await screen.findByRole('alert');
+    const nombre = screen.getByLabelText('Nombre del hotel');
+    const moneda = screen.getByLabelText('Moneda') as HTMLInputElement;
+    expect(moneda.tagName).toBe('INPUT');
+    expect(moneda.maxLength).toBe(3);
+
+    fireEvent.change(nombre, { target: { value: 'Hotel actualizado' } });
+    fireEvent.change(moneda, { target: { value: 'CHF' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar datos del hotel' }));
+
+    await waitFor(() =>
+      expect(estado.post).toHaveBeenCalledWith(
+        '/api/admin/hotel-config',
+        expect.objectContaining({ moneda: 'CHF' }),
+      ),
+    );
+    const selector = (await screen.findByRole('combobox', { name: 'Moneda' })) as HTMLSelectElement;
+    expect(selector.value).toBe('CHF');
+  });
+
+  it('permite elegir una moneda disponible para la configuración', async () => {
+    estado.get.mockResolvedValueOnce({ nombre: 'Hotel Demo', moneda: 'COP' });
+    estado.post.mockResolvedValueOnce({ nombre: 'Hotel Demo', moneda: 'USD' });
+    montar();
+
+    const moneda = await screen.findByRole('combobox', { name: 'Moneda' });
+    expect(screen.getByRole('option', { name: 'USD — Dólar estadounidense' })).toBeTruthy();
+    fireEvent.change(moneda, { target: { value: 'USD' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar datos del hotel' }));
+
+    await waitFor(() =>
+      expect(estado.post).toHaveBeenCalledWith(
+        '/api/admin/hotel-config',
+        expect.objectContaining({ moneda: 'USD' }),
+      ),
+    );
+  });
+
+  it('conserva el código configurado aunque no esté en las opciones habituales', async () => {
+    estado.get.mockResolvedValueOnce({ nombre: 'Hotel Demo', moneda: 'CHF' });
+    estado.post.mockResolvedValueOnce({ nombre: 'Hotel Demo', moneda: 'CHF' });
+    montar();
+
+    const moneda = (await screen.findByRole('combobox', { name: 'Moneda' })) as HTMLSelectElement;
+    expect(moneda.value).toBe('CHF');
+    expect(screen.getByRole('option', { name: 'Código actual (CHF)' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar datos del hotel' }));
+    await waitFor(() =>
+      expect(estado.post).toHaveBeenCalledWith(
+        '/api/admin/hotel-config',
+        expect.objectContaining({ moneda: 'CHF' }),
+      ),
+    );
+  });
 });

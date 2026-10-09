@@ -733,6 +733,34 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    recortar el nombre, y la inicialización del perfil conserva una edición temprana.
    Suite de 132 pruebas, chequeos de tipos, compilación Docker y capturas en tres
    estados de escritorio y móvil. Evidencia: `docs/evidence/round-184/verificacion.md`.
+- [x] **Ronda 185 - El alta guiada del inventario aparece cuando hace falta.** Si faltan
+  tipos, habitaciones o planes, los pasos iniciales pasan antes del calendario; con
+  inventario configurado, el calendario conserva prioridad. 134 pruebas frontend,
+  chequeos de tipos, build Docker y tres estados revisados en Chrome. Evidencia:
+  `docs/evidence/round-185/verificacion.md`.
+- [x] **Ronda 186 - Datos del hotel no se puede guardar a medio cargar.** El formulario
+  anuncia la lectura y desactiva sus controles hasta recibir la configuración; si
+  falla, deja disponible la recuperación manual. 136 pruebas frontend, chequeos de
+  tipos, build Docker y revisión de escritorio/móvil. Evidencia:
+  `docs/evidence/round-186/verificacion.md`.
+- [x] **Ronda 187 - La moneda del hotel y del inventario usa un catálogo compartido.**
+  Datos del hotel presenta las nueve monedas existentes en un selector accesible y
+  conserva cualquier código previo fuera de la lista hasta que se reemplace; si la
+  carga falla, mantiene la edición manual de códigos ISO para poder recuperar. 139
+  pruebas frontend, typechecks y build Vite aprobados; Chrome local sin errores ni
+  desbordamiento en escritorio y móvil. La API fue simulada. Evidencia:
+  `docs/evidence/round-187/verificacion.md`.
+
+### Próximas mejoras de usabilidad
+
+| Misión | Impacto | Esfuerzo | Estado |
+|---|---:|---:|---|
+| Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | Coordinar cuando se cierre el trabajo activo en reservas |
+| Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | Pendiente de revisar el flujo actual |
+| Selector de moneda compartido entre hotel e inventario | Medio | Bajo | **Cerrada en R187** |
+| Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Diseñar primero el modelo operativo |
+| Conversación huésped-hotel con estados y notificaciones | Alto | Alto | Requiere diseño de un subsistema nuevo |
+
 - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
    (hoy, si el hotel cambia la política, quien vuelva ve la nueva). Lint frontend exige
    tocar `package-lock.json` y choca con la instalación en paralelo. Modo claro/oscuro lo
