@@ -308,6 +308,9 @@ export function PaginaMisReservas() {
             }}
           >
             <h2 className="t-lg mb-0">Cambiar fechas de {moviendo}</h2>
+            <p className="campo__ayuda sin-margen">
+              El precio total se recalcula con las tarifas vigentes para las fechas nuevas.
+            </p>
             <div className="campos">
               <div className="campo">
                 <label className="campo__etiqueta" htmlFor="mov-llegada">Nueva llegada</label>

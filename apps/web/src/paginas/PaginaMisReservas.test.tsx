@@ -155,6 +155,14 @@ describe('cambio de fechas propio', () => {
     expect(salida.min).toBe('2030-06-16');
   });
 
+  it('explica que las fechas nuevas se guardan con las tarifas vigentes', async () => {
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar fechas' }));
+
+    expect(screen.getByText('El precio total se recalcula con las tarifas vigentes para las fechas nuevas.')).toBeTruthy();
+  });
+
   it('mueve las fechas y refresca la fila con lo guardado', async () => {
     sembrar();
     await montar();
