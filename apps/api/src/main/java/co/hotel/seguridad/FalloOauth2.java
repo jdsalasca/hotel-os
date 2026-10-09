@@ -23,8 +23,11 @@ public class FalloOauth2 implements AuthenticationFailureHandler {
   @Override
   public void onAuthenticationFailure(HttpServletRequest req, HttpServletResponse res,
                                       AuthenticationException ex) throws IOException, ServletException {
-    log.warn("vuelta de Google fallida en {}: {}: {}",
-      req.getRequestURI(), ex.getClass().getSimpleName(), ex.getMessage());
+    // El vigía diario manda sondeo=1 a propósito: su "Malformed auth code" es ruido
+    // conocido y así se filtra sin confundirlo con un fallo de verdad.
+    String marca = req.getParameter("sondeo") != null ? " [sondeo]" : "";
+    log.warn("vuelta de Google fallida{} en {}: {}: {}",
+      marca, req.getRequestURI(), ex.getClass().getSimpleName(), ex.getMessage());
     String destino = req.getRequestURI().endsWith(EnrutadorOauth2.HUESPED)
       ? "/?error=oauth2" : "/admin/entrar?error=oauth2";
     res.sendRedirect(destino);
