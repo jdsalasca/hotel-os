@@ -69,6 +69,14 @@ function tonoEstado(estado: Estado): 'exito' | 'error' | 'aviso' {
   return 'aviso';
 }
 
+/**
+ * Una reserva cerrada (CANCELADA o RECHAZADA) ya soltó la fecha: no admite dinero. El servidor lo
+ * rechaza con 400, así que el panel tampoco ofrece el formulario, que solo produciría un error.
+ */
+function admiteDinero(estado: Estado): boolean {
+  return estado === 'PENDIENTE' || estado === 'CONFIRMADA';
+}
+
 export function PaginaAdminReservas() {
   const sesion = useSesion();
   const [reservas, setReservas] = useState<Reserva[] | null>(null);
@@ -506,38 +514,46 @@ export function PaginaAdminReservas() {
                     ))}
                   </ul>
                 ) : null}
-                <form
-                  className="campos no-imprimir"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void abonar(detalle.reserva.codigo, detalle.reserva.moneda ?? '');
-                  }}
-                >
-                  <div className="campo">
-                    <label className="campo__etiqueta" htmlFor="abono-monto">Abono ({detalle.reserva.moneda})</label>
-                    <input
-                      id="abono-monto"
-                      type="number"
-                      min={0.01}
-                      step={0.01}
-                      required
-                      value={abono.monto}
-                      onChange={(e) => setAbono({ ...abono, monto: e.target.value })}
-                    />
-                  </div>
-                  <div className="campo">
-                    <label className="campo__etiqueta" htmlFor="abono-concepto">Concepto</label>
-                    <input
-                      id="abono-concepto"
-                      value={abono.concepto}
-                      onChange={(e) => setAbono({ ...abono, concepto: e.target.value })}
-                      placeholder="Anticipo"
-                    />
-                  </div>
-                  <button className="boton boton--secundario boton--chico" type="submit" disabled={!abono.monto}>
-                    Registrar abono
-                  </button>
-                </form>
+                {admiteDinero(detalle.reserva.estado) ? (
+                  <form
+                    className="campos no-imprimir"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void abonar(detalle.reserva.codigo, detalle.reserva.moneda ?? '');
+                    }}
+                  >
+                    <div className="campo">
+                      <label className="campo__etiqueta" htmlFor="abono-monto">Abono ({detalle.reserva.moneda})</label>
+                      <input
+                        id="abono-monto"
+                        type="number"
+                        min={0.01}
+                        step={0.01}
+                        required
+                        value={abono.monto}
+                        onChange={(e) => setAbono({ ...abono, monto: e.target.value })}
+                      />
+                    </div>
+                    <div className="campo">
+                      <label className="campo__etiqueta" htmlFor="abono-concepto">Concepto</label>
+                      <input
+                        id="abono-concepto"
+                        value={abono.concepto}
+                        onChange={(e) => setAbono({ ...abono, concepto: e.target.value })}
+                        placeholder="Anticipo"
+                      />
+                    </div>
+                    <button className="boton boton--secundario boton--chico" type="submit" disabled={!abono.monto}>
+                      Registrar abono
+                    </button>
+                  </form>
+                ) : (
+                  <p className="campo__ayuda sin-margen no-imprimir">
+                    Esta reserva está {detalle.reserva.estado}: no admite abonos. Si llegó a cobrarse,
+                    eso es una devolución, no un abono: créala como reserva nueva y anótalo en el
+                    historial.
+                  </p>
+                )}
               </>
             )}
             <h3 className="t-base mb-0">Historial</h3>            <ol className="pila gap-e1 lista-marcada">
@@ -563,7 +579,7 @@ export function PaginaAdminReservas() {
                 }
               />
             </div>
-            {(detalle.reserva.estado === 'PENDIENTE' || detalle.reserva.estado === 'CONFIRMADA') && habitaciones ? (
+            {admiteDinero(detalle.reserva.estado) && habitaciones ? (
               <form
                 className="campos no-imprimir"
                 onSubmit={(e) => {
@@ -589,7 +605,7 @@ export function PaginaAdminReservas() {
                 </button>
               </form>
             ) : null}
-            {(detalle.reserva.estado === 'PENDIENTE' || detalle.reserva.estado === 'CONFIRMADA') ? (
+            {admiteDinero(detalle.reserva.estado) ? (
               <form
                 className="campos no-imprimir"
                 onSubmit={(e) => {
