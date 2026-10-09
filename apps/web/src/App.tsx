@@ -17,7 +17,7 @@ import { PaginaAdminIndicadores } from './paginas/PaginaAdminIndicadores';
 import { PaginaAdminAuditoria } from './paginas/PaginaAdminAuditoria';
 import { PaginaAdminPanel } from './paginas/PaginaAdminPanel';
 import { BadgeMensajes } from './componentes/BadgeMensajes';
-import { Etiqueta } from './componentes/Estado';
+import { Etiqueta, MuroAntipanico } from './componentes/Estado';
 import { PaginaAdminLugares } from './paginas/PaginaAdminLugares';
 import { PaginaMisReservas } from './paginas/PaginaMisReservas';
 import { PaginaNoEncontrada } from './paginas/PaginaNoEncontrada';
@@ -185,6 +185,8 @@ export function App() {
         </div>
       </header>
 
+      {/* Con key por ruta: al navegar se resetea; un roto no persigue a la siguiente. */}
+      <MuroAntipanico key={useLocation().pathname}>
       <Routes>
         {/* Público */}
         <Route path="/" element={<PaginaInicio nombreHotel={nombre} />} />
@@ -207,6 +209,7 @@ export function App() {
         <Route path="/admin/lugares" element={<PaginaAdminLugares />} />
         <Route path="*" element={<PaginaNoEncontrada />} />
       </Routes>
+      </MuroAntipanico>
 
       <footer className="pie no-imprimir">
         <div className="pie__interna">
