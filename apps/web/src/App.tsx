@@ -74,34 +74,42 @@ export function SaludoSesion() {
 }
 
 /**
- * Salida del panel junto al saludo, donde el personal la ve sin bajar al pie: solo con
- * sesión. Tras cerrar, recarga a /admin/entrar para no dejar datos del panel en memoria.
+ * Salida de la sesión junto al saludo, en la cabecera, donde la ve sin bajar al pie: solo
+ * con sesión. Tras cerrar, recarga para no dejar datos de la sesión en memoria.
+ *
+ * Cierra por la puerta que esté abierta: el personal por la del panel (y vuelve a su
+ * puerta, `/admin/entrar`), el huésped por la suya y a la portada, donde ya no hay
+ * saludo que mostrar. Antes solo había salida para el panel: un huésped que entró con
+ * Google veía su saludo en la cabecera y tenía que bajar a `/mis-reservas` a buscarla.
  */
 export function CierreSesionPanel() {
-  const sesion = useSesion();
+  const panel = useSesion();
+  const huesped = useSesionHuesped();
   const [fallo, setFallo] = useState(false);
 
-  if (sesion.haySesion !== true) return null;
+  const esPanel = panel.haySesion === true;
+  const esHuesped = !esPanel && huesped.haySesion === true;
+  if (!esPanel && !esHuesped) return null;
 
   async function salir() {
     setFallo(false);
-    const ok = await sesion.salir();
-    if (ok) window.location.assign('/admin/entrar');
+    const ok = esPanel ? await panel.salir() : await huesped.salir();
+    if (ok) window.location.assign(esPanel ? '/admin/entrar' : '/');
     else setFallo(true);
   }
 
-    return (
-      <>
-        <button type="button" className="cabecera__salir" onClick={() => void salir()}>
-          Cerrar sesión
-        </button>
-        {fallo ? (
-          <span className="cabecera__error" role="alert">
-            No se pudo cerrar la sesión: sigue abierta.
-          </span>
-        ) : null}
-      </>
-    );
+  return (
+    <>
+      <button type="button" className="cabecera__salir" onClick={() => void salir()}>
+        Cerrar sesión
+      </button>
+      {fallo ? (
+        <span className="cabecera__error" role="alert">
+          No se pudo cerrar la sesión: sigue abierta.
+        </span>
+      ) : null}
+    </>
+  );
 }
 
 export function App() {

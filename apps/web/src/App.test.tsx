@@ -179,4 +179,50 @@ describe('App', () => {
       expect(nav?.textContent).toContain('Inventario');
     });
   });
+
+  it('el huésped también puede cerrar sesión desde la cabecera', async () => {
+    window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    const hechos: string[] = [];
+    globalThis.fetch = vi.fn(async (url: unknown, opciones?: RequestInit) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/admin/sesion')) {
+        return new Response('{"error":"sin sesión"}', { status: 401 });
+      }
+      if (ruta.includes('/api/yo')) {
+        return new Response(
+          JSON.stringify({ email: 'huesped@ejemplo.test', nombre: 'Ana', tieneReservas: false }),
+          { status: 200 },
+        );
+      }
+      if (ruta.includes('/api/huesped/logout')) {
+        hechos.push(`${opciones?.method ?? 'GET'} ${ruta}`);
+        return new Response('{"estado":"sesion cerrada"}', { status: 200 });
+      }
+      if (ruta.includes('/api/lugares')) {
+        return new Response('{"hotel":{},"lugares":[]}', { status: 200 });
+      }
+      if (ruta.includes('/api/hotel')) return new Response('{}', { status: 200 });
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const asignar = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { assign: asignar },
+      writable: true,
+      configurable: true,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findByText('¿Cuándo quieres venir?');
+    const boton = await screen.findByRole('button', { name: 'Cerrar sesión' });
+    fireEvent.click(boton);
+
+    await waitFor(() => {
+      expect(asignar).toHaveBeenCalledWith('/');
+    });
+    expect(hechos).toEqual(['POST /api/huesped/logout']);
+  });
 });
