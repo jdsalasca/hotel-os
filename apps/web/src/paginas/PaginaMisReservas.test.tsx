@@ -132,6 +132,15 @@ describe('resumen de mis reservas', () => {
 });
 
 describe('cambio de fechas propio', () => {
+  it('abre los campos con las fechas que ya tiene la reserva', async () => {
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar fechas' }));
+
+    expect((screen.getByLabelText('Nueva llegada') as HTMLInputElement).value).toBe('2030-06-10');
+    expect((screen.getByLabelText('Nueva salida') as HTMLInputElement).value).toBe('2030-06-12');
+  });
+
   it('mueve las fechas y refresca la fila con lo guardado', async () => {
     sembrar();
     await montar();

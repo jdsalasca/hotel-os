@@ -246,9 +246,15 @@ export function PaginaMisReservas() {
                         <button
                           className="boton boton--fantasma boton--chico"
                           type="button"
-                          onClick={() =>
-                            setMoviendo((abierta) => (abierta === r.codigo ? null : r.codigo))
-                          }
+                          onClick={() => {
+                            if (moviendo === r.codigo) {
+                              setMoviendo(null);
+                              setNuevas({ llegada: '', salida: '' });
+                            } else {
+                              setMoviendo(r.codigo);
+                              setNuevas({ llegada: r.llegada, salida: r.salida });
+                            }
+                          }}
                           aria-expanded={moviendo === r.codigo}
                         >
                           Cambiar fechas
