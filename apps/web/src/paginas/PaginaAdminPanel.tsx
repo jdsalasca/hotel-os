@@ -26,8 +26,11 @@ export function PaginaAdminPanel() {
   }, [sesion.haySesion]);
 
   useEffect(() => {
-    if (sesion.haySesion === true && nombre === null) setNombre(sesion.nombre);
-  }, [sesion.haySesion, sesion.nombre, nombre]);
+    if (sesion.haySesion === true) {
+      // Si el huésped empieza a escribir antes de este efecto, conserva su edición.
+      setNombre((actual) => actual ?? sesion.nombre);
+    }
+  }, [sesion.haySesion, sesion.nombre]);
 
   /** Nombre visible del saludo: con Google lo pone el login, con clave se pone aquí. */
   async function guardarNombre(evento: React.FormEvent) {

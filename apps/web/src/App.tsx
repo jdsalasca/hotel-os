@@ -180,17 +180,24 @@ export function App() {
             }}
           >
             {enPanel ? (
-              <>
-                <NavLink to="/admin" end>Panel</NavLink>
-                <NavLink to="/admin/hoy">Hoy</NavLink>
-                <NavLink to="/admin/reservas">Reservas</NavLink>
-                <NavLink to="/admin/inventario">Inventario</NavLink>
-                <NavLink to="/admin/hotel">Hotel</NavLink>
-                <NavLink to="/admin/integraciones">Integraciones</NavLink>
-                <NavLink to="/admin/indicadores">Indicadores</NavLink>
-                <NavLink to="/admin/auditoria">Actividad</NavLink>
-                <NavLink to="/admin/lugares">Mapa</NavLink>
-              </>
+              sesionPanel.haySesion === true ? (
+                <>
+                  <NavLink to="/admin" end>Panel</NavLink>
+                  <NavLink to="/admin/hoy">Hoy</NavLink>
+                  <NavLink to="/admin/reservas">Reservas</NavLink>
+                  <NavLink to="/admin/inventario">Inventario</NavLink>
+                  <NavLink to="/admin/hotel">Hotel</NavLink>
+                  <NavLink to="/admin/integraciones">Integraciones</NavLink>
+                  <NavLink to="/admin/indicadores">Indicadores</NavLink>
+                  <NavLink to="/admin/auditoria">Actividad</NavLink>
+                  <NavLink to="/admin/lugares">Mapa</NavLink>
+                </>
+              ) : (
+                <>
+                  <NavLink to="/" end>Reservar</NavLink>
+                  <NavLink to="/admin/entrar">Iniciar sesión</NavLink>
+                </>
+              )
             ) : (
               <>
                 <NavLink to="/" end>Reservar</NavLink>

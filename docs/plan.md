@@ -727,6 +727,12 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    el mapa; no cambia la lógica de disponibilidad ni de reserva. Verificado con
    131 pruebas frontend, typecheck de pruebas, build Docker y capturas de escritorio
    y móvil. Evidencia: `docs/evidence/round-183/verificacion.md`.
+- [x] **Ronda 184 - La entrada al panel distingue quién tiene sesión.** Sin sesión,
+   el encabezado ofrece reservar o iniciar sesión y oculta las rutas administrativas;
+   con sesión recupera la navegación completa. El saludo admite saltos de línea sin
+   recortar el nombre, y la inicialización del perfil conserva una edición temprana.
+   Suite de 132 pruebas, chequeos de tipos, compilación Docker y capturas en tres
+   estados de escritorio y móvil. Evidencia: `docs/evidence/round-184/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
    (hoy, si el hotel cambia la política, quien vuelva ve la nueva). Lint frontend exige
    tocar `package-lock.json` y choca con la instalación en paralelo. Modo claro/oscuro lo
