@@ -593,6 +593,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   hueco mudo; `MuroAntipanico` con key por ruta muestra salida y se resetea al
   navegar. 2/2 + suite 92/92, captura post-deploy. Evidencia:
   `docs/evidence/round-158/verificacion.md`.
+- [x] **Ronda 159 - El pie esconde el panel sin sesión.** Los 7 accesos salían
+  para todo el mundo; ahora solo con sesión de personal (el visitante ve marca,
+  contacto y legal). 5/5 a nivel App, suite 94/94, captura post-deploy.
+  Evidencia: `docs/evidence/round-159/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»

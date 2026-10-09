@@ -109,6 +109,10 @@ export function App() {
   const enPanel = ruta.startsWith('/admin');
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [hotel, setHotel] = useState<Record<string, string> | null>(null);
+  // El pie solo ofrece el mapa del panel a quien ya entró: al visitante le sobran
+  // siete enlaces a puertas con candado (ahora llegan a PuertaAdmin, pero igual
+  // estorban). La cabecera ya orienta a cada uno por su lado.
+  const sesionPanel = useSesion();
 
   useEffect(() => {
     setMenuAbierto(false);
@@ -219,6 +223,7 @@ export function App() {
           {contacto.length > 0 ? (
             <p className="campo__ayuda sin-margen">{contacto.join(' · ')}</p>
           ) : null}
+          {sesionPanel.haySesion === true ? (
           <nav className="nav" aria-label="Navegación del panel">
             <NavLink to="/admin/inventario">Inventario</NavLink>
             <NavLink to="/admin/hoy">Hoy</NavLink>
@@ -228,6 +233,7 @@ export function App() {
             <NavLink to="/admin/auditoria">Actividad</NavLink>
             <NavLink to="/admin/lugares">Mapa</NavLink>
           </nav>
+          ) : null}
           <nav className="nav" aria-label="Información legal">
             <NavLink to="/privacidad">Privacidad</NavLink>
             <NavLink to="/terminos">Términos</NavLink>
