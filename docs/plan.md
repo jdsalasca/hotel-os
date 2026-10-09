@@ -557,6 +557,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   y `ListaPreparacion` que pinta texto si no hay enlace. Backend 2/2, frontend
   4/4; suite 435/440 (5 rojos del colega). En prod los respaldos están frescos.
   Evidencia: `docs/evidence/round-148/verificacion.md`.
+- [x] **Ronda 149 - Sondeo OAuth2 sin credenciales.** `probar-oauth2.mjs` recorre
+  ida, vuelta con código falso y rebote con motivo; `--self-test` prueba que
+  detecta. 7 ok en prod + traza `[invalid_grant]` en el log (cadena probada).
+  Sin cambio en la app. Evidencia: `docs/evidence/round-149/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
