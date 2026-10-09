@@ -585,6 +585,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   que corre `verificar-respaldo.sh` cada semana (`/backups` en solo lectura);
   el verificador lo exige. Probado en contenedor contra copia real, logs verdes
   en prod. Evidencia: `docs/evidence/round-156/verificacion.md`.
+- [x] **Ronda 157 - Cero vulnerabilidades en dependencias web.**
+  `react-router-dom` 7.8.2 → 7.18.4 y `vite` 7.1.7 → 7.3.7: audit total 3 high
+  → 0. `tsc` ×2, 90/90, build ok, desplegado. Evidencia:
+  `docs/evidence/round-157/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»
