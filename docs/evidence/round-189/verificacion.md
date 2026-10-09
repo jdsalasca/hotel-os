@@ -42,7 +42,7 @@ Capturas conservadas junto a esta verificación:
 ## Integración
 
 El commit `3676087` se aplicó sin conflictos en un worktree limpio creado desde `origin/develop`
-(`b509328`); el commit integrado quedó en `57b7746`. Después del cherry-pick:
+(`b509328`) y se publicó como `58e061f`. Después del cherry-pick:
 
 - `npm ci`: 150 paquetes añadidos, 0 vulnerabilidades. npm dejó bloqueados los scripts de
   instalación de `@parcel/watcher` y `esbuild`; pruebas y build funcionaron con la instalación
