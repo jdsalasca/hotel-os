@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
+import { fechaCorta, monto as montoCompartido } from '../api/formato';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 import { ComprobantePropio, type ComprobantePropioDatos } from '../componentes/ComprobantePropio';
@@ -21,7 +22,7 @@ type Reserva = {
 
 function monto(cents: number | null, moneda: string | null): string | null {
   if (cents === null || moneda === null) return null;
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: moneda }).format(cents / 100);
+  return montoCompartido(cents, moneda);
 }
 
 /**
@@ -203,8 +204,8 @@ export function PaginaMisReservas() {
                   <td data-label="Código">
                     <code>{r.codigo}</code>
                   </td>
-                  <td className="cifra" data-label="Llegada">{r.llegada}</td>
-                  <td className="cifra" data-label="Salida">{r.salida}</td>
+                  <td className="cifra tabla__fecha" data-label="Llegada">{fechaCorta(r.llegada)}</td>
+                  <td className="cifra tabla__fecha" data-label="Salida">{fechaCorta(r.salida)}</td>
                   <td className="cifra" data-label="Huéspedes">{r.huespedes}</td>
                   <td className="cifra" data-label="Total">{monto(r.total_cents, r.moneda) ?? 'Sin precio'}</td>
                   <td className="cifra" data-label="Abonado">{monto(r.abonado_cents ?? 0, r.moneda) ?? '—'}</td>

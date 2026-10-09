@@ -235,6 +235,7 @@
   }
 
   .cifra { @include cifra; }
+  .tabla__fecha { white-space: nowrap; }
 }
 
 // La envoltura solo existe para el desplazamiento en pantallas grandes.

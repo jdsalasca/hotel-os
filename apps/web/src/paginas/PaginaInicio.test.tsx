@@ -402,7 +402,7 @@ describe('búsqueda usable con teclado y lector de pantalla', () => {
     expect((screen.getByRole('button', { name: 'Elegir Doble' }) as HTMLButtonElement).disabled)
       .toBe(true);
     expect(document.querySelector('section[aria-labelledby="titulo-habitaciones"]')?.textContent)
-      .toContain('al 12 de jun de 2030');
+      .toContain(`al ${fechaCorta('2030-06-12')}`);
   });
 });
 

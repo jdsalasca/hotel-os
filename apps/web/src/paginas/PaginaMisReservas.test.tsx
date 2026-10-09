@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { fechaCorta, monto as montoCompartido } from '../api/formato';
 import { PaginaMisReservas } from './PaginaMisReservas';
 
 /**
@@ -116,6 +117,20 @@ async function montar() {
   });
 }
 
+describe('resumen de mis reservas', () => {
+  it('muestra las fechas y los importes con el formato compartido del sitio', async () => {
+    sembrar();
+    await montar();
+
+    expect(screen.getByText(fechaCorta('2030-06-10'))).toBeTruthy();
+    expect(screen.getByText(fechaCorta('2030-06-12'))).toBeTruthy();
+    expect(screen.queryByText('2030-06-10')).toBeNull();
+
+    const fila = screen.getByText('H-MIA1').closest('tr');
+    expect(fila?.textContent).toContain(montoCompartido(300000, 'COP'));
+  });
+});
+
 describe('cambio de fechas propio', () => {
   it('mueve las fechas y refresca la fila con lo guardado', async () => {
     sembrar();
@@ -138,7 +153,7 @@ describe('cambio de fechas propio', () => {
       salida: '2030-06-15',
     });
     await waitFor(() => {
-      expect(screen.queryByText('2030-06-13')).not.toBeNull();
+      expect(screen.queryByText(fechaCorta('2030-06-13'))).not.toBeNull();
     });
   });
 
@@ -158,7 +173,7 @@ describe('cambio de fechas propio', () => {
     await waitFor(() => {
       expect(screen.queryByText(/esas fechas no están libres/)).not.toBeNull();
     });
-    expect(screen.queryByText('2030-06-10')).not.toBeNull();
+    expect(screen.queryByText(fechaCorta('2030-06-10'))).not.toBeNull();
   });
 });
 
