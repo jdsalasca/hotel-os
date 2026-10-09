@@ -642,6 +642,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    a custom properties; medido: no cabe en una ronda chica).
 6. ~~Abono en reserva cerrada~~ — hecho en R166 (400 en el servidor + el panel
    no ofrece el formulario; verificado en el stack real, no en mocks).
+  7. ~~Usabilidad del flujo de reserva~~ — hecho en R167 (foco de resultados,
+     validación de fechas y huéspedes, calendario accesible, resultados anteriores
+     bloqueados al cambiar criterios y datos de sesión precargados). Evidencia:
+     docs/evidence/round-167/verificacion.md.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
    siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

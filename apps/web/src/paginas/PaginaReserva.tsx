@@ -61,6 +61,12 @@ export function PaginaReserva() {
   const [precioNuevo, setPrecioNuevo] = useState<{ totalCents: number; moneda: string; ratePlanId: number } | null>(null);
   const [planNuevo, setPlanNuevo] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (sesion.haySesion !== true) return;
+    setEmail((actual) => actual || sesion.email);
+    setNombre((actual) => actual || sesion.nombre);
+  }, [sesion.haySesion, sesion.email, sesion.nombre]);
+
   if (!enCurso) {
     return (
       <main id="contenido" className="centrado">

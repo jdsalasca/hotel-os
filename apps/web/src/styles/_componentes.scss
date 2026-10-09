@@ -169,6 +169,12 @@
   strong { font-weight: $peso-fuerte; }
 }
 
+.resultados-busqueda {
+  scroll-margin-block-start: $e-5;
+
+  > .aviso { margin-block-end: $e-4; }
+}
+
 // --- Estados vacío y carga ---
 .vacio {
   @include pila($e-2);
@@ -868,6 +874,11 @@
       @include focusable;
 
       &:hover { background: $piedra-clara; }
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 1;
     }
 
     &--pasado { background: $piedra-clara; }
