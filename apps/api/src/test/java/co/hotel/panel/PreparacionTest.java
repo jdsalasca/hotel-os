@@ -30,7 +30,16 @@ import org.springframework.test.web.servlet.MockMvc;
 class PreparacionTest {
 
   private static final Path DB = crearBase();
+  private static final Path RESPALDOS = crearDir();
   private static final ObjectMapper JSON = new ObjectMapper();
+
+  private static Path crearDir() {
+    try {
+      return Files.createTempDirectory("hotel-resp-");
+    } catch (Exception e) {
+      throw new IllegalStateException(e);
+    }
+  }
 
   private static Path crearBase() {
     try {
@@ -45,6 +54,7 @@ class PreparacionTest {
   @DynamicPropertySource
   static void propiedades(DynamicPropertyRegistry reg) {
     reg.add("hotel.jdbc-path", () -> DB.toAbsolutePath().toString());
+    reg.add("hotel.respaldos-dir", () -> RESPALDOS.toAbsolutePath().toString());
   }
 
   @Autowired MockMvc mvc;
@@ -67,7 +77,7 @@ class PreparacionTest {
   @DisplayName("vacío todo pendiente, sembrado todo hecho, sin sesión 401")
   void checklistReflejaRealidad() throws Exception {
     var vacio = estado();
-    assertEquals(5, vacio.size());
+    assertEquals(6, vacio.size());
     assertTrue(vacio.values().stream().noneMatch(Boolean::booleanValue));
 
     jdbc.update("INSERT INTO room_types(codigo,nombre,capacidad_max) VALUES('P','P',2)");
@@ -85,11 +95,44 @@ class PreparacionTest {
       + "('longitud','-73.52',datetime('now'))");
     jdbc.update("INSERT INTO lugares_interes(nombre,descripcion,latitud,longitud,activo,creado_en)"
       + " VALUES('Plaza','','5.6','-73.5',1,datetime('now'))");
+    Files.write(RESPALDOS.resolve("hotel-20300101T000000Z.sqlite3"), new byte[] { 1 });
 
     var lleno = estado();
     assertTrue(lleno.values().stream().allMatch(Boolean::booleanValue));
 
     mvc.perform(get("/api/admin/preparacion").with(csrf()))
       .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("el respaldo cuenta si es reciente y avisa si se enfría")
+  void respaldoReciente() throws Exception {
+    try (var archivos = Files.list(RESPALDOS)) {
+      for (Path p : archivos.toList()) Files.deleteIfExists(p);
+    }
+    assertEquals(false, hechoRespaldo());
+
+    Path fresco = RESPALDOS.resolve("hotel-20300101T000000Z.sqlite3");
+    Files.write(fresco, new byte[] { 1, 2, 3 });
+    assertEquals(true, hechoRespaldo());
+
+    Files.delete(fresco);
+    Path viejo = RESPALDOS.resolve("hotel-20200101T000000Z.sqlite3");
+    Files.write(viejo, new byte[] { 1, 2, 3 });
+    Files.setLastModifiedTime(viejo,
+      java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis() - 40L * 3_600_000));
+    assertEquals(false, hechoRespaldo());
+    Files.deleteIfExists(viejo);
+  }
+
+  private Boolean hechoRespaldo() throws Exception {
+    var admin = user("admin@hotel.test").roles("ADMIN");
+    String cuerpo = mvc.perform(get("/api/admin/preparacion").with(admin))
+      .andExpect(status().isOk())
+      .andReturn().getResponse().getContentAsString();
+    for (var item : JSON.readTree(cuerpo).get("items")) {
+      if ("respaldo".equals(item.get("clave").asText())) return item.get("hecho").asBoolean();
+    }
+    throw new IllegalStateException("la checklist no trae el punto de respaldo");
   }
 }

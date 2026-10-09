@@ -552,6 +552,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   mudo (verificado en prod). Comodín `*` con `Vacio` + botones a inicio y
   consulta. 1/1 a nivel App, captura post-deploy. Evidencia:
   `docs/evidence/round-147/verificacion.md`.
+- [x] **Ronda 148 - El panel avisa si el respaldo se enfría.** Punto `respaldo`
+  en la checklist (copia < 36 h; sin url porque no hay pantalla que lo arregle)
+  y `ListaPreparacion` que pinta texto si no hay enlace. Backend 2/2, frontend
+  4/4; suite 435/440 (5 rojos del colega). En prod los respaldos están frescos.
+  Evidencia: `docs/evidence/round-148/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
