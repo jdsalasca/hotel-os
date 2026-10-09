@@ -78,6 +78,8 @@ public class AdminReservasController {
 
   public record CambiarFechasReq(String llegada, String salida) {}
 
+  public record CambiarHuespedesReq(Integer huespedes) {}
+
   /**
    * Cambia las fechas de una reserva vigente sin pisar a otra ni a un bloqueo, recalculando el
    * precio con las nuevas. 400 con fechas ausentes o invertidas; 404 si no existe; 409 si no
@@ -123,6 +125,28 @@ public class AdminReservasController {
       return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     } catch (DatosInvalidosException e) {
       return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  /**
+   * Cambia el número de huéspedes de la reserva, recalculando el precio. 404 si no existe;
+   * 400 si no hay ninguno; 409 si la reserva no está vigente o la habitación no admite ese grupo.
+   */
+  @PostMapping("/api/admin/reservas/{codigo}/huespedes")
+  public ResponseEntity<?> cambiarHuespedes(@PathVariable String codigo,
+      @RequestBody(required = false) CambiarHuespedesReq req) {
+    if (req == null || req.huespedes() == null) {
+      return ResponseEntity.badRequest().body(Map.of("error", "huéspedes requerido"));
+    }
+    if (svc.buscar(codigo).isEmpty()) {
+      return ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada"));
+    }
+    try {
+      return ResponseEntity.ok(fila(svc.cambiarHuespedes(codigo, req.huespedes(), ActorActual.correo())));
+    } catch (ExcepcionDeEstado | SinDisponibilidadException e) {
+      return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+    } catch (DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
   }
 

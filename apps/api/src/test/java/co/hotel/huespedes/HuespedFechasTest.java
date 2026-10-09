@@ -171,4 +171,49 @@ class HuespedFechasTest {
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.error").exists());
   }
+
+  @Test
+  @DisplayName("el dueño cambia sus huéspedes")
+  void elDuenoCambiaHuespedes() throws Exception {
+    cuenta("sub-a", "a@hotel.test");
+    String codigo = reservar("a@hotel.test", "2030-11-10", "2030-11-12");
+
+    mvc.perform(post("/api/mis-reservas/" + codigo + "/huespedes").with(sesion("a@hotel.test")).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("huespedes", 2))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.codigo").value(codigo))
+      .andExpect(jsonPath("$.huespedes").value(2));
+
+    assertEquals(2, jdbc.queryForObject("SELECT huespedes FROM reservations WHERE codigo=?",
+      Integer.class, codigo));
+  }
+
+  @Test
+  @DisplayName("los huéspedes de la ajena son 404 y no se tocan")
+  void huespedesDeLaAjenaSon404() throws Exception {
+    cuenta("sub-a", "a@hotel.test");
+    cuenta("sub-b", "b@hotel.test");
+    String codigo = reservar("a@hotel.test", "2030-11-13", "2030-11-15");
+
+    mvc.perform(post("/api/mis-reservas/" + codigo + "/huespedes").with(sesion("b@hotel.test")).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("huespedes", 2))))
+      .andExpect(status().isNotFound());
+
+    assertEquals(1, jdbc.queryForObject("SELECT huespedes FROM reservations WHERE codigo=?",
+      Integer.class, codigo));
+  }
+
+  @Test
+  @DisplayName("cambiar huéspedes sin sesión es 401")
+  void huespedesSinSesionEs401() throws Exception {
+    cuenta("sub-a", "a@hotel.test");
+    String codigo = reservar("a@hotel.test", "2030-12-10", "2030-12-12");
+
+    mvc.perform(post("/api/mis-reservas/" + codigo + "/huespedes").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("huespedes", 2))))
+      .andExpect(status().isUnauthorized());
+  }
 }

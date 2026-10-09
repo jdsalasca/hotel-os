@@ -232,6 +232,37 @@ public class ReservaService {
     });
   }
 
+  /**
+   * Cambia cuántos huespedes ocupan la reserva. El motivo real es la capacidad: subir por encima
+   * de lo que cabe en la habitación se rechaza con 409, no se guarda a medias. Como las fechas no
+   * se mueven, no hace falta comprobar solapes: la reserva ya ocupa su propio hueco y el tamaño
+   * del grupo no cambia qué noches bloquea. El precio sí se recalcula, porque algunas tarifas
+   * dependen del número de ocupantes. Todo en una transacción con su rastro.
+   */
+  public Reserva cambiarHuespedes(String codigo, int huespedes, String actor) {
+    if (huespedes < 1) throw new DatosInvalidosException("la reserva necesita al menos un huésped");
+    return tx.enTransaccion(estado -> {
+      var actual = repo.porCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+      if (!actual.estado().vigente()) {
+        throw new ExcepcionDeEstado("solo se cambian los huéspedes de una reserva vigente");
+      }
+      long id = repo.idPorCodigo(codigo).orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+      long roomId = repo.roomIdDe(id).orElseThrow(() -> new DatosInvalidosException("reserva sin habitación"));
+      // precioDe exige capacidad: si el grupo no cabe, sale vacío y no se toca nada.
+      var precio = inventario.precioDe(roomId, actual.llegada(), actual.salida(), huespedes);
+      if (precio.isEmpty()) {
+        throw new SinDisponibilidadException(
+          "esa habitación no admite " + huespedes + " huéspedes en esas fechas");
+      }
+      var acordado = precio.get();
+      repo.actualizarHuespedes(id, huespedes);
+      repo.actualizarPrecio(codigo, acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
+      auditoria.movimiento(id, actual.estado().name(),
+        "huéspedes " + actual.huespedes() + " → " + huespedes, actor);
+      return repo.porCodigo(codigo).orElseThrow();
+    });
+  }
+
   public Optional<Reserva> buscar(String codigo) { return repo.porCodigo(codigo); }
 
   /** Identificador interno, para consultar el historial. */

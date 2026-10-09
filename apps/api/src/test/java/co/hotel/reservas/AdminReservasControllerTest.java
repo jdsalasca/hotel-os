@@ -69,7 +69,9 @@ class AdminReservasControllerTest {
       jdbc.update("INSERT INTO rooms(codigo, estado, nombre) VALUES('101','ACTIVA','Habitación 101')");
     }
     // La reserva pública exige precio acordado; esta clase mide el panel, no las tarifas.
-    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-12-28"));
+    // El 30 como último día tarifado es para el test de huéspedes de una cancelada, que ocupa
+    // el 28→30 y necesita precio en ambas noches.
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-12-30"));
   }
 
   private String crearReserva(String email, String llegada, String salida) throws Exception {
@@ -87,6 +89,13 @@ class AdminReservasControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .content(json(Map.of("estado", estado, "actor", "admin@hotel.test"))))
       .andReturn().getResponse().getContentAsString();
+  }
+
+  private String admin(String ruta, Map<String, ?> cuerpo) throws Exception {
+    String res = mvc.perform(post(ruta).with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(cuerpo)))
+      .andReturn().getResponse().getContentAsString();
+    return res;
   }
 
   private static String json(Map<String, ?> datos) throws Exception {
@@ -542,6 +551,79 @@ class AdminReservasControllerTest {
       .andExpect(status().isBadRequest());
   }
 
+  @Test
+  @DisplayName("el panel cambia los huéspedes de una reserva vigente")
+  void elPanelCambiaHuespedes() throws Exception {
+    String codigo = crearReserva("huespedes@example.com", "2026-12-23", "2026-12-25");
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/huespedes").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("huespedes", 1))))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.codigo").value(codigo))
+      .andExpect(jsonPath("$.huespedes").value(1));
+
+    assertEquals(1, jdbc.queryForObject("SELECT huespedes FROM reservations WHERE codigo=?",
+      Integer.class, codigo));
+  }
+
+  @Test
+  @DisplayName("subir sobre la capacidad es 409 y no cambia nada")
+  void subirSobreCapacidadEs409() throws Exception {
+    String sufijo = "H" + System.nanoTime() % 100000;
+    long tipoId = JSON.readTree(admin("/api/admin/tipos",
+      Map.of("codigo", "IND" + sufijo, "nombre", "Individual", "capacidadMax", 1))).get("id").asLong();
+    long habitacionId = JSON.readTree(admin("/api/admin/habitaciones",
+      Map.of("codigo", "I" + sufijo, "roomTypeId", tipoId, "nombre", "Individual " + sufijo))).get("id").asLong();
+    long planId = JSON.readTree(admin("/api/admin/planes",
+      Map.of("codigo", "PI" + sufijo, "nombre", "Plan individual", "moneda", "COP"))).get("id").asLong();
+    for (String fecha : new String[] { "2026-11-05", "2026-11-06" }) {
+      mvc.perform(post("/api/admin/tarifas").with(ADMIN).with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(JSON.writeValueAsString(Map.of("ratePlanId", planId, "roomTypeId", tipoId,
+            "fecha", fecha, "precioCents", 100_000))))
+        .andExpect(status().isCreated());
+    }
+    String cuerpo = mvc.perform(post("/api/reservas").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("email", "solo@example.com", "nombre", "Solo",
+          "llegada", "2026-11-05", "salida", "2026-11-07", "huespedes", 1, "roomId", habitacionId))))
+      .andExpect(status().isCreated())
+      .andReturn().getResponse().getContentAsString();
+    String codigo = JSON.readTree(cuerpo).get("codigo").asText();
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/huespedes").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("huespedes", 2))))
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.error").exists());
+
+    assertEquals(1, jdbc.queryForObject("SELECT huespedes FROM reservations WHERE codigo=?",
+      Integer.class, codigo));
+  }
+
+  @Test
+  @DisplayName("cambiar huéspedes de una cancelada es 409")
+  void cambiarHuespedesDeCanceladaEs409() throws Exception {
+    // 12-28→12-30 y no 12-26→12-28: los tests comparten la habitación 101 y la tarifa acaba
+    // el 28, así que un rango antes chocaba con `siguientes3` (12-25→12-27).
+    String codigo = crearReserva("hcancel@example.com", "2026-12-28", "2026-12-30");
+    cambiarEstado(codigo, "CANCELADA");
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/huespedes").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("huespedes", 1))))
+      .andExpect(status().isConflict());
+  }
+
+  @Test
+  @DisplayName("cero huéspedes es 400")
+  void ceroHuespedesEs400() throws Exception {
+    String codigo = crearReserva("hcero@example.com", "2026-11-28", "2026-11-30");
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/huespedes").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("huespedes", 0))))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").exists());
+  }
+
   private String altaManual(Map<String, ?> cuerpo) throws Exception {
     return mvc.perform(post("/api/admin/reservas").with(ADMIN).with(csrf())
         .contentType(MediaType.APPLICATION_JSON).content(json(cuerpo)))
@@ -625,4 +707,5 @@ class AdminReservasControllerTest {
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.error").exists());
   }
+
 }

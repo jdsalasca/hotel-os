@@ -43,13 +43,18 @@ describe('cliente HTTP', () => {
     expect(fallo).not.toBeInstanceOf(ErrorApi);
   });
 
-  it('la señal viaja hasta fetch', async () => {
+  it('la señal del usuario corta aunque viaje compuesta con el plazo', async () => {
     const controlador = new AbortController();
     const espia = vi.fn(async (_ruta: string, _opciones?: RequestInit): Promise<Response> => respuesta('{}'));
     vi.stubGlobal('fetch', espia);
     await api.get('/api/disponibilidad', { signal: controlador.signal });
     expect(espia).toHaveBeenCalledOnce();
-    expect(espia.mock.calls[0]?.[1]?.signal).toBe(controlador.signal);
+    // Ya no viaja el objeto original (va compuesta con el plazo de 30 s): lo que se
+    // fija es que obedecerla corta de verdad.
+    const viajera = espia.mock.calls[0]?.[1]?.signal as AbortSignal;
+    expect(viajera).not.toBe(controlador.signal);
+    controlador.abort();
+    expect(viajera.aborted).toBe(true);
   });
 
   it('sin red el mensaje habla español y no es un TypeError', async () => {
@@ -63,5 +68,56 @@ describe('cliente HTTP', () => {
     expect(fallo).toBeInstanceOf(ErrorApi);
     expect((fallo as ErrorApi).estado).toBe(0);
     expect((fallo as Error).message).toMatch(/conexión/);
+  });
+
+  it('colgada 30 segundos avisa de espera en vez de girar eterno', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          (_url: unknown, opciones?: RequestInit) =>
+            new Promise<Response>((_resolver, rechazar) => {
+              opciones?.signal?.addEventListener('abort', () => {
+                rechazar(new DOMException('signal timed out', 'AbortError'));
+              });
+            }),
+        ),
+      );
+      const pendiente = api.get('/api/disponibilidad').catch((e) => e);
+      await vi.advanceTimersByTimeAsync(30_000);
+      const fallo = await pendiente;
+      expect(fallo).toBeInstanceOf(ErrorApi);
+      expect((fallo as ErrorApi).estado).toBe(0);
+      expect((fallo as Error).message).toMatch(/tardando/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('la cancelación deliberada gana al plazo: sigue siendo AbortError', async () => {
+    vi.useFakeTimers();
+    try {
+      const controlador = new AbortController();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          (_url: unknown, opciones?: RequestInit) =>
+            new Promise<Response>((_resolver, rechazar) => {
+              opciones?.signal?.addEventListener('abort', () => {
+                rechazar(new DOMException('aborted', 'AbortError'));
+              });
+            }),
+        ),
+      );
+      const pendiente = api.get('/api/disponibilidad', { signal: controlador.signal }).catch((e) => e);
+      controlador.abort();
+      await vi.advanceTimersByTimeAsync(60_000);
+      const fallo = await pendiente;
+      expect(fallo).not.toBeInstanceOf(ErrorApi);
+      expect((fallo as { name?: unknown }).name).toBe('AbortError');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

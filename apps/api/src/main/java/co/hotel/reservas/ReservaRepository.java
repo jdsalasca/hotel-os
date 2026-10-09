@@ -233,6 +233,11 @@ public class ReservaRepository {
       llegada.toString(), salida.toString(), reservaId);
   }
 
+  /** Cambia el número de huéspedes de la reserva (solo el contador de cabecera). */
+  public void actualizarHuespedes(long reservaId, int huespedes) {
+    jdbc.update("UPDATE reservations SET huespedes=? WHERE id=?", huespedes, reservaId);
+  }
+
   /** El precio se recalcula con la habitación nueva: la reserva no hereda importes ajenos. */
   public void actualizarPrecio(String codigo, Long totalCents, String moneda, Long ratePlanId) {
     jdbc.update("UPDATE reservations SET total_cents=?, moneda=?, rate_plan_id=? WHERE codigo=?",

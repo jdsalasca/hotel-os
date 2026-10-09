@@ -75,6 +75,8 @@ public class HuespedController {
 
   public record CambiarFechasReq(String llegada, String salida) {}
 
+  public record CambiarHuespedesReq(Integer huespedes) {}
+
   /**
    * El huésped mueve sus fechas sin llamar al hotel: solo las suyas (la ajena es 404,
    * igual que en el comprobante propio), solo vigentes y solo a noches libres y
@@ -107,6 +109,39 @@ public class HuespedController {
         "huespedes", movida.huespedes(),
         "estado", movida.estado().name()));
     } catch (co.hotel.reservas.ExcepcionDeEstado | co.hotel.reservas.SinDisponibilidadException e) {
+      return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+    } catch (co.hotel.reservas.DatosInvalidosException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  /**
+   * El huésped avisa de que viene con más gente de la que había-booked. Mismas reglas que el
+   * panel: solo suyas (la ajena es 404, no 403, para no confirmar que existe), solo vigentes y
+   * solo si la habitación admite al grupo. Sin mover fechas, el hueco bloqueado no cambia.
+   */
+  @PostMapping("/api/mis-reservas/{codigo}/huespedes")
+  public ResponseEntity<?> cambiarHuespedes(@PathVariable String codigo,
+      @RequestBody(required = false) CambiarHuespedesReq req) {
+    Long id = idActual();
+    if (id == null)
+      return ResponseEntity.status(401).body(Map.of("error", "sin sesión"));
+    Long duena = reservas.duenaDe(codigo);
+    if (duena == null || !duena.equals(id))
+      return ResponseEntity.status(404).body(Map.of("error", "reserva no existe"));
+    if (req == null || req.huespedes() == null)
+      return ResponseEntity.badRequest().body(Map.of("error", "huéspedes requerido"));
+    try {
+      var movida = servicioReservas.cambiarHuespedes(codigo, req.huespedes(),
+        "huésped:" + currentEmail());
+      return ResponseEntity.ok(Map.of(
+        "codigo", movida.codigo(),
+        "llegada", movida.llegada().toString(),
+        "salida", movida.salida().toString(),
+        "huespedes", movida.huespedes(),
+        "estado", movida.estado().name()));
+    } catch (co.hotel.reservas.ExcepcionDeEstado
+        | co.hotel.reservas.SinDisponibilidadException e) {
       return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     } catch (co.hotel.reservas.DatosInvalidosException e) {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

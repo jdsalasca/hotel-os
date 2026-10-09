@@ -59,26 +59,45 @@ function leerTokenCsrf(): string {
   return deCookie ? decodeURIComponent(deCookie.split('=').slice(1).join('=')) : '';
 }
 
+/**
+ * Sin respuesta en 30 s se corta: un "Consultando…" eterno no es un estado, es una
+ * pantalla colgada. El plazo se combina con la señal de quien llama, si trae una.
+ */
+const PLAZO_MS = 30_000;
+
 async function peticion<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
   const esEscritura = (opciones.method ?? 'GET') !== 'GET';
   const cabeceras = new Headers(opciones.headers);
   if (opciones.body) cabeceras.set('Content-Type', 'application/json');
   if (esEscritura) cabeceras.set('X-XSRF-TOKEN', leerTokenCsrf());
+  // Con setTimeout global (no AbortSignal.timeout): el interno de Node no lo ve el
+  // temporizador simulado y el plazo sería improbable en tests.
+  const expira = new AbortController();
+  const reloj = setTimeout(() => expira.abort(), PLAZO_MS);
+  const signal = opciones.signal ? AbortSignal.any([opciones.signal, expira.signal]) : expira.signal;
 
   let respuesta: Response;
   try {
     respuesta = await fetch(urlApi(ruta), {
       ...opciones,
+      signal,
       headers: cabeceras,
       credentials: 'same-origin',
     });
   } catch (e) {
-    // Una cancelación deliberada (AbortSignal) no es "sin conexión": se propaga tal cual
-    // para que quien la pidió la ignore en silencio en vez de mostrar un error. Se mira el
-    // nombre y no el instanceof: cada reino (navegador, jsdom, Node) trae su DOMException.
-    if ((e as { name?: unknown } | null)?.name === 'AbortError') throw e;
+    // Una cancelación deliberada (AbortSignal) no es "sin conexión" ni "tardó":
+    // se propaga tal cual para que quien la pidió la ignore en silencio en vez de
+    // mostrar un error. Se mira el nombre y no el instanceof: cada reino
+    // (navegador, jsdom, Node) trae su DOMException. La deliberada manda sobre el
+    // plazo: si el usuario canceló, fue su decisión aunque el plazo ya corriera.
+    if ((e as { name?: unknown } | null)?.name === 'AbortError') {
+      if (opciones.signal?.aborted) throw e;
+      throw new ErrorApi(0, 'El hotel está tardando demasiado en responder. Inténtalo de nuevo.', null);
+    }
     // Sin red no hay estado ni cuerpo: el TypeError de fetch no le dice nada a nadie.
     throw new ErrorApi(0, 'No hay conexión con el hotel. Revisa tu internet e inténtalo de nuevo.', null);
+  } finally {
+    clearTimeout(reloj);
   }
 
   const texto = await respuesta.text();
@@ -112,7 +131,8 @@ async function peticion<T>(ruta: string, opciones: RequestInit = {}): Promise<T>
   return cuerpo as T;
 }
 
-/** Opciones de lectura: hoy solo la señal de cancelación, que viaja hasta fetch. */
+/** Opciones de lectura: hoy solo la señal de cancelación, que viaja hasta fetch y
+ * se combina con el plazo de 30 s (la deliberada manda). */
 export type OpcionesLectura = Pick<RequestInit, 'signal'>;
 
 export const api = {
