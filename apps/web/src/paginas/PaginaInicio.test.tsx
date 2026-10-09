@@ -284,15 +284,18 @@ describe('reservas en línea pausadas', () => {
     expect(screen.queryByText(/hola@hotel\.test/)).toBeNull();
   });
 
-  it('la portada ofrece gestionar una reserva existente aunque la venta esté pausada', async () => {
+  it('la portada deja una sola acción visible para reservas existentes cuando la venta está pausada', async () => {
     estado.sinVenta = true;
     render(
       <MemoryRouter>
         <PaginaInicio />
       </MemoryRouter>,
     );
-    const enlace = await screen.findByRole('link', { name: 'Gestionar una reserva' });
-    expect(enlace.getAttribute('href')).toBe('/mis-reservas');
+    const enlaceGestion = await screen.findByRole('link', { name: 'Gestionar o consultar una reserva' });
+    expect(enlaceGestion.getAttribute('href')).toBe('/mis-reservas');
+    expect(enlaceGestion.closest('.portada')).not.toBeNull();
+    expect(screen.getAllByRole('link', { name: 'Gestionar o consultar una reserva' })).toHaveLength(1);
+    expect(screen.queryByRole('link', { name: 'Gestionar una reserva' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Ver disponibilidad' })).toBeNull();
   });
 

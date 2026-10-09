@@ -400,15 +400,22 @@ function formatearDistancia(metros: number): string {
           </p>
           <p className="portada__acciones">
             {venta === false ? (
-              <span className="portada__estado" role="status">Reservas en línea pausadas</span>
+              <>
+                <span className="portada__estado" role="status">Reservas en línea pausadas</span>
+                <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
+                  Gestionar o consultar una reserva
+                </Link>
+              </>
             ) : (
-              <a className="boton boton--primario" href="#titulo-buscar">
-                Ver disponibilidad
-              </a>
-            )}{' '}
-            <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
-              Gestionar una reserva
-            </Link>
+              <>
+                <a className="boton boton--primario" href="#titulo-buscar">
+                  Ver disponibilidad
+                </a>{' '}
+                <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
+                  Gestionar una reserva
+                </Link>
+              </>
+            )}
           </p>
         </div>
       </section>
@@ -442,11 +449,6 @@ function formatearDistancia(metros: number): string {
                 </p>
               ) : null}
               <p>Si ya tienes una reserva, puedes entrar con Google o consultarla con su código y correo.</p>
-              <div className="reserva-pausada__acciones">
-                <Link className="boton boton--primario" to="/mis-reservas">
-                  Gestionar o consultar una reserva
-                </Link>
-              </div>
             </Aviso>
           </section>
         </div>
