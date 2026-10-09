@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { fechaCorta, monto as montoCompartido } from '../api/formato';
+import { fechaCorta, hoyIso, monto as montoCompartido } from '../api/formato';
 import { PaginaMisReservas } from './PaginaMisReservas';
 
 /**
@@ -139,6 +139,20 @@ describe('cambio de fechas propio', () => {
 
     expect((screen.getByLabelText('Nueva llegada') as HTMLInputElement).value).toBe('2030-06-10');
     expect((screen.getByLabelText('Nueva salida') as HTMLInputElement).value).toBe('2030-06-12');
+  });
+
+  it('impide elegir una llegada pasada o una salida igual o anterior a la llegada', async () => {
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar fechas' }));
+
+    const llegada = screen.getByLabelText('Nueva llegada') as HTMLInputElement;
+    const salida = screen.getByLabelText('Nueva salida') as HTMLInputElement;
+    expect(llegada.min).toBe(hoyIso());
+    expect(salida.min).toBe('2030-06-11');
+
+    fireEvent.change(llegada, { target: { value: '2030-06-15' } });
+    expect(salida.min).toBe('2030-06-16');
   });
 
   it('mueve las fechas y refresca la fila con lo guardado', async () => {

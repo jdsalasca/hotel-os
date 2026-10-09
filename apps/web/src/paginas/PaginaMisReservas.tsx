@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
-import { fechaCorta, monto as montoCompartido } from '../api/formato';
+import { fechaCorta, hoyIso, monto as montoCompartido } from '../api/formato';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 import { ComprobantePropio, type ComprobantePropioDatos } from '../componentes/ComprobantePropio';
@@ -23,6 +23,12 @@ type Reserva = {
 function monto(cents: number | null, moneda: string | null): string | null {
   if (cents === null || moneda === null) return null;
   return montoCompartido(cents, moneda);
+}
+
+function diaSiguienteIso(iso: string): string {
+  const fecha = new Date(`${iso}T12:00:00`);
+  fecha.setDate(fecha.getDate() + 1);
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
 }
 
 /**
@@ -309,6 +315,7 @@ export function PaginaMisReservas() {
                   id="mov-llegada"
                   type="date"
                   required
+                  min={hoyIso()}
                   value={nuevas.llegada}
                   onChange={(e) => setNuevas({ ...nuevas, llegada: e.target.value })}
                 />
@@ -319,7 +326,7 @@ export function PaginaMisReservas() {
                   id="mov-salida"
                   type="date"
                   required
-                  min={nuevas.llegada || undefined}
+                  min={nuevas.llegada ? diaSiguienteIso(nuevas.llegada) : hoyIso()}
                   value={nuevas.salida}
                   onChange={(e) => setNuevas({ ...nuevas, salida: e.target.value })}
                 />
