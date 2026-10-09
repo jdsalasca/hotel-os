@@ -690,10 +690,18 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   cubre 12 rutas (6 públicas + 6 del panel) con login demo y su propia base: **0
   violaciones WCAG A/AA, exit 0**. La app era accesible; lo roto era lo que lo medía.
   Evidencia: `docs/evidence/round-172/verificacion.md`.
-- [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA,
-  copia externa) siguen bloqueados. El panel de recepción (check-in/out, no-show) lo
-  lleva otra agente en paralelo. Sin ellos: modo claro/oscuro (medido como no cerrable
-  en ronda chica) y lint frontend (requiere tocar `package-lock.json`).
+- [x] **Ronda 175 - El huésped ve las condiciones antes de confirmar.** El panel ya
+   guardaba hora de entrada/salida y política de cancelación y `/api/hotel` las publica,
+   pero **el frontend no llamaba a `/api/hotel` en ningún sitio**: el huésped solo las
+   encontraba en `/terminos`, en el pie, ya decidida. Ahora salen en el resumen del paso
+   de confirmación y, si el hotel no ha configurado nada, no se inventa ninguna. Sin tocar
+   recepción ni estilos compartidos. 115/115 frontend. Evidencia:
+   `docs/evidence/round-175/verificacion.md`.
+ - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
+   (hoy, si el hotel cambia la política, quien vuelva ve la nueva). Lint frontend exige
+   tocar `package-lock.json` y choca con la instalación en paralelo. Modo claro/oscuro lo
+   midió el plan como no cerrable en ronda chica. Recepción lo lleva otra agente. Los
+   ítems externos (dominio, credenciales OTA, copia externa) siguen bloqueados.
 
 
 ## Criterios de aceptación, verificados con ejecución real
