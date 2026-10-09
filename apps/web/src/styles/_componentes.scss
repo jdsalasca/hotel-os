@@ -244,6 +244,13 @@
   max-width: 100%;
 }
 
+.acciones-lugar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $e-2;
+}
+
 // En pantallas pequeñas la tabla se convierte en tarjetas apiladas en lugar de desplazarse.
 // Se probó el desplazamiento horizontal con min-width: el contenedor lo recortaba, pero el
 // documento entero seguía creciendo y la página quedaba con scroll lateral. En un panel que se
