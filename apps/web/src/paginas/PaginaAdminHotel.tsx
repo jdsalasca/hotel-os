@@ -139,7 +139,7 @@ export function PaginaAdminHotel() {
           </Aviso>
         ) : null}
 
-        <form className="tarjeta pila" onSubmit={(e) => void guardar(e)}>
+        <form className="tarjeta pila" aria-busy={cargando} onSubmit={(e) => void guardar(e)}>
           <div className="rejilla rejilla--dos">
             {CAMPOS.map((campo) => (
               <div className="campo" key={campo.clave}>
@@ -152,6 +152,7 @@ export function PaginaAdminHotel() {
                     rows={4}
                     maxLength={campo.maxLength}
                     placeholder={campo.placeholder}
+                    disabled={cargando}
                     value={valores[campo.clave] ?? ''}
                     onChange={(e) => setValores({ ...valores, [campo.clave]: e.target.value })}
                   />
@@ -163,6 +164,7 @@ export function PaginaAdminHotel() {
                     required={campo.clave === 'nombre'}
                     maxLength={campo.maxLength}
                     placeholder={campo.placeholder}
+                    disabled={cargando}
                     value={valores[campo.clave] ?? ''}
                     onChange={(e) => setValores({ ...valores, [campo.clave]: e.target.value })}
                   />
@@ -171,7 +173,11 @@ export function PaginaAdminHotel() {
               </div>
             ))}
           </div>
-          <button className="boton boton--primario no-estirar" type="submit" disabled={guardando}>
+          <button
+            className="boton boton--primario no-estirar"
+            type="submit"
+            disabled={cargando || guardando}
+          >
             {guardando ? 'Guardando…' : 'Guardar datos del hotel'}
           </button>
         </form>
