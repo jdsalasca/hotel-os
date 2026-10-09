@@ -40,6 +40,8 @@ export function PaginaMisReservas() {
   const [hiloAbierto, setHiloAbierto] = useState<string | null>(null);
   const [comprobanteAbierto, setComprobanteAbierto] = useState<string | null>(null);
   const [nuevos, setNuevos] = useState<Record<string, number>>({});
+  /** Reserva cuyo formulario de huéspedes está abierto, con el valor tecleado. */
+  const [abriendoGrupo, setAbriendoGrupo] = useState<{ codigo: string; valor: string } | null>(null);
 
   /** Cancelar en dos pasos por fila: el primero avisa, el segundo ejecuta con el correo de la sesión. */
   async function cancelar(codigo: string) {
@@ -78,6 +80,23 @@ export function PaginaMisReservas() {
       setReservas(datos.reservas);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cambiar las fechas');
+    } finally {
+      setGuardandoFechas(false);
+    }
+  }
+
+  /** Avisa de quantos vienen. El servidor recalcula el precio y es el que dice si el grupo
+   * cabe en la habitación; si no, no cambia nada y el motivo sale en el aviso. */
+  async function guardarGrupo(codigo: string, huespedes: number) {
+    setGuardandoFechas(true);
+    setError(null);
+    try {
+      await api.post(`/api/mis-reservas/${codigo}/huespedes`, { huespedes });
+      setAbriendoGrupo(null);
+      const datos = await api.get<{ reservas: Reserva[] }>('/api/mis-reservas');
+      setReservas(datos.reservas);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo cambiar el número de huéspedes');
     } finally {
       setGuardandoFechas(false);
     }
@@ -234,6 +253,20 @@ export function PaginaMisReservas() {
                           Cambiar fechas
                         </button>{' '}
                         <button
+                          className="boton boton--fantasma boton--chico"
+                          type="button"
+                          onClick={() =>
+                            setAbriendoGrupo(
+                              abriendoGrupo?.codigo === r.codigo
+                                ? null
+                                : { codigo: r.codigo, valor: String(r.huespedes) },
+                            )
+                          }
+                          aria-expanded={abriendoGrupo?.codigo === r.codigo}
+                        >
+                          Cambiar huéspedes
+                        </button>{' '}
+                        <button
                           className={`boton boton--chico ${confirmando === r.codigo ? 'boton--peligro' : 'boton--fantasma'}`}
                           type="button"
                           onClick={() => void cancelar(r.codigo)}
@@ -300,6 +333,55 @@ export function PaginaMisReservas() {
                   setMoviendo(null);
                   setNuevas({ llegada: '', salida: '' });
                 }}
+              >
+                Volver sin guardar
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        {abriendoGrupo ? (
+          <form
+            className="tarjeta pila mt-e6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void guardarGrupo(abriendoGrupo.codigo, Number(abriendoGrupo.valor));
+            }}
+          >
+            <h2 className="t-lg mb-0">Cambiar huéspedes de {abriendoGrupo.codigo}</h2>
+            <div className="campos">
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="grupo-huesped">Cuántos vienen</label>
+                <input
+                  id="grupo-huesped"
+                  type="number"
+                  min={1}
+                  step={1}
+                  required
+                  inputMode="numeric"
+                  value={abriendoGrupo.valor}
+                  onChange={(e) =>
+                    setAbriendoGrupo({ ...abriendoGrupo, valor: e.target.value })
+                  }
+                />
+                <p className="campo__ayuda">
+                  Si no caben en la habitación reservada no se cambia nada y te lo decimos.
+                  El precio se recalcula con el grupo nuevo.
+                </p>
+              </div>
+            </div>
+            <div className="pila gap-e2">
+              <button
+                className="boton boton--primario boton--chico"
+                type="submit"
+                disabled={!abriendoGrupo.valor || guardandoFechas}
+              >
+                {guardandoFechas ? 'Guardando…' : 'Guardar huéspedes'}
+              </button>
+              <button
+                className="boton boton--fantasma boton--chico"
+                type="button"
+                onClick={() => setAbriendoGrupo(null)}
               >
                 Volver sin guardar
               </button>

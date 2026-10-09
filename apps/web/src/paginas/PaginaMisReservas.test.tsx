@@ -23,6 +23,7 @@ type Fila = {
 const estado = vi.hoisted(() => ({
   postes: [] as { url: string; cuerpo: unknown }[],
   fallaMover: false,
+  fallaGrupo: false,
   lista: [] as Fila[],
 }));
 
@@ -40,9 +41,16 @@ vi.mock('../api/cliente', () => ({
       if (estado.fallaMover && url.endsWith('/fechas')) {
         return Promise.reject(new Error('esas fechas no están libres para esa habitación'));
       }
-      const q = cuerpo as { llegada: string; salida: string };
+      if (estado.fallaGrupo && url.endsWith('/huespedes')) {
+        return Promise.reject(new Error('esa habitación no admite 4 huéspedes en esas fechas'));
+      }
+      const q = cuerpo as { llegada: string; salida: string; huespedes?: number };
       const r = estado.lista.find((f) => url.includes(f.codigo));
       if (r) {
+        if (q.huespedes !== undefined) {
+          r.huespedes = q.huespedes;
+          return Promise.resolve({ codigo: r.codigo, huespedes: r.huespedes });
+        }
         r.llegada = q.llegada;
         r.salida = q.salida;
       }
@@ -85,6 +93,7 @@ afterEach(() => {
   cleanup();
   estado.postes.length = 0;
   estado.fallaMover = false;
+  estado.fallaGrupo = false;
   estado.lista.length = 0;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -150,5 +159,44 @@ describe('cambio de fechas propio', () => {
       expect(screen.queryByText(/esas fechas no están libres/)).not.toBeNull();
     });
     expect(screen.queryByText('2030-06-10')).not.toBeNull();
+  });
+});
+
+describe('cambio de huespedes propio', () => {
+  it('abre el formulario con el grupo actual y lo guarda', async () => {
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar huéspedes' }));
+
+    const campo = screen.getByLabelText('Cuántos vienen') as HTMLInputElement;
+    expect(campo.value).toBe('1');
+    fireEvent.change(campo, { target: { value: '2' } });
+    fireEvent.click(screen.getByText('Guardar huéspedes'));
+
+    await waitFor(() => {
+      expect(estado.postes.length).toBe(1);
+    });
+    expect(estado.postes[0]!.url).toBe('/api/mis-reservas/H-MIA1/huespedes');
+    expect(estado.postes[0]!.cuerpo).toEqual({ huespedes: 2 });
+    // La lista se relee: la fila muestra el grupo que quedo guardado, no el tecleado.
+    await waitFor(() => {
+      const fila = screen.getByText('H-MIA1').closest('tr');
+      expect(fila?.textContent).toContain('2');
+    });
+  });
+
+  it('si el grupo no cabe, avisa y deja la reserva como estaba', async () => {
+    estado.fallaGrupo = true;
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar huéspedes' }));
+    fireEvent.change(screen.getByLabelText('Cuántos vienen'), { target: { value: '4' } });
+    fireEvent.click(screen.getByText('Guardar huéspedes'));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/no admite 4 huéspedes/)).not.toBeNull();
+    });
+    const fila = screen.getByText('H-MIA1').closest('tr');
+    expect(fila?.textContent).toContain('1');
   });
 });
