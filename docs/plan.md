@@ -767,6 +767,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   escritorio y apiladas en móvil. Se conservan las rutas y la autenticación existentes. Suite de
   143 pruebas, chequeo de tipos, build Vite y revisión visual en Chrome aprobados. Evidencia:
   `docs/evidence/round-190/verificacion.md`.
+- [x] **Ronda 191 - Validar el correo antes de consultar una reserva.** Un correo con formato
+  inválido ya no genera una petición ni se confunde con una reserva inexistente: el campo queda
+  marcado, enfocado y asociado al mensaje; al corregirlo el aviso desaparece. Suite de 144
+  pruebas, chequeo de tipos y build Vite aprobados. Capturas de escritorio y móvil en
+  `docs/evidence/round-191/verificacion.md`.
 
 ### Próximas mejoras de usabilidad
 
@@ -774,6 +779,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 |---|---:|---:|---|
 | Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | Coordinar cuando se cierre el trabajo activo en reservas |
 | Opciones de consulta de reservas por cuenta o código | Alto | Bajo | **Cerrada en R190** |
+| Validación del correo antes de buscar una reserva | Medio | Bajo | **Cerrada en R191** |
 | Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | **Cerrada en R188** |
 | Selector de moneda compartido entre hotel e inventario | Medio | Bajo | **Cerrada en R187** |
 | Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Edición de sitios lista en R189; falta cerrar el modelo operativo y la curaduría del mapa |

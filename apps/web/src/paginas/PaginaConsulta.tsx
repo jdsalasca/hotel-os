@@ -43,6 +43,7 @@ export function PaginaConsulta() {
   }, [correoSesion, email]);
   const [comprobante, setComprobante] = useState<Comprobante | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorEmail, setErrorEmail] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [cancelando, setCancelando] = useState(false);
@@ -54,6 +55,13 @@ export function PaginaConsulta() {
     setComprobante(null);
     setConfirmando(false);
     setCancelada(false);
+    const campoCorreo = evento.currentTarget.querySelector<HTMLInputElement>('#email-consulta');
+    if (!campoCorreo?.validity.valid) {
+      setErrorEmail('Escribe un correo electrónico válido.');
+      campoCorreo?.focus();
+      return;
+    }
+    setErrorEmail(null);
     setBuscando(true);
     try {
       const consulta = new URLSearchParams({ email });
@@ -122,11 +130,27 @@ export function PaginaConsulta() {
                 type="email"
                 required
                 autoComplete="email"
+                aria-invalid={errorEmail ? 'true' : undefined}
+                aria-describedby={
+                  errorEmail
+                    ? 'email-consulta-error'
+                    : correoSesion && email === correoSesion
+                      ? 'correo-sesion-ayuda'
+                      : undefined
+                }
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (e.currentTarget.validity.valid) setErrorEmail(null);
+                }}
               />
+              {errorEmail ? (
+                <p id="email-consulta-error" className="campo__error" role="alert">
+                  {errorEmail}
+                </p>
+              ) : null}
               {correoSesion && email === correoSesion ? (
-                <p className="campo__ayuda">
+                <p id="correo-sesion-ayuda" className="campo__ayuda">
                   Usamos el correo de tu sesión; cámbialo si consultas otra reserva.
                 </p>
               ) : null}
