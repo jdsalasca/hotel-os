@@ -623,6 +623,28 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   prune de imágenes huérfanas. El verificador lo exige. Evidencia:
   `docs/evidence/round-165/verificacion.md`.
 
+- [x] **Ronda 166 - Cerrada la ronda a medias: Implementación de los tests de
+  huéspedes.** Los tests estaban escritos y en rojo (`404`, el endpoint no existía:
+  5 fallos). `ReservaService.cambiarHuespedes` como dominio único para panel y
+  huésped: solo vigentes, capacidad vía `precioDe` (subir de capacidad sale 409 sin
+  tocar nada), precio recalculado, todo en transacción con rastro. El del huésped
+  devuelve 404 para la ajena. Además, `cliente.ts` gana un plazo de 30 s: la
+  cancelación deliberada manda sobre el plazo. Backend 444, frontend 106. Evidencia:
+  `docs/evidence/round-166/verificacion.md`.
+- [x] **Ronda 168 - El panel cambia los huéspedes.** El endpoint existía y estaba
+  probado, pero recepción no tenía forma de corregir el grupo sin cancelar y recrear
+  (perdiendo historial y abono). Formulario junto al de reasignar, solo en reserva
+  vigente, reutilizando `admiteDinero`. Verificado en Chrome contra contenedores:
+  9 huéspedes en una habitación de 3 → el mensaje del servidor y nada cambia; 1 →
+  aplicado y anotado en el historial. Escritorio y móvil, `erroresJS=0`. Evidencia:
+  `docs/evidence/round-168/verificacion.md`.
+- [x] **Ronda 169 - El huésped cambia su grupo.** La otra mitad del endpoint: el
+  huésped que llega con más gente ya no tiene que llamar. Botón y formulario por
+  reserva vigente, lista releída tras guardar para mostrar lo guardado de verdad.
+  111/111 frontend. **Sin verificación visual**: entrar como huésped pide OAuth2 de
+  Google (`GOOGLE_CLIENT_ID`/`SECRET`), dependencia externa no disponible aquí.
+  Evidencia: `docs/evidence/round-169/verificacion.md`.
+
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»
   conserva llegada, salida y huéspedes y vuelve a consultar; la selección se
