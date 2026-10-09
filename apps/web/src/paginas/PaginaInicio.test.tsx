@@ -14,6 +14,7 @@ const estado = vi.hoisted(() => ({
   llamadasDetalle: [] as string[],
   dosPlanes: false,
   sinVenta: false,
+  fallaVenta: false,
   hotel: null as null | Record<string, string>,
 }));
 
@@ -62,7 +63,10 @@ vi.mock('../api/cliente', () => {
     if (url.startsWith('/api/disponibilidad/calendario?')) {
       return { mes: '2030-06', huespedes: 2, dias: [] };
     }
-    if (url === '/api/hotel/venta') return { a_la_venta: !estado.sinVenta };
+    if (url === '/api/hotel/venta') {
+      if (estado.fallaVenta) throw new Error('venta caída');
+      return { a_la_venta: !estado.sinVenta };
+    }
     if (url === '/api/hotel') {
       return estado.hotel ?? {
         nombre: 'Hotel Eridu',
@@ -82,6 +86,7 @@ afterEach(() => {
   estado.llamadasDetalle.length = 0;
   estado.dosPlanes = false;
   estado.sinVenta = false;
+  estado.fallaVenta = false;
   estado.hotel = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -143,6 +148,38 @@ describe('hotel sin nada que vender', () => {
     );
     await screen.findByText('Este hotel aún no publica habitaciones');
     expect(screen.queryByText(/hola@hotel\.test/)).toBeNull();
+  });
+
+  it('sin venta la búsqueda se deshabilita con motivo', async () => {
+    estado.sinVenta = true;
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+    await screen.findByText(/la búsqueda no traerá nada todavía/);
+    const boton = screen.getByRole('button', {
+      name: 'Buscar disponibilidad',
+    }) as HTMLButtonElement;
+    expect(boton.disabled).toBe(true);
+  });
+
+  it('si la venta falla al leer, la búsqueda sigue abierta', async () => {
+    estado.fallaVenta = true;
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(document.querySelector('.calendario-mes__rejilla')).not.toBeNull();
+    });
+    fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
+    fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
+    const boton = screen.getByRole('button', {
+      name: 'Buscar disponibilidad',
+    }) as HTMLButtonElement;
+    expect(boton.disabled).toBe(false);
   });
 });
 

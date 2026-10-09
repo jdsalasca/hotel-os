@@ -544,9 +544,18 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
             ) : null}
 
             <div className="mt-e4">
-              <button className="boton boton--primario" type="submit" disabled={cargando || !llegada || !salida}>
+              <button
+                className="boton boton--primario"
+                type="submit"
+                disabled={cargando || !llegada || !salida || venta === false}
+              >
                 {cargando ? 'Buscando…' : 'Buscar disponibilidad'}
               </button>
+              {venta === false ? (
+                <p className="campo__ayuda">
+                  Sin habitaciones publicadas: la búsqueda no traerá nada todavía.
+                </p>
+              ) : null}
             </div>
           </form>
         </section>
