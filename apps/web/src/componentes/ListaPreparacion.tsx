@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 
-export type PuntoPreparacion = { clave: string; titulo: string; hecho: boolean; url: string };
+export type PuntoPreparacion = { clave: string; titulo: string; hecho: boolean; url: string | null };
 
 /**
  * Lo que le falta al hotel para estar a punto, con enlace a donde se hace. Si todo está
@@ -29,7 +29,7 @@ export function ListaPreparacion({ puntos: fijos }: { puntos?: PuntoPreparacion[
       <ul className="lista-marcada">
         {pendientes.map((p) => (
           <li key={p.clave}>
-            <Link to={p.url}>{p.titulo}</Link>
+            {p.url ? <Link to={p.url}>{p.titulo}</Link> : <span>{p.titulo}</span>}
           </li>
         ))}
       </ul>

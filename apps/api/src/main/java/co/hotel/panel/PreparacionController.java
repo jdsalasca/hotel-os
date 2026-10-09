@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,10 +16,16 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 public class PreparacionController {
-  private final JdbcTemplate jdbc;
+  /** Los respaldos corren a diario: con más de 36 h sin copia, algo se atascó. */
+  private static final long FRESCO_HORAS = 36;
 
-  public PreparacionController(JdbcTemplate jdbc) {
+  private final JdbcTemplate jdbc;
+  private final String respaldosDir;
+
+  public PreparacionController(JdbcTemplate jdbc,
+      @Value("${hotel.respaldos-dir:/backups}") String respaldosDir) {
     this.jdbc = jdbc;
+    this.respaldosDir = respaldosDir;
   }
 
   public record Punto(String clave, String titulo, boolean hecho, String url) {}
@@ -40,7 +47,29 @@ public class PreparacionController {
     items.add(new Punto("ubicacion", "Ubicación en el mapa", ubicado, "/admin/hotel"));
     items.add(new Punto("lugares", "Sitios cercanos en el mapa",
       contarDonde("lugares_interes", "activo=1") > 0, "/admin/lugares"));
+    items.add(new Punto("respaldo", "Respaldo reciente", respaldoFresco(), null));
     return Map.of("items", items);
+  }
+
+  /**
+   * La copia más nueva de hotel-*.sqlite3 con menos de 36 h. Sin pantalla que lo
+   * arregle, el punto no lleva url: avisa en texto, no finge una puerta.
+   */
+  private boolean respaldoFresco() {
+    try (var archivos = java.nio.file.Files.list(java.nio.file.Path.of(respaldosDir))) {
+      long hace36h = System.currentTimeMillis() - FRESCO_HORAS * 3_600_000L;
+      return archivos
+        .filter(p -> p.getFileName().toString().matches("hotel-.*\\.sqlite3"))
+        .anyMatch(p -> {
+          try {
+            return java.nio.file.Files.getLastModifiedTime(p).toMillis() > hace36h;
+          } catch (Exception e) {
+            return false;
+          }
+        });
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   private int contar(String tabla) {

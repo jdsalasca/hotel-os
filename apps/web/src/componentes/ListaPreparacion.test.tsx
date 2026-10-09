@@ -34,6 +34,18 @@ describe('ListaPreparacion', () => {
     expect(container.textContent ?? '').not.toContain('Pon tu hotel a punto');
   });
 
+  it('el punto sin puerta se lee en texto, sin enlace roto', () => {
+    render(
+      <MemoryRouter>
+        <ListaPreparacion
+          puntos={[{ clave: 'r', titulo: 'Respaldo reciente', hecho: false, url: null }]}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Respaldo reciente')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
   it('carga del backend cuando no le pasan puntos', async () => {
     globalThis.fetch = vi.fn(async () =>
       new Response(JSON.stringify({ items: [{ clave: 'a', titulo: 'Mapa', hecho: false, url: '/m' }] }), {
