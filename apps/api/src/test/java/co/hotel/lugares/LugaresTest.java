@@ -50,6 +50,17 @@ class LugaresTest {
   @Autowired MockMvc mvc;
   @Autowired JdbcTemplate jdbc;
 
+  /**
+   * La base es la misma para los tres métodos (static final), así que el hotel que ubica uno
+   * se le queda a los siguientes: `crudConValidacion` empezaba(){false} y se encontraba con
+   * {true} por culpa del anterior. Sin este borrado, probar "sin hotel ubicado" era imposible.
+   */
+  @org.junit.jupiter.api.BeforeEach
+  void dejaLaBaseLimpia() {
+    jdbc.update("DELETE FROM hotel_config WHERE clave IN ('latitud','longitud')");
+    jdbc.update("DELETE FROM lugares_interes");
+  }
+
   private String cuerpo(Object o) {
     try {
       return JSON.writeValueAsString(o);
@@ -93,5 +104,54 @@ class LugaresTest {
       .andExpect(jsonPath("$.hotel.ubicado").value(true))
       .andExpect(jsonPath("$.hotel.latitud").value(5.65))
       .andExpect(jsonPath("$.lugares.length()").value(1));
+  }
+
+  @Test
+  @DisplayName("cada lugar dice a que distancia esta del hotel")
+  void lugaresConDistancia() throws Exception {
+    var admin = user("admin@hotel.test").roles("ADMIN");
+    jdbc.update("INSERT INTO hotel_config(clave,valor,actualizado_en) VALUES"
+      + "('latitud','5.65',datetime('now')),('longitud','-73.52',datetime('now'))");
+
+    // Al lado: menos de 300 m. Lejos (Santiago de Chile): miles de km.
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "Al lado", "latitud", 5.648, "longitud", -73.520))))
+      .andExpect(status().isCreated());
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "Lejos", "latitud", -33.45, "longitud", -70.67))))
+      .andExpect(status().isCreated());
+
+    mvc.perform(get("/api/lugares"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.lugares.length()").value(2))
+      .andExpect(jsonPath("$.lugares[?(@.nombre=='Al lado')].metros").isNotEmpty())
+      .andExpect(jsonPath("$.lugares[?(@.nombre=='Lejos')].metros").isNotEmpty());
+
+    var raiz = JSON.readTree(mvc.perform(get("/api/lugares")).andReturn().getResponse()
+      .getContentAsString());
+    long alLado = -1, lejos = -1;
+    for (var l : raiz.get("lugares")) {
+      if (l.get("nombre").asText().equals("Al lado")) alLado = l.get("metros").asLong();
+      if (l.get("nombre").asText().equals("Lejos")) lejos = l.get("metros").asLong();
+    }
+    assertTrue(alLado >= 0 && alLado < 300, "lo que esta al lado debe salir a menos de 300 m, no " + alLado);
+    assertTrue(lejos > 1_000_000, "lo lejano sale en km, no " + lejos + " m");
+  }
+
+  @Test
+  @DisplayName("sin hotel ubicado no se inventa ninguna distancia")
+  void sinHotelNoHayDistancias() throws Exception {
+    var admin = user("admin@hotel.test").roles("ADMIN");
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "Sitio", "latitud", 5.6, "longitud", -73.5))))
+      .andExpect(status().isCreated());
+
+    mvc.perform(get("/api/lugares"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.hotel.ubicado").value(false))
+      .andExpect(jsonPath("$.lugares[0].metros").doesNotExist());
   }
 }

@@ -36,7 +36,34 @@ public class LugaresController {
     Map<String, Object> hotel = lat == null || lng == null
       ? Map.of("ubicado", false)
       : Map.of("ubicado", true, "latitud", lat, "longitud", lng);
-    return Map.of("hotel", hotel, "lugares", repo.activos());
+    // La distancia en metros solo existe si el hotel está ubicado: sin su punto no hay a qué
+    // medir, y un número inventado es peor que un campo ausente. Cada lugar sale con su
+    // `metros` (o sin él), que es lo que el mapa muestra como "a X m" / "a X km".
+    var lugares = new java.util.ArrayList<Map<String, Object>>();
+    for (var l : repo.activos()) {
+      var fila = new java.util.LinkedHashMap<String, Object>();
+      fila.put("id", l.id());
+      fila.put("nombre", l.nombre());
+      fila.put("descripcion", l.descripcion());
+      fila.put("latitud", l.latitud());
+      fila.put("longitud", l.longitud());
+      if (lat != null && lng != null) {
+        fila.put("metros", Math.round(metros(lat, lng, l.latitud(), l.longitud())));
+      }
+      lugares.add(fila);
+    }
+    return Map.of("hotel", hotel, "lugares", lugares);
+  }
+
+  /** Distancia en línea recta sobre la esfera (haversine). El viaje real es más largo. */
+  private static double metros(double lat1, double lng1, double lat2, double lng2) {
+    double rad = Math.PI / 180;
+    double dLat = (lat2 - lat1) * rad;
+    double dLng = (lng2 - lng1) * rad;
+    double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+      + Math.cos(lat1 * rad) * Math.cos(lat2 * rad)
+        * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a)));
   }
 
   public record LugarReq(String nombre, String descripcion, Double latitud, Double longitud,
