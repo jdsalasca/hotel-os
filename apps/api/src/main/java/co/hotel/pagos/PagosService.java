@@ -10,7 +10,8 @@ import org.springframework.stereotype.Service;
 /**
  * Abonos manuales de una reserva y su saldo.
  *
- * Reglas: el abono va en la moneda de la reserva (mezclar monedas en un libro manual es como se
+ * Reglas: la reserva sigue vigente (una CANCELADA/RECHAZADA no admite dinero, devuelve 400); el
+ * abono va en la moneda de la reserva (mezclar monedas en un libro manual es como se
  * pierden centavos); el importe es positivo; anular marca sin borrar. El saldo es total menos
  * abonos vigentes, calculado al leer: nunca se guarda.
  */
@@ -31,6 +32,10 @@ public class PagosService {
   public long abonar(String codigo, long montoCents, String moneda, String concepto, String actor) {
     var reserva = reservas.porCodigo(codigo)
       .orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
+    if (!reserva.estado().vigente()) {
+      throw new DatosInvalidosException("la reserva está " + reserva.estado().name()
+        + ": no admite abonos (si hubo cobro, es una devolución, no un abono)");
+    }
     if (montoCents <= 0) throw new DatosInvalidosException("el abono debe ser mayor que cero");
     if (moneda == null || !moneda.equalsIgnoreCase(reserva.moneda())) {
       throw new DatosInvalidosException(

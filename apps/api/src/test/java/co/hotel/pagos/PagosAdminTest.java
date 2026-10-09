@@ -176,4 +176,20 @@ class PagosAdminTest {
     mvc.perform(get("/api/admin/reservas/H-NOEXISTE/saldo").with(ADMIN))
       .andExpect(status().isNotFound());
   }
+
+  @Test
+  @DisplayName("abonar una reserva cancelada es un 400: lo terminal no recibe dinero")
+  void abonoEnCanceladaEs400() throws Exception {
+    String codigo = reservar("terminal@example.com", "2026-11-11", "2026-11-13");
+    mvc.perform(post("/api/reservas/" + codigo + "/cancelar").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("email", "terminal@example.com"))))
+      .andExpect(status().isOk());
+
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/abonos").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("montoCents", 50000, "moneda", "COP",
+          "concepto", "Tarde"))))
+      .andExpect(status().isBadRequest());
+  }
 }

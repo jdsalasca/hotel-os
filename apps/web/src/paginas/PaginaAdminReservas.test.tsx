@@ -7,9 +7,12 @@ import { PaginaAdminReservas } from './PaginaAdminReservas';
  * La recepción registra al huésped sin pasar por la web: el formulario crea la
  * reserva (origen OTRO), muestra el código y refresca la lista.
  */
-const estado = vi.hoisted(() => ({ postes: [] as { url: string; cuerpo: unknown }[] }));
+const estado = vi.hoisted(() => ({
+  postes: [] as { url: string; cuerpo: unknown }[],
+  detalle: 'PENDIENTE' as 'PENDIENTE' | 'CANCELADA',
+}));
 
-function reservaFila() {
+function reservaFila(estadoReserva: 'PENDIENTE' | 'CANCELADA' = 'PENDIENTE') {
   return {
     codigo: 'H-PANEL1',
     email: 'panel@example.com',
@@ -18,8 +21,9 @@ function reservaFila() {
     salida: '2030-06-12',
     noches: 2,
     huespedes: 1,
-    estado: 'PENDIENTE',
-    siguientes: ['CONFIRMADA', 'CANCELADA', 'RECHAZADA'],
+    estado: estadoReserva,
+    siguientes:
+      estadoReserva === 'PENDIENTE' ? ['CONFIRMADA', 'CANCELADA', 'RECHAZADA'] : [],
     origen: 'OTRO',
     creadoEn: '2030-01-01',
   };
@@ -35,13 +39,22 @@ vi.mock('../api/cliente', () => ({
       if (url.includes('/comprobante')) {
         return Promise.resolve({
           reserva: {
-            ...reservaFila(),
+            ...reservaFila(estado.detalle),
             totalCents: 300000,
             moneda: 'COP',
             plan: 'Estándar',
           },
           habitacion: { codigo: '101', nombre: 'Habitación 101', tipo: 'Doble' },
           historial: [],
+        });
+      }
+      if (url.includes('/saldo')) {
+        return Promise.resolve({
+          totalCents: 300000,
+          moneda: 'COP',
+          abonadoCents: 0,
+          pendienteCents: 300000,
+          movimientos: [],
         });
       }
       if (url.includes('/mensajes')) return Promise.resolve({ mensajes: [] });
@@ -69,6 +82,7 @@ function sesionConectada() {
 afterEach(() => {
   cleanup();
   estado.postes.length = 0;
+  estado.detalle = 'PENDIENTE';
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -145,5 +159,25 @@ describe('impresión del detalle', () => {
     fireEvent.click(screen.getByText('Imprimir comprobante'));
     expect(imprimir).toHaveBeenCalledTimes(1);
     expect(document.querySelector('.tabla-envoltura.no-imprimir')).not.toBeNull();
+  });
+});
+
+describe('cobro en reserva cerrada', () => {
+  it('una reserva viva ofrece el abono', async () => {
+    await montar();
+    fireEvent.click(screen.getByText('Ver detalle'));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Registrar abono' })).toBeTruthy();
+    });
+  });
+
+  it('una reserva cancelada no ofrece cobrar y lo explica', async () => {
+    estado.detalle = 'CANCELADA';
+    await montar();
+    fireEvent.click(screen.getByText('Ver detalle'));
+    await waitFor(() => {
+      expect(screen.getByText(/no admite abonos/)).toBeTruthy();
+    });
+    expect(screen.queryByRole('button', { name: 'Registrar abono' })).toBeNull();
   });
 });
