@@ -61,6 +61,13 @@ public class PagosService {
       .orElseThrow(() -> new DatosInvalidosException("reserva no encontrada"));
     long abonado = pagos.abonadoVigente(id);
     long total = reserva.totalCents() == null ? 0L : reserva.totalCents();
-    return new Saldo(total, reserva.moneda(), abonado, total - abonado, pagos.movimientos(id));
+    // Una reserva CANCELADA o RECHAZADA ya solto la fecha: no deja nada pendiente. Antes el
+    // saldo salia siempre de `total - abonado` y una reserva cancelada pedia su importe
+    // completo, como si el huesped tuviera que pagar por algo que ya no reservo (COP 3.000 en
+    // la captura que origino esta ronda). El total acordado se sigue enseñando porque es
+    // parte del historico; lo que no se inventa es una deuda nueva. Lo abonado se conserva:
+    // es dinero real, y si se cobro antes de cancelar, lo que toca es devolverlo.
+    long pendiente = reserva.estado().vigente() ? total - abonado : 0L;
+    return new Saldo(total, reserva.moneda(), abonado, pendiente, pagos.movimientos(id));
   }
 }

@@ -178,6 +178,23 @@ class PagosAdminTest {
   }
 
   @Test
+  @DisplayName("una reserva cerrada no debe dinero: el pendiente es cero, no el total")
+  void saldoDeCanceladaNoInventaDeuda() throws Exception {
+    String codigo = reservar("deuda@example.com", "2026-11-11", "2026-11-13");
+    mvc.perform(post("/api/reservas/" + codigo + "/cancelar").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("email", "deuda@example.com"))))
+      .andExpect(status().isOk());
+
+    mvc.perform(get("/api/admin/reservas/" + codigo + "/saldo").with(ADMIN))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.pendienteCents").value(0));
+
+    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "deuda@example.com"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.reserva.pendienteCents").value(0));
+  }
+@Test
   @DisplayName("abonar una reserva cancelada es un 400: lo terminal no recibe dinero")
   void abonoEnCanceladaEs400() throws Exception {
     String codigo = reservar("terminal@example.com", "2026-11-11", "2026-11-13");
