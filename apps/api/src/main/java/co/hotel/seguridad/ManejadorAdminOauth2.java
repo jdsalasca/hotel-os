@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Component;
 import co.hotel.config.HotelProperties;
@@ -37,6 +38,7 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
   private final org.springframework.jdbc.core.JdbcTemplate jdbc;
   private final org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler continuacion =
     new org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler();
+  private final HttpSessionRequestCache peticiones = new HttpSessionRequestCache();
   private final HttpSessionSecurityContextRepository repoSesion =
     new HttpSessionSecurityContextRepository();
 
@@ -44,9 +46,6 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
   public ManejadorAdminOauth2(HotelProperties props,
       org.springframework.jdbc.core.JdbcTemplate jdbc) {
     this(props.oauth2().correosAdministradores(), jdbc);
-    // Sin petición guardada (entrar directo por el botón), al panel y no a la home: con Google
-    // no hay pantalla de login que redirija, así que este default es el que orienta.
-    continuacion.setDefaultTargetUrl("/admin");
   }
 
   /** Visible para pruebas: la allowlist sin pasar por propiedades. */
@@ -54,6 +53,9 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
       org.springframework.jdbc.core.JdbcTemplate jdbc) {
     this.permitidos = permitidos;
     this.jdbc = jdbc;
+    // Sin petición guardada (entrar directo por el botón), al panel y no a la home: con Google
+    // no hay pantalla de login que redirija, así que este default es el que orienta.
+    continuacion.setDefaultTargetUrl("/admin");
   }
 
   @Override
@@ -87,6 +89,17 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
       // El redirect no guarda el contexto: hay que hacerlo a mano, igual que en el huésped.
       repoSesion.saveContext(SecurityContextHolder.getContext(), req, res);
       log.info("entrada al panel con Google: {}", email);
+      // La petición guardada puede ser un JSON de la API: si el dueño entró a mirar su
+      // sesión sin estar dentro (p. ej. /api/yo), al volver de Google aterriza en el JSON
+      // crudo en vez de en el panel, y parece que el login no sirvió. Las rutas de datos
+      // y las internas del propio OAuth no son un destino de aterrizaje: se descartan y
+      // vale el /admin. Una página del panel sí se respeta.
+      var guardada = peticiones.getRequest(req, res);
+      if (guardada != null && esRutaSinPantalla(guardada.getRedirectUrl())) {
+        log.info("petición guardada {} descartada como destino tras el login: al panel",
+          guardada.getRedirectUrl());
+        peticiones.removeRequest(req, res);
+      }
       continuacion.onAuthenticationSuccess(req, res, conRol);
     } catch (Exception e) {
       // Caerse a mitad (base caída, atributo raro) no puede ser un 500 mudo: se limpia,
@@ -100,5 +113,23 @@ public class ManejadorAdminOauth2 implements AuthenticationSuccessHandler {
 
   private static String texto(Object valor) {
     return valor == null ? "" : valor.toString().trim();
+  }
+
+  /**
+   * Rutas que responden datos, no pantallas: aterrizar en ellas tras el login es la
+   * pantalla negra del reporte. Una URL rara (que ni parsea) también va al panel:
+   * ante la duda, destino conocido.
+   */
+  private static boolean esRutaSinPantalla(String url) {
+    if (url == null) return true;
+    final String ruta;
+    try {
+      ruta = java.net.URI.create(url).getPath();
+    } catch (IllegalArgumentException e) {
+      return true;
+    }
+    return ruta == null
+      || ruta.equals("/api") || ruta.startsWith("/api/")
+      || ruta.startsWith("/oauth2/") || ruta.startsWith("/login/oauth2/");
   }
 }
