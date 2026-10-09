@@ -318,6 +318,7 @@ export function PaginaMisReservas() {
                   id="mov-llegada"
                   type="date"
                   required
+                  autoFocus
                   min={hoyIso()}
                   value={nuevas.llegada}
                   onChange={(e) => setNuevas({ ...nuevas, llegada: e.target.value })}

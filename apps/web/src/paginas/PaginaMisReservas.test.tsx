@@ -163,6 +163,14 @@ describe('cambio de fechas propio', () => {
     expect(screen.getByText('El precio total se recalcula con las tarifas vigentes para las fechas nuevas.')).toBeTruthy();
   });
 
+  it('lleva el foco a la fecha de llegada al abrir el formulario', async () => {
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar fechas' }));
+
+    expect(document.activeElement).toBe(screen.getByLabelText('Nueva llegada'));
+  });
+
   it('mueve las fechas y refresca la fila con lo guardado', async () => {
     sembrar();
     await montar();
