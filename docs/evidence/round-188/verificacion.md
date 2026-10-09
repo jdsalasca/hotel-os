@@ -43,5 +43,9 @@ Capturas conservadas junto a esta verificación:
 
 ## Integración
 
-La integración por cherry-pick, la validación en un worktree limpio, la publicación a
-`origin/develop` y la comprobación del SHA remoto se registran al cerrar la integración.
+La revisión posterior al cherry-pick se hizo en un worktree limpio basado en `8a2961e`:
+140 pruebas frontend, ambos typechecks, build Vite y `git diff --check` pasaron. La instalación
+limpia agregó 150 dependencias y reportó 0 vulnerabilidades.
+
+El commit funcional `2f698e565bf9cf43a3a9b18f87d12dc7cdd0fb52` se publicó en `origin/develop`
+desde `8a2961e`. La salida de `git ls-remote origin refs/heads/develop` coincidió con ese SHA.

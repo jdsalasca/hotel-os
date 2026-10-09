@@ -30,9 +30,9 @@ Permitir que el huésped reduzca las ofertas ya disponibles por las amenidades d
 4. [x] Ejecutar pruebas frontend, typecheck de aplicación y pruebas, y build de Vite.
 5. [x] Verificar visualmente escritorio y móvil, incluyendo filtro sin coincidencias y quitar filtro; registrar capturas y resultados.
 6. [x] Crear evidencia completa en `docs/evidence/round-188/` y marcar esta ronda en `docs/plan.md`.
-7. [ ] Integrar por cherry-pick en un worktree limpio sobre `origin/develop`, volver a validar y publicar a `develop`.
-8. [ ] Limpiar solo el worktree y la rama propios; verificar el remoto y el estado de los worktrees.
+7. [x] Integrar por cherry-pick en un worktree limpio sobre `origin/develop` y volver a validar.
+8. [x] Publicar en `origin/develop` y comprobar el SHA con `git ls-remote`.
 
 ## Evidencia
 
-Resultados, comandos y capturas: `docs/evidence/round-188/verificacion.md`. La integración y el SHA publicado se añadirán al cerrar el cherry-pick.
+Resultados, comandos, capturas e integración: `docs/evidence/round-188/verificacion.md`.
