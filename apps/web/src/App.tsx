@@ -105,7 +105,14 @@ export function CierreSesionPanel() {
 }
 
 export function App() {
+  const ruta = useLocation().pathname;
+  const enPanel = ruta.startsWith('/admin');
+  const [menuAbierto, setMenuAbierto] = useState(false);
   const [hotel, setHotel] = useState<Record<string, string> | null>(null);
+
+  useEffect(() => {
+    setMenuAbierto(false);
+  }, [ruta]);
 
   // La marca pública llega del hotel; si la API falla, la cabecera usa el nombre genérico.
   useEffect(() => {
@@ -132,12 +139,44 @@ export function App() {
             <img src="/icono-hotel.svg" alt="" width={28} height={28} className="cabecera__logo" />
             {nombre}
           </NavLink>
-          <nav className="nav" aria-label="Navegación principal">
-            <NavLink to="/" end>Reservar</NavLink>
-            <NavLink to="/consulta">Consultar reserva</NavLink>
-            <NavLink to="/mis-reservas">Mis reservas <BadgeMensajes /></NavLink>
-            <NavLink to="/admin/inventario">Habitaciones</NavLink>
-            <NavLink to="/admin">Panel</NavLink>
+          <button
+            type="button"
+            className="cabecera__menu"
+            aria-controls="navegacion-principal"
+            aria-expanded={menuAbierto}
+            aria-label={menuAbierto ? 'Cerrar menú principal' : 'Abrir menú principal'}
+            onClick={() => setMenuAbierto((abierto) => !abierto)}
+          >
+            <span aria-hidden="true">{menuAbierto ? 'Cerrar' : 'Menú'}</span>
+          </button>
+          <nav
+            id="navegacion-principal"
+            className={`nav${menuAbierto ? ' nav--abierto' : ''}`}
+            aria-label={enPanel ? 'Navegación administrativa' : 'Navegación principal'}
+            onClick={(evento) => {
+              if ((evento.target as HTMLElement).closest('a')) setMenuAbierto(false);
+            }}
+          >
+            {enPanel ? (
+              <>
+                <NavLink to="/admin" end>Panel</NavLink>
+                <NavLink to="/admin/hoy">Hoy</NavLink>
+                <NavLink to="/admin/reservas">Reservas</NavLink>
+                <NavLink to="/admin/inventario">Inventario</NavLink>
+                <NavLink to="/admin/hotel">Hotel</NavLink>
+                <NavLink to="/admin/integraciones">Integraciones</NavLink>
+                <NavLink to="/admin/indicadores">Indicadores</NavLink>
+                <NavLink to="/admin/auditoria">Actividad</NavLink>
+                <NavLink to="/admin/lugares">Mapa</NavLink>
+              </>
+            ) : (
+              <>
+                <NavLink to="/" end>Reservar</NavLink>
+                <NavLink to="/consulta">Consultar reserva</NavLink>
+                <NavLink to="/mis-reservas">Mis reservas <BadgeMensajes /></NavLink>
+                <NavLink to="/admin">Panel</NavLink>
+              </>
+            )}
           </nav>
           <div className="cabecera__sesion">
             <SaludoSesion />

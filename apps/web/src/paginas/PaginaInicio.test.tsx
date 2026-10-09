@@ -12,7 +12,9 @@ import { fechaCorta } from '../api/formato';
  */
 const estado = vi.hoisted(() => ({
   llamadasDetalle: [] as string[],
+  llamadasBusqueda: [] as string[],
   dosPlanes: false,
+  sinResultados: false,
   sinVenta: false,
   fallaVenta: false,
   hotel: null as null | Record<string, string>,
@@ -50,12 +52,15 @@ vi.mock('../api/cliente', () => {
       };
     }
     if (url.startsWith('/api/disponibilidad?')) {
+      estado.llamadasBusqueda.push(url);
       const q = new URLSearchParams(url.split('?')[1]);
       return {
         llegada: q.get('llegada'),
         salida: q.get('salida'),
         huespedes: Number(q.get('huespedes')),
-        ofertas: estado.dosPlanes
+        ofertas: estado.sinResultados
+          ? []
+          : estado.dosPlanes
           ? [oferta(7, 'Estándar'), oferta(8, 'Flexible')]
           : [oferta(7, 'Estándar')],
       };
@@ -84,7 +89,9 @@ vi.mock('../api/cliente', () => {
 afterEach(() => {
   cleanup();
   estado.llamadasDetalle.length = 0;
+  estado.llamadasBusqueda.length = 0;
   estado.dosPlanes = false;
+  estado.sinResultados = false;
   estado.sinVenta = false;
   estado.fallaVenta = false;
   estado.hotel = null;
@@ -190,6 +197,50 @@ describe('hotel sin nada que vender', () => {
 });
 
 describe('detalle de la oferta', () => {
+  it('anuncia el estado vacío cuando no hay ofertas', async () => {
+    estado.sinResultados = true;
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
+    fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar disponibilidad' }));
+
+    await screen.findByText('No hay habitaciones disponibles para esas fechas');
+    const estadoVacio = document.querySelector('.vacio');
+    expect(estadoVacio?.getAttribute('role')).toBe('status');
+    expect(estadoVacio?.getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('al volver a cambiar fechas restaura la búsqueda y vuelve a consultar', async () => {
+    render(
+      <MemoryRouter initialEntries={[{
+        pathname: '/',
+        state: { restaurarBusqueda: { llegada: '2030-06-10', salida: '2030-06-12', huespedes: 3 } },
+      }]}>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+
+    await screen.findAllByText('Elegir esta habitación');
+    expect((screen.getByLabelText('Llegada') as HTMLInputElement).value).toBe('2030-06-10');
+    expect((screen.getByLabelText('Salida') as HTMLInputElement).value).toBe('2030-06-12');
+    expect((screen.getByLabelText('Huéspedes') as HTMLInputElement).value).toBe('3');
+    expect(estado.llamadasBusqueda).toHaveLength(1);
+    expect(estado.llamadasBusqueda[0]).toContain('llegada=2030-06-10');
+    expect(estado.llamadasBusqueda[0]).toContain('salida=2030-06-12');
+    expect(estado.llamadasBusqueda[0]).toContain('huespedes=3');
+  });
+
+  it('indica cuántas opciones puede elegir el huésped', async () => {
+    await buscar();
+    const estadoResultados = screen.getByRole('status');
+    expect(estadoResultados.textContent).toBe('Encontramos 1 opción disponible.');
+    expect(estadoResultados.getAttribute('aria-live')).toBe('polite');
+  });
+
   it('pide las fechas buscadas aunque el formulario haya cambiado', async () => {
     await buscar();
     fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-07-01' } });

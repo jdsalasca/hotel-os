@@ -54,6 +54,7 @@ export function PaginaReserva() {
   const [nombre, setNombre] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [erroresCampo, setErroresCampo] = useState<{ email?: string; nombre?: string }>({});
   const [reserva, setReserva] = useState<RespuestaReserva | null>(null);
   // Si la tarifa se movió entre la búsqueda y la confirmación, aquí queda el importe vigente
   // para que el huésped lo confirme de nuevo con conocimiento, no en silencio.
@@ -92,12 +93,31 @@ export function PaginaReserva() {
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
+    const emailLimpio = email.trim();
+    const nombreLimpio = nombre.trim();
+    const campoEmail = document.getElementById('email') as HTMLInputElement | null;
+    const correoInvalido =
+      emailLimpio.length === 0 ||
+      (campoEmail ? !campoEmail.validity.valid : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpio));
+    const nuevosErrores: { email?: string; nombre?: string } = {};
+    if (correoInvalido) {
+      nuevosErrores.email =
+        emailLimpio.length === 0 ? 'Escribe tu correo electrónico.' : 'Escribe un correo electrónico válido.';
+    }
+    if (nombreLimpio.length === 0) nuevosErrores.nombre = 'Escribe tu nombre.';
+    setErroresCampo(nuevosErrores);
+    if (nuevosErrores.email || nuevosErrores.nombre) {
+      setError(null);
+      document.getElementById(nuevosErrores.email ? 'email' : 'nombre')?.focus();
+      return;
+    }
+
     setError(null);
     setEnviando(true);
     try {
       const r = await api.post<RespuestaReserva>('/api/reservas', {
-        email,
-        nombre,
+        email: emailLimpio,
+        nombre: nombreLimpio,
         llegada: eleccion.llegada,
         salida: eleccion.salida,
         huespedes: eleccion.huespedes,
@@ -208,65 +228,6 @@ export function PaginaReserva() {
   return (
     <main id="contenido" className="centrado">
       <div className="rejilla rejilla--dos pt-e6">
-        <section className="seccion">
-          <h1 className="seccion__titulo">Confirma tu reserva</h1>
-          <p className="seccion__intro">
-            Solo pedimos lo necesario para atenderte. No pedimos datos de tarjeta: el hotel aún no
-            ha configurado un medio de pago.
-          </p>
-
-          <form onSubmit={enviar} noValidate>
-            <div className="pila">
-              <div className="campo">
-                <label className="campo__etiqueta" htmlFor="email">Correo electrónico *</label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  aria-describedby="ayuda-email"
-                />
-                <p className="campo__ayuda" id="ayuda-email">
-                  Lo usaremos para confirmarte y para que puedas consultar tu reserva.
-                </p>
-              </div>
-
-              <div className="campo">
-                <label className="campo__etiqueta" htmlFor="nombre">Nombre *</label>
-                <input
-                  id="nombre"
-                  type="text"
-                  required
-                  autoComplete="name"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                />
-              </div>
-
-              {error ? <MensajeError texto={error} /> : null}
-            {precioNuevo ? (
-              <Aviso tono="aviso" titulo="El precio cambió desde tu búsqueda">
-                <p>
-                  Viste {monto(eleccion.totalCents, eleccion.moneda)} y ahora el total es{' '}
-                  {monto(precioNuevo.totalCents, precioNuevo.moneda)}
-                  {planNuevo ? ` con el plan ${planNuevo}` : ''}. Si estás de acuerdo,
-                  pulsa «Confirmar solicitud de reserva» de nuevo.
-                </p>
-              </Aviso>
-            ) : null}
-
-              <button className="boton boton--primario" type="submit" disabled={enviando}>
-                {enviando ? 'Enviando…' : 'Confirmar solicitud de reserva'}
-              </button>
-              <p className="campo__ayuda">
-                Tu solicitud quedará pendiente de confirmación. El hotel la revisará y te escribirá.
-              </p>
-            </div>
-          </form>
-        </section>
-
         <aside aria-labelledby="titulo-resumen">
           <h2 id="titulo-resumen" className="seccion__titulo t-xl">
             Tu selección
@@ -296,11 +257,91 @@ export function PaginaReserva() {
               {monto(esperado.totalCents, esperado.moneda)}
               <span className="precio__detalle">total del periodo</span>
             </p>
-            <Link className="boton boton--fantasma boton--chico" to="/">
+            <Link
+              className="boton boton--fantasma boton--chico"
+              to="/"
+              state={{
+                restaurarBusqueda: {
+                  llegada: eleccion.llegada,
+                  salida: eleccion.salida,
+                  huespedes: eleccion.huespedes,
+                },
+              }}
+            >
               Cambiar fechas
             </Link>
           </div>
         </aside>
+        <section className="seccion">
+          <h1 className="seccion__titulo">Confirma tu reserva</h1>
+          <p className="seccion__intro">
+            Solo pedimos lo necesario para atenderte. No pedimos datos de tarjeta: el hotel aún no
+            ha configurado un medio de pago.
+          </p>
+
+          <form onSubmit={enviar} noValidate>
+            <div className="pila">
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="email">Correo electrónico *</label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (erroresCampo.email) setErroresCampo((actual) => ({ ...actual, email: undefined }));
+                  }}
+                  aria-invalid={erroresCampo.email ? 'true' : undefined}
+                  aria-describedby={erroresCampo.email ? 'ayuda-email error-email' : 'ayuda-email'}
+                />
+                <p className="campo__ayuda" id="ayuda-email">
+                  Lo usaremos para confirmarte y para que puedas consultar tu reserva.
+                </p>
+                {erroresCampo.email ? <p className="campo__error" id="error-email">{erroresCampo.email}</p> : null}
+              </div>
+
+              <div className="campo">
+                <label className="campo__etiqueta" htmlFor="nombre">Nombre *</label>
+                <input
+                  id="nombre"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  value={nombre}
+                  onChange={(e) => {
+                    setNombre(e.target.value);
+                    if (erroresCampo.nombre) setErroresCampo((actual) => ({ ...actual, nombre: undefined }));
+                  }}
+                  aria-invalid={erroresCampo.nombre ? 'true' : undefined}
+                  aria-describedby={erroresCampo.nombre ? 'error-nombre' : undefined}
+                />
+                {erroresCampo.nombre ? <p className="campo__error" id="error-nombre">{erroresCampo.nombre}</p> : null}
+              </div>
+
+              {error ? <MensajeError texto={error} /> : null}
+            {precioNuevo ? (
+              <Aviso tono="aviso" titulo="El precio cambió desde tu búsqueda">
+                <p>
+                  Viste {monto(eleccion.totalCents, eleccion.moneda)} y ahora el total es{' '}
+                  {monto(precioNuevo.totalCents, precioNuevo.moneda)}
+                  {planNuevo ? ` con el plan ${planNuevo}` : ''}. Si estás de acuerdo,
+                  pulsa «Confirmar solicitud de reserva» de nuevo.
+                </p>
+              </Aviso>
+            ) : null}
+
+              <button className="boton boton--primario" type="submit" disabled={enviando}>
+                {enviando ? 'Enviando…' : 'Confirmar solicitud de reserva'}
+              </button>
+              <p className="campo__ayuda">
+                Tu solicitud quedará pendiente de confirmación. El hotel la revisará y te escribirá.
+              </p>
+            </div>
+          </form>
+        </section>
+
       </div>
     </main>
   );

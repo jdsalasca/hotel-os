@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { api, nuevaClaveIdempotencia } from '../api/cliente';
 import { fechaCorta, hoyIso, mananaIso, monto } from '../api/formato';
 import { HuecoImagen, MensajeError, Vacio } from '../componentes/Estado';
@@ -37,6 +37,32 @@ type RespuestaCalendario = {
   error?: string;
 };
 
+type BusquedaRestaurada = { llegada: string; salida: string; huespedes: number };
+
+function leerBusquedaRestaurada(estado: unknown): BusquedaRestaurada | null {
+  if (!estado || typeof estado !== 'object') return null;
+  const valor = (estado as { restaurarBusqueda?: unknown }).restaurarBusqueda;
+  if (!valor || typeof valor !== 'object') return null;
+  const busqueda = valor as Partial<BusquedaRestaurada>;
+  if (
+    typeof busqueda.llegada !== 'string' ||
+    typeof busqueda.salida !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(busqueda.llegada) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(busqueda.salida) ||
+    busqueda.salida <= busqueda.llegada ||
+    !Number.isInteger(busqueda.huespedes) ||
+    (busqueda.huespedes ?? 0) < 1 ||
+    (busqueda.huespedes ?? 0) > 20
+  ) {
+    return null;
+  }
+  return {
+    llegada: busqueda.llegada,
+    salida: busqueda.salida,
+    huespedes: busqueda.huespedes!,
+  };
+}
+
 type DetalleOferta = {
   habitacion: { id: number; codigo: string; nombre: string };
   tipo: { id: number; codigo: string; nombre: string; capacidadMax: number };
@@ -65,9 +91,11 @@ function desplazarMes(mesIso: string, delta: number): string {
 /** Paso 1 del flujo público: fechas, huéspedes y habitaciones disponibles con su precio. */
 export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: string }) {
   const navegar = useNavigate();
-  const [llegada, setLlegada] = useState('');
-  const [salida, setSalida] = useState('');
-  const [huespedes, setHuespedes] = useState(2);
+  const ubicacion = useLocation();
+  const busquedaRestaurada = leerBusquedaRestaurada(ubicacion.state);
+  const [llegada, setLlegada] = useState(busquedaRestaurada?.llegada ?? '');
+  const [salida, setSalida] = useState(busquedaRestaurada?.salida ?? '');
+  const [huespedes, setHuespedes] = useState(busquedaRestaurada?.huespedes ?? 2);
   const [ofertas, setOfertas] = useState<Oferta[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -95,6 +123,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
    * formulario que el huésped pudo editar después sin volver a buscar. */
   const [busqueda, setBusqueda] = useState<{ llegada: string; salida: string; huespedes: number } | null>(null);
   const peticionBusqueda = useRef(0);
+  const restauracionPendiente = useRef(busquedaRestaurada);
   const [mes, setMes] = useState(() => hoyIso().slice(0, 7));
   const [dias, setDias] = useState<DiaCalendario[]>([]);
   const [errorCal, setErrorCal] = useState<string | null>(null);
@@ -179,6 +208,15 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       if (peticionBusqueda.current === id) setCargando(false);
     }
   }
+
+  useEffect(() => {
+    const anterior = restauracionPendiente.current;
+    if (!anterior) return;
+    restauracionPendiente.current = null;
+    void buscarCon(anterior.llegada, anterior.salida, anterior.huespedes);
+    // Consumir el estado evita repetir la búsqueda si se refresca la página.
+    navegar('/', { replace: true, state: null });
+  }, [navegar]);
 
   async function buscar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -679,7 +717,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
         {cargando ? <p className="cargando" role="status">Consultando disponibilidad…</p> : null}
 
         {buscado && !cargando && ofertas && ofertas.length === 0 ? (
-          <div className="vacio">
+          <div className="vacio" role="status" aria-live="polite" aria-atomic="true">
             <p className="vacio__titulo">No hay habitaciones disponibles para esas fechas</p>
             <p>Prueba otras fechas. Si el hotel aún no ha publicado tarifas para este periodo, tampoco hay precios que mostrar.</p>
           </div>
@@ -690,6 +728,9 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
             <h2 id="titulo-habitaciones" className="seccion__titulo">
               Habitaciones disponibles
             </h2>
+            <p className="seccion__intro" role="status" aria-live="polite" aria-atomic="true">
+              Encontramos {ofertas.length} {ofertas.length === 1 ? 'opción disponible' : 'opciones disponibles'}.
+            </p>
             <p className="seccion__intro">
               Del {fechaCorta(baseBusqueda.llegada)} al {fechaCorta(baseBusqueda.salida)} para {baseBusqueda.huespedes}{' '}
               {baseBusqueda.huespedes === 1 ? 'huésped' : 'huéspedes'}.

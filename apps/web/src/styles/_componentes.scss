@@ -384,6 +384,50 @@
   }
 }
 
+.cabecera__menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: $e-2 $e-3;
+  border: 1px solid $borde-fuerte;
+  border-radius: $radio-sm;
+  background: #fff;
+  color: $tinta;
+  font: inherit;
+  @include focusable;
+}
+
+@media (max-width: 47.99rem) {
+  .cabecera__menu {
+    display: inline-flex;
+    margin-left: auto;
+  }
+
+  .cabecera .nav {
+    display: none;
+    flex: 0 0 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .cabecera .nav--abierto {
+    display: flex;
+  }
+
+  .cabecera .nav a {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: $e-3 $e-4;
+  }
+
+  .cabecera__sesion {
+    flex-basis: 100%;
+  }
+}
+
 // --- Pie ---
 .pie {
   margin-top: $e-8;

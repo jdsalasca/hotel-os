@@ -574,6 +574,15 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   no se pierda. Loop probado en contenedor, logs verdes en prod. Evidencia:
   `docs/evidence/round-152/verificacion.md`.
 
+- [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
+  contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»
+  conserva llegada, salida y huéspedes y vuelve a consultar; la selección se
+  presenta antes del formulario; correo y nombre se validan en el campo y el
+  primer error recibe foco; resultados y estado vacío se anuncian. Pruebas
+  frontend, chequeo de tipos y capturas móvil/escritorio aprobados. La compilación
+  de producción sigue pendiente: Vite se atascó en transforming… también en la
+  copia limpia de develop. Evidencia: docs/evidence/round-153/verificacion.md.
+
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
 2. Recordatorio de llegada por correo el día antes (requiere refresh token Gmail) —
