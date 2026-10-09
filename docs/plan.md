@@ -757,6 +757,12 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   typechecks, build Vite y revisión visual de escritorio/móvil aprobados. APIs simuladas durante
   la revisión visual. Evidencia: `docs/evidence/round-188/verificacion.md`.
 
+- [x] **Ronda 189 - Edición de lugares turísticos.** Administración puede abrir un lugar en el
+  formulario existente, cambiar sus datos, guardar mediante la API actual o cancelar; el foco
+  pasa al nombre y se conserva el estado visible/oculto. La tabla bloquea acciones incompatibles
+  durante la edición y sus botones se acomodan en móvil. Verificación y capturas:
+  `docs/evidence/round-189/verificacion.md`.
+
 ### Próximas mejoras de usabilidad
 
 | Misión | Impacto | Esfuerzo | Estado |
@@ -764,7 +770,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | Coordinar cuando se cierre el trabajo activo en reservas |
 | Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | **Cerrada en R188** |
 | Selector de moneda compartido entre hotel e inventario | Medio | Bajo | **Cerrada en R187** |
-| Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Diseñar primero el modelo operativo |
+| Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Edición de sitios lista en R189; falta cerrar el modelo operativo y la curaduría del mapa |
 | Conversación huésped-hotel con estados y notificaciones | Alto | Alto | Requiere diseño de un subsistema nuevo |
 
 - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva

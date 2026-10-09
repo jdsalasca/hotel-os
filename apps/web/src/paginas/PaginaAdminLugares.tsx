@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
@@ -20,8 +20,10 @@ export function PaginaAdminLugares() {
   const sesion = useSesion();
   const [lugares, setLugares] = useState<Lugar[] | null>(null);
   const [nuevo, setNuevo] = useState(VACIO);
+  const [editando, setEditando] = useState<Lugar | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const nombreRef = useRef<HTMLInputElement>(null);
 
   async function cargar() {
     try {
@@ -37,24 +39,53 @@ export function PaginaAdminLugares() {
     void cargar();
   }, [sesion.haySesion]);
 
-  async function crear(evento: FormEvent) {
+  useEffect(() => {
+    if (editando) nombreRef.current?.focus();
+  }, [editando]);
+
+  async function guardar(evento: FormEvent) {
     evento.preventDefault();
     setError(null);
     setEnviando(true);
     try {
-      await api.post('/api/admin/lugares', {
+      const valores = {
         nombre: nuevo.nombre,
         descripcion: nuevo.descripcion,
         latitud: Number(nuevo.latitud),
         longitud: Number(nuevo.longitud),
-      });
+      };
+      if (editando) {
+        await api.put(`/api/admin/lugares/${editando.id}`, {
+          ...valores,
+          activo: editando.activo,
+        });
+      } else {
+        await api.post('/api/admin/lugares', valores);
+      }
       setNuevo(VACIO);
+      setEditando(null);
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo crear el lugar');
+      setError(e instanceof Error ? e.message : 'No se pudo guardar el lugar');
     } finally {
       setEnviando(false);
     }
+  }
+
+  function editar(lugar: Lugar) {
+    setEditando(lugar);
+    setNuevo({
+      nombre: lugar.nombre,
+      descripcion: lugar.descripcion,
+      latitud: String(lugar.latitud),
+      longitud: String(lugar.longitud),
+    });
+  }
+
+  function cancelarEdicion() {
+    setEditando(null);
+    setNuevo(VACIO);
+    setError(null);
   }
 
   async function alternar(lugar: Lugar) {
@@ -99,11 +130,14 @@ export function PaginaAdminLugares() {
 
         {error ? <MensajeError texto={error} /> : null}
 
-        <form className="tarjeta pila" onSubmit={(e) => void crear(e)}>
-          <h2 className="t-lg mb-0">Nuevo lugar</h2>
+        <form className="tarjeta pila" onSubmit={(e) => void guardar(e)}>
+          <h2 className="t-lg mb-0">
+            {editando ? `Editar lugar: ${editando.nombre}` : 'Nuevo lugar'}
+          </h2>
           <div className="campo">
             <label className="campo__etiqueta" htmlFor="lugar-nombre">Nombre</label>
             <input
+              ref={nombreRef}
               id="lugar-nombre"
               required
               minLength={2}
@@ -123,7 +157,7 @@ export function PaginaAdminLugares() {
               onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })}
             />
           </div>
-          <div className="campos campos--tres">
+          <div className="campos">
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="lugar-lat">Latitud</label>
               <input
@@ -152,9 +186,21 @@ export function PaginaAdminLugares() {
           <p className="campo__ayuda sin-margen">
             El punto exacto sale de Google Maps: clic derecho → las coordenadas se copian.
           </p>
-          <button className="boton boton--primario" type="submit" disabled={enviando}>
-            {enviando ? 'Guardando…' : 'Agregar lugar'}
-          </button>
+          <div className="acciones-lugar">
+            <button className="boton boton--primario" type="submit" disabled={enviando}>
+              {enviando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Agregar lugar'}
+            </button>
+            {editando ? (
+              <button
+                className="boton boton--fantasma"
+                type="button"
+                disabled={enviando}
+                onClick={cancelarEdicion}
+              >
+                Cancelar edición
+              </button>
+            ) : null}
+          </div>
         </form>
 
         {lugares === null ? <Cargando texto="Cargando lugares" /> : null}
@@ -181,20 +227,35 @@ export function PaginaAdminLugares() {
                   </td>
                   <td data-label="Visible">{lugar.activo ? 'Sí' : 'No'}</td>
                   <td data-label="Acciones">
-                    <button
-                      className="boton boton--fantasma boton--chico"
-                      type="button"
-                      onClick={() => void alternar(lugar)}
-                    >
-                      {lugar.activo ? 'Ocultar' : 'Mostrar'}
-                    </button>{' '}
-                    <button
-                      className="boton boton--fantasma boton--chico"
-                      type="button"
-                      onClick={() => void eliminar(lugar)}
-                    >
-                      Eliminar
-                    </button>
+                    <div className="acciones-lugar">
+                      <button
+                        className="boton boton--fantasma boton--chico"
+                        type="button"
+                        aria-label={`Editar ${lugar.nombre}`}
+                        disabled={editando !== null || enviando}
+                        onClick={() => editar(lugar)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="boton boton--fantasma boton--chico"
+                        type="button"
+                        aria-label={`${lugar.activo ? 'Ocultar' : 'Mostrar'} ${lugar.nombre}`}
+                        disabled={editando !== null || enviando}
+                        onClick={() => void alternar(lugar)}
+                      >
+                        {lugar.activo ? 'Ocultar' : 'Mostrar'}
+                      </button>
+                      <button
+                        className="boton boton--fantasma boton--chico"
+                        type="button"
+                        aria-label={`Eliminar ${lugar.nombre}`}
+                        disabled={editando !== null || enviando}
+                        onClick={() => void eliminar(lugar)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
