@@ -303,16 +303,25 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       .catch(() => setServicios({}));
   }, [ofertas]);
 
-/** Distancia en línea recta, en km con un decimal. Es orientación, no ruta: el "cómo
- * llegar" abre el navegador con la ruta real. */
-function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hastaLng: number): number {
+/** Distancia en línea recta, redondeada al metro. El enlace abre la ruta real. */
+function distanciaMetros(
+  desdeLat: number,
+  desdeLng: number,
+  hastaLat: number,
+  hastaLng: number,
+): number {
   const rad = (g: number) => (g * Math.PI) / 180;
   const dLat = rad(hastaLat - desdeLat);
   const dLng = rad(hastaLng - desdeLng);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(rad(desdeLat)) * Math.cos(rad(hastaLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return Math.round(2 * 6371 * Math.asin(Math.sqrt(a)) * 10) / 10;
+  return Math.round(2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a))));
+}
+
+function formatearDistancia(metros: number): string {
+  if (metros < 1000) return `${metros} m`;
+  return `${(metros / 1000).toLocaleString('es-CO', { maximumFractionDigits: 1 })} km`;
 }
 
   /** Parámetros de la búsqueda en pantalla: el detalle y el resumen pertenecen a lo
@@ -572,6 +581,9 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
             mapa.hotel.latitud !== undefined &&
             mapa.hotel.longitud !== undefined ? (
               <div className="mapa">
+                <p className="mapa__nota">
+                  La distancia es en línea recta; «Cómo llegar» abre la ruta real.
+                </p>
                 <iframe
                   className="mapa__marco"
                   title={`Mapa de ${nombreHotel}`}
@@ -590,13 +602,14 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                         {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
                         <span className="mapa__distancia">
                           {' '}
-                          a {distanciaKm(
-                            mapa.hotel.latitud ?? 0,
-                            mapa.hotel.longitud ?? 0,
-                            lugar.latitud,
-                            lugar.longitud,
-                          )}{' '}
-                          km
+                          a {formatearDistancia(
+                            distanciaMetros(
+                              mapa.hotel.latitud ?? 0,
+                              mapa.hotel.longitud ?? 0,
+                              lugar.latitud,
+                              lugar.longitud,
+                            ),
+                          )}
                         </span>
                       </div>
                       <a

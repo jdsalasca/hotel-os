@@ -24,6 +24,16 @@ const estado = vi.hoisted(() => ({
     disponibles: number;
     precios: Array<{ moneda: string; desdeCents: number }>;
   }>,
+  lugaresPublicos: null as null | {
+    hotel: { ubicado: boolean; latitud?: number; longitud?: number };
+    lugares: Array<{
+      id: number;
+      nombre: string;
+      descripcion: string;
+      latitud: number;
+      longitud: number;
+    }>;
+  },
 }));
 
 vi.mock('../api/cliente', () => {
@@ -87,7 +97,9 @@ vi.mock('../api/cliente', () => {
       };
     }
     if (url.startsWith('/api/amenidades/por-tipo?')) return { porTipo: {} };
-    if (url === '/api/lugares') return { hotel: { ubicado: false }, lugares: [] };
+    if (url === '/api/lugares') {
+      return estado.lugaresPublicos ?? { hotel: { ubicado: false }, lugares: [] };
+    }
     throw new Error('ruta no esperada: ' + url);
   }
   return { api: { get: responder }, nuevaClaveIdempotencia: () => 'clave-test' };
@@ -104,6 +116,7 @@ afterEach(() => {
   estado.llamadasCalendario.length = 0;
   estado.hotel = null;
   estado.diasCalendario.length = 0;
+  estado.lugaresPublicos = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -119,6 +132,93 @@ async function buscar() {
   fireEvent.click(screen.getByText('Buscar disponibilidad'));
   await screen.findAllByText('Elegir esta habitación');
 }
+
+describe('distancias de sitios', () => {
+  it('explica la distancia en línea recta y conserva el acceso a la ruta real', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'Café cercano',
+        descripcion: '',
+        latitud: 4.0004,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('La distancia es en línea recta; «Cómo llegar» abre la ruta real.'))
+      .toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Cómo llegar' }).getAttribute('href'))
+      .toBe('https://www.google.com/maps/dir/?api=1&destination=4.0004,-74');
+  });
+
+  it('oculta la nota cuando el hotel no tiene ubicación para calcular distancias', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: false },
+      lugares: [{
+        id: 1,
+        nombre: 'Café cercano',
+        descripcion: '',
+        latitud: 4.0004,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    await screen.findByRole('heading', { name: 'Encuéntranos y explora' });
+    expect(screen.queryByText('La distancia es en línea recta; «Cómo llegar» abre la ruta real.'))
+      .toBeNull();
+  });
+
+  it('muestra metros para los sitios cercanos', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'Café cercano',
+        descripcion: '',
+        latitud: 4.0004,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('a 44 m')).toBeTruthy();
+  });
+
+  it('muestra cero metros cuando el lugar está en el punto del hotel', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'En el hotel',
+        descripcion: '',
+        latitud: 4,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('a 0 m')).toBeTruthy();
+  });
+
+  it('formatea kilómetros lejanos con coma decimal', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'Lugar lejano',
+        descripcion: '',
+        latitud: 4.01,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('a 1,1 km')).toBeTruthy();
+  });
+});
 
 describe('reservas en línea pausadas', () => {
   it('explica la pausa y retira todos los controles de búsqueda que no pueden funcionar', async () => {

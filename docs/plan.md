@@ -703,7 +703,19 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    de confirmación y, si el hotel no ha configurado nada, no se inventa ninguna. Sin tocar
    recepción ni estilos compartidos. 115/115 frontend. Evidencia:
    `docs/evidence/round-175/verificacion.md`.
- - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
+- [ ] **Ronda 176 en curso con otro agente.** Congelar las condiciones acordadas dentro
+   de cada reserva. Su worktree tiene un conflicto abierto en `ReservaService.java`; no
+   integrar hasta que el agente confirme la resolución y la suite pase.
+- [ ] **Propuesta R177 revisada, no integrada.** El commit `5ad9b0b` agrega distancia a
+   `/api/lugares`, pero la portada ya la calcula y presenta con sus coordenadas; el dato
+   nuevo quedaría sin consumo y duplicaría lógica. Integrar solo si la UI pasa a usar una
+   fuente única.
+- [x] **Ronda 178 - Las distancias se leen de un vistazo.** Sitios a menos de 1 km se
+   muestran en metros, los más lejanos en km con coma decimal; la nota aclara que es una
+   distancia en línea recta, solo aparece con el hotel ubicado y el enlace queda entero
+   en móvil. Evidencia:
+   `docs/evidence/round-178/verificacion.md`.
+- [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
    (hoy, si el hotel cambia la política, quien vuelva ve la nueva). Lint frontend exige
    tocar `package-lock.json` y choca con la instalación en paralelo. Modo claro/oscuro lo
    midió el plan como no cerrable en ronda chica. Recepción lo lleva otra agente. Los

@@ -698,6 +698,13 @@
     border-radius: $radio-sm;
   }
 
+  &__nota {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: $tinta-suave;
+    font-size: $texto-sm;
+  }
+
   &__lugares {
     list-style: none;
     margin: 0;
@@ -717,6 +724,11 @@
 
     strong { display: inline; }
     span { font-size: $texto-sm; color: $tinta-suave; }
+
+    & > a {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
   }
 
   &__distancia {
