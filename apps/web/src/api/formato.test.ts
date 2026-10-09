@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { enlaceWhatsApp, nombreCorto } from './formato';
+import { enlaceWhatsApp, fechaCorta, nombreCorto } from './formato';
+
+describe('fechaCorta', () => {
+  it('usa fecha española compacta con el mes abreviado', () => {
+    expect(fechaCorta('2030-06-10')).toBe('10 jun 2030');
+  });
+});
 
 describe('enlaceWhatsApp', () => {
   it('móvil colombiano de 10 dígitos lleva 57 delante', () => {

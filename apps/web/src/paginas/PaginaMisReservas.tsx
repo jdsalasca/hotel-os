@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
+import { fechaCorta, hoyIso, monto as montoCompartido } from '../api/formato';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 import { ComprobantePropio, type ComprobantePropioDatos } from '../componentes/ComprobantePropio';
@@ -21,7 +22,13 @@ type Reserva = {
 
 function monto(cents: number | null, moneda: string | null): string | null {
   if (cents === null || moneda === null) return null;
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: moneda }).format(cents / 100);
+  return montoCompartido(cents, moneda);
+}
+
+function diaSiguienteIso(iso: string): string {
+  const fecha = new Date(`${iso}T12:00:00`);
+  fecha.setDate(fecha.getDate() + 1);
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
 }
 
 /**
@@ -203,8 +210,8 @@ export function PaginaMisReservas() {
                   <td data-label="Código">
                     <code>{r.codigo}</code>
                   </td>
-                  <td className="cifra" data-label="Llegada">{r.llegada}</td>
-                  <td className="cifra" data-label="Salida">{r.salida}</td>
+                  <td className="cifra tabla__fecha" data-label="Llegada">{fechaCorta(r.llegada)}</td>
+                  <td className="cifra tabla__fecha" data-label="Salida">{fechaCorta(r.salida)}</td>
                   <td className="cifra" data-label="Huéspedes">{r.huespedes}</td>
                   <td className="cifra" data-label="Total">{monto(r.total_cents, r.moneda) ?? 'Sin precio'}</td>
                   <td className="cifra" data-label="Abonado">{monto(r.abonado_cents ?? 0, r.moneda) ?? '—'}</td>
@@ -245,9 +252,15 @@ export function PaginaMisReservas() {
                         <button
                           className="boton boton--fantasma boton--chico"
                           type="button"
-                          onClick={() =>
-                            setMoviendo((abierta) => (abierta === r.codigo ? null : r.codigo))
-                          }
+                          onClick={() => {
+                            if (moviendo === r.codigo) {
+                              setMoviendo(null);
+                              setNuevas({ llegada: '', salida: '' });
+                            } else {
+                              setMoviendo(r.codigo);
+                              setNuevas({ llegada: r.llegada, salida: r.salida });
+                            }
+                          }}
                           aria-expanded={moviendo === r.codigo}
                         >
                           Cambiar fechas
@@ -295,6 +308,9 @@ export function PaginaMisReservas() {
             }}
           >
             <h2 className="t-lg mb-0">Cambiar fechas de {moviendo}</h2>
+            <p className="campo__ayuda sin-margen">
+              El precio total se recalcula con las tarifas vigentes para las fechas nuevas.
+            </p>
             <div className="campos">
               <div className="campo">
                 <label className="campo__etiqueta" htmlFor="mov-llegada">Nueva llegada</label>
@@ -302,6 +318,8 @@ export function PaginaMisReservas() {
                   id="mov-llegada"
                   type="date"
                   required
+                  autoFocus
+                  min={hoyIso()}
                   value={nuevas.llegada}
                   onChange={(e) => setNuevas({ ...nuevas, llegada: e.target.value })}
                 />
@@ -312,7 +330,7 @@ export function PaginaMisReservas() {
                   id="mov-salida"
                   type="date"
                   required
-                  min={nuevas.llegada || undefined}
+                  min={nuevas.llegada ? diaSiguienteIso(nuevas.llegada) : hoyIso()}
                   value={nuevas.salida}
                   onChange={(e) => setNuevas({ ...nuevas, salida: e.target.value })}
                 />

@@ -73,6 +73,38 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Abrir menú principal' }).getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('cierra la navegación compacta con Escape y devuelve el foco al botón', async () => {
+    window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/hotel')) return new Response('{}', { status: 200 });
+      if (ruta.includes('/api/admin/sesion') || ruta.includes('/api/yo')) {
+        return new Response('{}', { status: 401 });
+      }
+      if (ruta.includes('/api/disponibilidad/calendario')) {
+        return new Response('{"dias":[]}', { status: 200 });
+      }
+      if (ruta.includes('/api/lugares')) return new Response('{"hotel":{},"lugares":[]}', { status: 200 });
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findByText('¿Cuándo quieres venir?');
+
+    const boton = screen.getByRole('button', { name: 'Abrir menú principal' });
+    fireEvent.click(boton);
+    const enlace = screen.getByRole('link', { name: 'Mis reservas' });
+    enlace.focus();
+    fireEvent.keyDown(enlace, { key: 'Escape' });
+
+    expect(screen.getByRole('button', { name: 'Abrir menú principal' }).getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(boton);
+  });
+
   it('usa un solo acceso del huésped y lo mantiene activo al consultar por código', async () => {
     window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
     globalThis.fetch = vi.fn(async (url: unknown) => {
@@ -114,7 +146,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Consultar una reserva' })).toBeTruthy();
   });
 
-  it('muestra accesos del panel en lugar de mezclar las rutas públicas', async () => {
+  it('sin sesión ofrece entrada al panel y oculta sus rutas protegidas', async () => {
     window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
     globalThis.fetch = vi.fn(async (url: unknown) => {
       const ruta = String(url);
@@ -132,9 +164,34 @@ describe('App', () => {
     );
 
     const nav = container.querySelector('header nav[aria-label="Navegación administrativa"]');
-    expect(nav?.textContent).toContain('Reservas');
-    expect(nav?.textContent).toContain('Inventario');
-    expect(nav?.textContent).not.toContain('Consultar reserva');
+    await waitFor(() => {
+      expect(nav?.querySelector('a[href="/admin/entrar"]')?.textContent).toBe('Iniciar sesión');
+    });
+    expect(nav?.querySelector('a[href="/admin/reservas"]')).toBeNull();
+    expect(nav?.querySelector('a[href="/admin/inventario"]')).toBeNull();
+    expect(nav?.querySelector('a[href="/"]')?.textContent).toContain('Reservar');
+  });
+
+  it('con sesión restaura la navegación completa del panel', async () => {
+    window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/admin/sesion')) {
+        return new Response('{"email":"admin@hotel.test","nombre":"Ana"}', { status: 200 });
+      }
+      if (ruta.includes('/api/hotel')) return new Response('{}', { status: 200 });
+      return new Response('{"error":"sin sesión"}', { status: 401 });
+    }) as unknown as typeof fetch;
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/admin']}>
+        <App />
+      </MemoryRouter>,
+    );
+    const nav = container.querySelector('header nav[aria-label="Navegación administrativa"]');
+    await waitFor(() => expect(nav?.querySelector('a[href="/admin/inventario"]')).not.toBeNull());
+    expect(nav?.querySelector('a[href="/admin/reservas"]')).not.toBeNull();
+    expect(nav?.querySelector('a[href="/admin/entrar"]')).toBeNull();
   });
 
   it('el pie esconde los accesos del panel sin sesión de personal', async () => {

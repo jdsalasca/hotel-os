@@ -235,6 +235,7 @@
   }
 
   .cifra { @include cifra; }
+  .tabla__fecha { white-space: nowrap; }
 }
 
 // La envoltura solo existe para el desplazamiento en pantallas grandes.
@@ -334,10 +335,9 @@
     font-size: $texto-sm;
     font-weight: $peso-medio;
     color: $tinta-suave;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 16rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    max-width: 24rem;
   }
 
   // Nombre y salida juntos en la cabecera: el personal los ve sin bajar al pie.
@@ -345,6 +345,7 @@
     display: flex;
     align-items: center;
     gap: $e-2;
+    min-width: 0;
   }
 
   &__salir {
@@ -432,6 +433,10 @@
 
   .cabecera__sesion {
     flex-basis: 100%;
+  }
+
+  .cabecera__saludo {
+    max-width: 100%;
   }
 }
 
@@ -698,6 +703,13 @@
     border-radius: $radio-sm;
   }
 
+  &__nota {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: $tinta-suave;
+    font-size: $texto-sm;
+  }
+
   &__lugares {
     list-style: none;
     margin: 0;
@@ -717,6 +729,11 @@
 
     strong { display: inline; }
     span { font-size: $texto-sm; color: $tinta-suave; }
+
+    & > a {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
   }
 
   &__distancia {

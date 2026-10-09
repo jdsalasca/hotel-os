@@ -703,7 +703,65 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    de confirmación y, si el hotel no ha configurado nada, no se inventa ninguna. Sin tocar
    recepción ni estilos compartidos. 115/115 frontend. Evidencia:
    `docs/evidence/round-175/verificacion.md`.
- - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
+- [ ] **Ronda 176 en curso con otro agente.** Congelar las condiciones acordadas dentro
+   de cada reserva. Su worktree tiene un conflicto abierto en `ReservaService.java`; no
+   integrar hasta que el agente confirme la resolución y la suite pase.
+- [ ] **Propuesta R177 revisada, no integrada.** El commit `5ad9b0b` agrega distancia a
+   `/api/lugares`, pero la portada ya la calcula y presenta con sus coordenadas; el dato
+   nuevo quedaría sin consumo y duplicaría lógica. Integrar solo si la UI pasa a usar una
+   fuente única.
+- [x] **Ronda 178 - Las distancias se leen de un vistazo.** Sitios a menos de 1 km se
+   muestran en metros, los más lejanos en km con coma decimal; la nota aclara que es una
+   distancia en línea recta, solo aparece con el hotel ubicado y el enlace queda entero
+   en móvil. Evidencia:
+   `docs/evidence/round-178/verificacion.md`.
+- [x] **Ronda 179 - El menú móvil se cierra con Escape.** Al cerrar desde el teclado,
+   devuelve el foco al botón del menú para no dejarlo dentro de una navegación oculta.
+   Evidencia: `docs/evidence/round-179/verificacion.md`.
+- [x] **Ronda 182 - Cinco mejoras de usabilidad en la reserva.** Pausa visible y
+   una sola acción para reservas existentes; fechas actuales al volver a cambiar;
+   llegada y salida validadas; aviso de recálculo de tarifa; foco inicial en llegada.
+   Evidencia: `docs/evidence/round-182/verificacion.md`.
+- [x] **Ronda 183 - La búsqueda aparece inmediatamente después de la portada.**
+   El formulario, calendario y resultados quedan antes de la galería, los pasos y
+   el mapa; no cambia la lógica de disponibilidad ni de reserva. Verificado con
+   131 pruebas frontend, typecheck de pruebas, build Docker y capturas de escritorio
+   y móvil. Evidencia: `docs/evidence/round-183/verificacion.md`.
+- [x] **Ronda 184 - La entrada al panel distingue quién tiene sesión.** Sin sesión,
+   el encabezado ofrece reservar o iniciar sesión y oculta las rutas administrativas;
+   con sesión recupera la navegación completa. El saludo admite saltos de línea sin
+   recortar el nombre, y la inicialización del perfil conserva una edición temprana.
+   Suite de 132 pruebas, chequeos de tipos, compilación Docker y capturas en tres
+   estados de escritorio y móvil. Evidencia: `docs/evidence/round-184/verificacion.md`.
+- [x] **Ronda 185 - El alta guiada del inventario aparece cuando hace falta.** Si faltan
+  tipos, habitaciones o planes, los pasos iniciales pasan antes del calendario; con
+  inventario configurado, el calendario conserva prioridad. 134 pruebas frontend,
+  chequeos de tipos, build Docker y tres estados revisados en Chrome. Evidencia:
+  `docs/evidence/round-185/verificacion.md`.
+- [x] **Ronda 186 - Datos del hotel no se puede guardar a medio cargar.** El formulario
+  anuncia la lectura y desactiva sus controles hasta recibir la configuración; si
+  falla, deja disponible la recuperación manual. 136 pruebas frontend, chequeos de
+  tipos, build Docker y revisión de escritorio/móvil. Evidencia:
+  `docs/evidence/round-186/verificacion.md`.
+- [x] **Ronda 187 - La moneda del hotel y del inventario usa un catálogo compartido.**
+  Datos del hotel presenta las nueve monedas existentes en un selector accesible y
+  conserva cualquier código previo fuera de la lista hasta que se reemplace; si la
+  carga falla, mantiene la edición manual de códigos ISO para poder recuperar. 139
+  pruebas frontend, typechecks y build Vite aprobados; Chrome local sin errores ni
+  desbordamiento en escritorio y móvil. La API fue simulada. Evidencia:
+  `docs/evidence/round-187/verificacion.md`.
+
+### Próximas mejoras de usabilidad
+
+| Misión | Impacto | Esfuerzo | Estado |
+|---|---:|---:|---|
+| Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | Coordinar cuando se cierre el trabajo activo en reservas |
+| Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | Pendiente de revisar el flujo actual |
+| Selector de moneda compartido entre hotel e inventario | Medio | Bajo | **Cerrada en R187** |
+| Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Diseñar primero el modelo operativo |
+| Conversación huésped-hotel con estados y notificaciones | Alto | Alto | Requiere diseño de un subsistema nuevo |
+
+- [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
    (hoy, si el hotel cambia la política, quien vuelva ve la nueva). Lint frontend exige
    tocar `package-lock.json` y choca con la instalación en paralelo. Modo claro/oscuro lo
    midió el plan como no cerrable en ronda chica. Recepción lo lleva otra agente. Los

@@ -24,6 +24,16 @@ const estado = vi.hoisted(() => ({
     disponibles: number;
     precios: Array<{ moneda: string; desdeCents: number }>;
   }>,
+  lugaresPublicos: null as null | {
+    hotel: { ubicado: boolean; latitud?: number; longitud?: number };
+    lugares: Array<{
+      id: number;
+      nombre: string;
+      descripcion: string;
+      latitud: number;
+      longitud: number;
+    }>;
+  },
 }));
 
 vi.mock('../api/cliente', () => {
@@ -87,7 +97,9 @@ vi.mock('../api/cliente', () => {
       };
     }
     if (url.startsWith('/api/amenidades/por-tipo?')) return { porTipo: {} };
-    if (url === '/api/lugares') return { hotel: { ubicado: false }, lugares: [] };
+    if (url === '/api/lugares') {
+      return estado.lugaresPublicos ?? { hotel: { ubicado: false }, lugares: [] };
+    }
     throw new Error('ruta no esperada: ' + url);
   }
   return { api: { get: responder }, nuevaClaveIdempotencia: () => 'clave-test' };
@@ -104,8 +116,26 @@ afterEach(() => {
   estado.llamadasCalendario.length = 0;
   estado.hotel = null;
   estado.diasCalendario.length = 0;
+  estado.lugaresPublicos = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe('prioridad de la reserva en la portada', () => {
+  it('muestra el formulario y el calendario antes de la galería', async () => {
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+
+    const formulario = await screen.findByRole('heading', { name: '¿Cuándo quieres venir?' });
+    const calendario = await screen.findByRole('heading', { name: 'Calendario de disponibilidad' });
+    const galeria = screen.getByRole('heading', { name: 'A minutos de lo mejor de Boyacá' });
+
+    expect(formulario.compareDocumentPosition(galeria)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(calendario.compareDocumentPosition(galeria)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
 });
 
 async function buscar() {
@@ -119,6 +149,93 @@ async function buscar() {
   fireEvent.click(screen.getByText('Buscar disponibilidad'));
   await screen.findAllByText('Elegir esta habitación');
 }
+
+describe('distancias de sitios', () => {
+  it('explica la distancia en línea recta y conserva el acceso a la ruta real', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'Café cercano',
+        descripcion: '',
+        latitud: 4.0004,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('La distancia es en línea recta; «Cómo llegar» abre la ruta real.'))
+      .toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Cómo llegar' }).getAttribute('href'))
+      .toBe('https://www.google.com/maps/dir/?api=1&destination=4.0004,-74');
+  });
+
+  it('oculta la nota cuando el hotel no tiene ubicación para calcular distancias', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: false },
+      lugares: [{
+        id: 1,
+        nombre: 'Café cercano',
+        descripcion: '',
+        latitud: 4.0004,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    await screen.findByRole('heading', { name: 'Encuéntranos y explora' });
+    expect(screen.queryByText('La distancia es en línea recta; «Cómo llegar» abre la ruta real.'))
+      .toBeNull();
+  });
+
+  it('muestra metros para los sitios cercanos', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'Café cercano',
+        descripcion: '',
+        latitud: 4.0004,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('a 44 m')).toBeTruthy();
+  });
+
+  it('muestra cero metros cuando el lugar está en el punto del hotel', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'En el hotel',
+        descripcion: '',
+        latitud: 4,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('a 0 m')).toBeTruthy();
+  });
+
+  it('formatea kilómetros lejanos con coma decimal', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'Lugar lejano',
+        descripcion: '',
+        latitud: 4.01,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('a 1,1 km')).toBeTruthy();
+  });
+});
 
 describe('reservas en línea pausadas', () => {
   it('explica la pausa y retira todos los controles de búsqueda que no pueden funcionar', async () => {
@@ -153,6 +270,9 @@ describe('reservas en línea pausadas', () => {
     });
     expect(screen.getByLabelText('Llegada')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Buscar disponibilidad' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Ver disponibilidad' }).getAttribute('href')).toBe('#titulo-buscar');
+    expect(screen.getByRole('link', { name: 'Gestionar una reserva' }).getAttribute('href')).toBe('/mis-reservas');
+    expect(screen.queryByRole('link', { name: 'Gestionar o consultar una reserva' })).toBeNull();
   });
 
   it('el vacío trae cómo contactar al hotel', async () => {
@@ -184,15 +304,18 @@ describe('reservas en línea pausadas', () => {
     expect(screen.queryByText(/hola@hotel\.test/)).toBeNull();
   });
 
-  it('la portada ofrece gestionar una reserva existente aunque la venta esté pausada', async () => {
+  it('la portada deja una sola acción visible para reservas existentes cuando la venta está pausada', async () => {
     estado.sinVenta = true;
     render(
       <MemoryRouter>
         <PaginaInicio />
       </MemoryRouter>,
     );
-    const enlace = await screen.findByRole('link', { name: 'Gestionar una reserva' });
-    expect(enlace.getAttribute('href')).toBe('/mis-reservas');
+    const enlaceGestion = await screen.findByRole('link', { name: 'Gestionar o consultar una reserva' });
+    expect(enlaceGestion.getAttribute('href')).toBe('/mis-reservas');
+    expect(enlaceGestion.closest('.portada')).not.toBeNull();
+    expect(screen.getAllByRole('link', { name: 'Gestionar o consultar una reserva' })).toHaveLength(1);
+    expect(screen.queryByRole('link', { name: 'Gestionar una reserva' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Ver disponibilidad' })).toBeNull();
   });
 
@@ -302,7 +425,7 @@ describe('búsqueda usable con teclado y lector de pantalla', () => {
     expect((screen.getByRole('button', { name: 'Elegir Doble' }) as HTMLButtonElement).disabled)
       .toBe(true);
     expect(document.querySelector('section[aria-labelledby="titulo-habitaciones"]')?.textContent)
-      .toContain('al 12 de jun de 2030');
+      .toContain(`al ${fechaCorta('2030-06-12')}`);
   });
 });
 

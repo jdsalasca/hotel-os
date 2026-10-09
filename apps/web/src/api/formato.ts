@@ -1,11 +1,17 @@
 /** Formato de fechas y dinero en español. La moneda la manda el hotel: no hay una por defecto. */
 
 export function fechaCorta(iso: string): string {
-  return new Date(iso + 'T12:00:00').toLocaleDateString('es-CO', {
+  const fecha = new Date(iso + 'T12:00:00');
+  const opciones = {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-  });
+  } as const;
+  if (Number.isNaN(fecha.getTime())) return fecha.toLocaleDateString('es-CO', opciones);
+
+  const partes = new Intl.DateTimeFormat('es-CO', opciones).formatToParts(fecha);
+  const valor = (tipo: 'day' | 'month' | 'year') => partes.find((parte) => parte.type === tipo)?.value ?? '';
+  return `${valor('day')} ${valor('month')} ${valor('year')}`;
 }
 
 export function noches(llegada: string, salida: string): number {

@@ -303,16 +303,25 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       .catch(() => setServicios({}));
   }, [ofertas]);
 
-/** Distancia en línea recta, en km con un decimal. Es orientación, no ruta: el "cómo
- * llegar" abre el navegador con la ruta real. */
-function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hastaLng: number): number {
+/** Distancia en línea recta, redondeada al metro. El enlace abre la ruta real. */
+function distanciaMetros(
+  desdeLat: number,
+  desdeLng: number,
+  hastaLat: number,
+  hastaLng: number,
+): number {
   const rad = (g: number) => (g * Math.PI) / 180;
   const dLat = rad(hastaLat - desdeLat);
   const dLng = rad(hastaLng - desdeLng);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(rad(desdeLat)) * Math.cos(rad(hastaLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return Math.round(2 * 6371 * Math.asin(Math.sqrt(a)) * 10) / 10;
+  return Math.round(2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a))));
+}
+
+function formatearDistancia(metros: number): string {
+  if (metros < 1000) return `${metros} m`;
+  return `${(metros / 1000).toLocaleString('es-CO', { maximumFractionDigits: 1 })} km`;
 }
 
   /** Parámetros de la búsqueda en pantalla: el detalle y el resumen pertenecen a lo
@@ -391,15 +400,22 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           </p>
           <p className="portada__acciones">
             {venta === false ? (
-              <span className="portada__estado" role="status">Reservas en línea pausadas</span>
+              <>
+                <span className="portada__estado" role="status">Reservas en línea pausadas</span>
+                <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
+                  Gestionar o consultar una reserva
+                </Link>
+              </>
             ) : (
-              <a className="boton boton--primario" href="#titulo-buscar">
-                Ver disponibilidad
-              </a>
-            )}{' '}
-            <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
-              Gestionar una reserva
-            </Link>
+              <>
+                <a className="boton boton--primario" href="#titulo-buscar">
+                  Ver disponibilidad
+                </a>{' '}
+                <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
+                  Gestionar una reserva
+                </Link>
+              </>
+            )}
           </p>
         </div>
       </section>
@@ -433,202 +449,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
                 </p>
               ) : null}
               <p>Si ya tienes una reserva, puedes entrar con Google o consultarla con su código y correo.</p>
-              <div className="reserva-pausada__acciones">
-                <Link className="boton boton--primario" to="/mis-reservas">
-                  Gestionar o consultar una reserva
-                </Link>
-              </div>
             </Aviso>
-          </section>
-        </div>
-      ) : null}
-
-      <div className="centrado">
-        <section className="seccion" aria-labelledby="titulo-descubre">
-          <h2 id="titulo-descubre" className="seccion__titulo">
-            A minutos de lo mejor de Boyacá
-          </h2>
-          <div className="collage" role="list" aria-label="Fotos de Sáchica y Villa de Leyva">
-            <figure className="collage__item collage__item--ancha" role="listitem">
-              <img
-                className="collage__foto"
-                src="/img/casa-terracota.jpg"
-                alt="Casa de Terracota, Villa de Leyva"
-                loading="lazy"
-              />
-              <figcaption className="collage__leyenda">Casa de Terracota</figcaption>
-            </figure>
-            <figure className="collage__item collage__item--alta" role="listitem">
-              <img
-                className="collage__foto"
-                src="/img/balcones.jpg"
-                alt="Balcones coloniales, Villa de Leyva"
-                loading="lazy"
-              />
-              <figcaption className="collage__leyenda">Balcones coloniales</figcaption>
-            </figure>
-            <figure className="collage__item" role="listitem">
-              <img
-                className="collage__foto"
-                src="/img/desierto.jpg"
-                alt="Atardecer en el desierto de Villa de Leyva"
-                loading="lazy"
-              />
-              <figcaption className="collage__leyenda">Desierto de la Candelaria</figcaption>
-            </figure>
-            <figure className="collage__item collage__item--alta" role="listitem">
-              <img
-                className="collage__foto"
-                src="/img/calles.jpg"
-                alt="Calles empedradas, Villa de Leyva"
-                loading="lazy"
-              />
-              <figcaption className="collage__leyenda">Calles empedradas</figcaption>
-            </figure>
-            <figure className="collage__item" role="listitem">
-              <img
-                className="collage__foto"
-                src="/img/cruz-sachica.jpg"
-                alt="Cruz atrial de Sáchica, Boyacá"
-                loading="lazy"
-              />
-              <figcaption className="collage__leyenda">Sáchica colonial</figcaption>
-            </figure>
-            <figure className="collage__item collage__item--ancha" role="listitem">
-              <img
-                className="collage__foto"
-                src="/img/cascada.jpg"
-                alt="Cascada La Periquera, Villa de Leyva"
-                loading="lazy"
-              />
-              <figcaption className="collage__leyenda">Cascada La Periquera</figcaption>
-            </figure>
-          </div>
-          <p className="campo__ayuda">
-            Fotografías:{' '}
-            <a href="https://commons.wikimedia.org/wiki/File:Casa_de_Terracota.jpg">Terracota ©
-            amontero89</a>
-            {', '}
-            <a href="https://commons.wikimedia.org/wiki/File:Balcones_de_Villa_de_Leyva.jpg">
-            Balcones © Adrián Salazar Garelli</a>
-            {', '}
-            <a href="https://commons.wikimedia.org/wiki/File:Atardecer_desierto_Villa_de_Leyva.JPG">
-            Desierto © Petruss</a>
-            {', '}
-            <a href="https://commons.wikimedia.org/wiki/File:Calles_Villa_Leyva.JPG">Calles ©
-            MatthRomero</a>
-            {', '}
-            <a href="https://commons.wikimedia.org/wiki/File:Cruz_Atrial_de_S%C3%A1chica.jpg">
-            Sáchica</a>
-            {', '}
-            <a href="https://commons.wikimedia.org/wiki/File:Cascada_La_Periquera_-_panoramio.jpg">
-            Cascada © diego_cue</a>
-            {' '}vía Wikimedia Commons (CC BY-SA).
-          </p>
-        </section>
-      </div>
-
-      {venta === false ? null : (
-      <div className="centrado">
-        <section className="seccion" aria-labelledby="titulo-pasos">
-          <h2 id="titulo-pasos" className="seccion__titulo">
-            Reservar es así de simple
-          </h2>
-          <ol className="pasos">
-            <li className="paso">
-              <span className="paso__numero" aria-hidden="true">1</span>
-              <div>
-                <strong>Elige tus fechas</strong>
-                <span> Dinos tu llegada, tu salida y tus huéspedes: te mostramos precio final, sin letra pequeña.</span>
-              </div>
-            </li>
-            <li className="paso">
-              <span className="paso__numero" aria-hidden="true">2</span>
-              <div>
-                <strong>Confirma con tus datos</strong>
-                <span> Nombre y correo: con eso nace tu reserva y tu código de consulta.</span>
-              </div>
-            </li>
-            <li className="paso">
-              <span className="paso__numero" aria-hidden="true">3</span>
-              <div>
-                <strong>Gestiona a tu manera</strong>
-                <span> Consulta o cancela con tu código, o entra con Google y ve tus reservas.</span>
-              </div>
-            </li>
-          </ol>
-        </section>
-      </div>
-      )}
-
-      {mapa !== null &&
-      (mapa.hotel.ubicado || mapa.lugares.length > 0) ? (
-        <div className="centrado">
-          <section className="seccion" aria-labelledby="titulo-mapa">
-            <h2 id="titulo-mapa" className="seccion__titulo">
-              Encuéntranos y explora
-            </h2>
-            {mapa.hotel.ubicado &&
-            mapa.hotel.latitud !== undefined &&
-            mapa.hotel.longitud !== undefined ? (
-              <div className="mapa">
-                <iframe
-                  className="mapa__marco"
-                  title={`Mapa de ${nombreHotel}`}
-                  loading="lazy"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                    mapa.hotel.longitud - 0.03
-                  }%2C${mapa.hotel.latitud - 0.02}%2C${mapa.hotel.longitud + 0.03}%2C${
-                    mapa.hotel.latitud + 0.02
-                  }&layer=mapnik&marker=${mapa.hotel.latitud}%2C${mapa.hotel.longitud}`}
-                />
-                <ul className="mapa__lugares">
-                  {mapa.lugares.map((lugar) => (
-                    <li key={lugar.id} className="mapa__lugar">
-                      <div>
-                        <strong>{lugar.nombre}</strong>
-                        {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
-                        <span className="mapa__distancia">
-                          {' '}
-                          a {distanciaKm(
-                            mapa.hotel.latitud ?? 0,
-                            mapa.hotel.longitud ?? 0,
-                            lugar.latitud,
-                            lugar.longitud,
-                          )}{' '}
-                          km
-                        </span>
-                      </div>
-                      <a
-                        className="boton boton--fantasma boton--chico"
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${lugar.latitud},${lugar.longitud}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Cómo llegar
-                      </a>
-                    </li>
-                  ))}
-                  {mapa.lugares.length === 0 ? (
-                    <li className="campo__ayuda">
-                      El hotel ya marcó su punto; los sitios cercanos aparecen aquí cuando los
-                      agregue.
-                    </li>
-                  ) : null}
-                </ul>
-              </div>
-            ) : (
-              <ul className="mapa__lugares">
-                {mapa.lugares.map((lugar) => (
-                  <li key={lugar.id} className="mapa__lugar">
-                    <div>
-                      <strong>{lugar.nombre}</strong>
-                      {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
           </section>
         </div>
       ) : null}
@@ -901,6 +722,202 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
         ) : null}
       </div>
       )}
+
+      <div className="centrado">
+        <section className="seccion" aria-labelledby="titulo-descubre">
+          <h2 id="titulo-descubre" className="seccion__titulo">
+            A minutos de lo mejor de Boyacá
+          </h2>
+          <div className="collage" role="list" aria-label="Fotos de Sáchica y Villa de Leyva">
+            <figure className="collage__item collage__item--ancha" role="listitem">
+              <img
+                className="collage__foto"
+                src="/img/casa-terracota.jpg"
+                alt="Casa de Terracota, Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="collage__leyenda">Casa de Terracota</figcaption>
+            </figure>
+            <figure className="collage__item collage__item--alta" role="listitem">
+              <img
+                className="collage__foto"
+                src="/img/balcones.jpg"
+                alt="Balcones coloniales, Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="collage__leyenda">Balcones coloniales</figcaption>
+            </figure>
+            <figure className="collage__item" role="listitem">
+              <img
+                className="collage__foto"
+                src="/img/desierto.jpg"
+                alt="Atardecer en el desierto de Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="collage__leyenda">Desierto de la Candelaria</figcaption>
+            </figure>
+            <figure className="collage__item collage__item--alta" role="listitem">
+              <img
+                className="collage__foto"
+                src="/img/calles.jpg"
+                alt="Calles empedradas, Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="collage__leyenda">Calles empedradas</figcaption>
+            </figure>
+            <figure className="collage__item" role="listitem">
+              <img
+                className="collage__foto"
+                src="/img/cruz-sachica.jpg"
+                alt="Cruz atrial de Sáchica, Boyacá"
+                loading="lazy"
+              />
+              <figcaption className="collage__leyenda">Sáchica colonial</figcaption>
+            </figure>
+            <figure className="collage__item collage__item--ancha" role="listitem">
+              <img
+                className="collage__foto"
+                src="/img/cascada.jpg"
+                alt="Cascada La Periquera, Villa de Leyva"
+                loading="lazy"
+              />
+              <figcaption className="collage__leyenda">Cascada La Periquera</figcaption>
+            </figure>
+          </div>
+          <p className="campo__ayuda">
+            Fotografías:{' '}
+            <a href="https://commons.wikimedia.org/wiki/File:Casa_de_Terracota.jpg">Terracota ©
+            amontero89</a>
+            {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Balcones_de_Villa_de_Leyva.jpg">
+            Balcones © Adrián Salazar Garelli</a>
+            {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Atardecer_desierto_Villa_de_Leyva.JPG">
+            Desierto © Petruss</a>
+            {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Calles_Villa_Leyva.JPG">Calles ©
+            MatthRomero</a>
+            {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Cruz_Atrial_de_S%C3%A1chica.jpg">
+            Sáchica</a>
+            {', '}
+            <a href="https://commons.wikimedia.org/wiki/File:Cascada_La_Periquera_-_panoramio.jpg">
+            Cascada © diego_cue</a>
+            {' '}vía Wikimedia Commons (CC BY-SA).
+          </p>
+        </section>
+      </div>
+
+      {venta === false ? null : (
+      <div className="centrado">
+        <section className="seccion" aria-labelledby="titulo-pasos">
+          <h2 id="titulo-pasos" className="seccion__titulo">
+            Reservar es así de simple
+          </h2>
+          <ol className="pasos">
+            <li className="paso">
+              <span className="paso__numero" aria-hidden="true">1</span>
+              <div>
+                <strong>Elige tus fechas</strong>
+                <span> Dinos tu llegada, tu salida y tus huéspedes: te mostramos precio final, sin letra pequeña.</span>
+              </div>
+            </li>
+            <li className="paso">
+              <span className="paso__numero" aria-hidden="true">2</span>
+              <div>
+                <strong>Confirma con tus datos</strong>
+                <span> Nombre y correo: con eso nace tu reserva y tu código de consulta.</span>
+              </div>
+            </li>
+            <li className="paso">
+              <span className="paso__numero" aria-hidden="true">3</span>
+              <div>
+                <strong>Gestiona a tu manera</strong>
+                <span> Consulta o cancela con tu código, o entra con Google y ve tus reservas.</span>
+              </div>
+            </li>
+          </ol>
+        </section>
+      </div>
+      )}
+
+      {mapa !== null &&
+      (mapa.hotel.ubicado || mapa.lugares.length > 0) ? (
+        <div className="centrado">
+          <section className="seccion" aria-labelledby="titulo-mapa">
+            <h2 id="titulo-mapa" className="seccion__titulo">
+              Encuéntranos y explora
+            </h2>
+            {mapa.hotel.ubicado &&
+            mapa.hotel.latitud !== undefined &&
+            mapa.hotel.longitud !== undefined ? (
+              <div className="mapa">
+                <p className="mapa__nota">
+                  La distancia es en línea recta; «Cómo llegar» abre la ruta real.
+                </p>
+                <iframe
+                  className="mapa__marco"
+                  title={`Mapa de ${nombreHotel}`}
+                  loading="lazy"
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${
+                    mapa.hotel.longitud - 0.03
+                  }%2C${mapa.hotel.latitud - 0.02}%2C${mapa.hotel.longitud + 0.03}%2C${
+                    mapa.hotel.latitud + 0.02
+                  }&layer=mapnik&marker=${mapa.hotel.latitud}%2C${mapa.hotel.longitud}`}
+                />
+                <ul className="mapa__lugares">
+                  {mapa.lugares.map((lugar) => (
+                    <li key={lugar.id} className="mapa__lugar">
+                      <div>
+                        <strong>{lugar.nombre}</strong>
+                        {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
+                        <span className="mapa__distancia">
+                          {' '}
+                          a {formatearDistancia(
+                            distanciaMetros(
+                              mapa.hotel.latitud ?? 0,
+                              mapa.hotel.longitud ?? 0,
+                              lugar.latitud,
+                              lugar.longitud,
+                            ),
+                          )}
+                        </span>
+                      </div>
+                      <a
+                        className="boton boton--fantasma boton--chico"
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${lugar.latitud},${lugar.longitud}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Cómo llegar
+                      </a>
+                    </li>
+                  ))}
+                  {mapa.lugares.length === 0 ? (
+                    <li className="campo__ayuda">
+                      El hotel ya marcó su punto; los sitios cercanos aparecen aquí cuando los
+                      agregue.
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+            ) : (
+              <ul className="mapa__lugares">
+                {mapa.lugares.map((lugar) => (
+                  <li key={lugar.id} className="mapa__lugar">
+                    <div>
+                      <strong>{lugar.nombre}</strong>
+                      {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      ) : null}
+
+
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { fechaCorta, hoyIso, monto as montoCompartido } from '../api/formato';
 import { PaginaMisReservas } from './PaginaMisReservas';
 
 /**
@@ -116,7 +117,60 @@ async function montar() {
   });
 }
 
+describe('resumen de mis reservas', () => {
+  it('muestra las fechas y los importes con el formato compartido del sitio', async () => {
+    sembrar();
+    await montar();
+
+    expect(screen.getByText(fechaCorta('2030-06-10'))).toBeTruthy();
+    expect(screen.getByText(fechaCorta('2030-06-12'))).toBeTruthy();
+    expect(screen.queryByText('2030-06-10')).toBeNull();
+
+    const fila = screen.getByText('H-MIA1').closest('tr');
+    expect(fila?.textContent).toContain(montoCompartido(300000, 'COP'));
+  });
+});
+
 describe('cambio de fechas propio', () => {
+  it('abre los campos con las fechas que ya tiene la reserva', async () => {
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar fechas' }));
+
+    expect((screen.getByLabelText('Nueva llegada') as HTMLInputElement).value).toBe('2030-06-10');
+    expect((screen.getByLabelText('Nueva salida') as HTMLInputElement).value).toBe('2030-06-12');
+  });
+
+  it('impide elegir una llegada pasada o una salida igual o anterior a la llegada', async () => {
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar fechas' }));
+
+    const llegada = screen.getByLabelText('Nueva llegada') as HTMLInputElement;
+    const salida = screen.getByLabelText('Nueva salida') as HTMLInputElement;
+    expect(llegada.min).toBe(hoyIso());
+    expect(salida.min).toBe('2030-06-11');
+
+    fireEvent.change(llegada, { target: { value: '2030-06-15' } });
+    expect(salida.min).toBe('2030-06-16');
+  });
+
+  it('explica que las fechas nuevas se guardan con las tarifas vigentes', async () => {
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar fechas' }));
+
+    expect(screen.getByText('El precio total se recalcula con las tarifas vigentes para las fechas nuevas.')).toBeTruthy();
+  });
+
+  it('lleva el foco a la fecha de llegada al abrir el formulario', async () => {
+    sembrar();
+    await montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar fechas' }));
+
+    expect(document.activeElement).toBe(screen.getByLabelText('Nueva llegada'));
+  });
+
   it('mueve las fechas y refresca la fila con lo guardado', async () => {
     sembrar();
     await montar();
@@ -138,7 +192,7 @@ describe('cambio de fechas propio', () => {
       salida: '2030-06-15',
     });
     await waitFor(() => {
-      expect(screen.queryByText('2030-06-13')).not.toBeNull();
+      expect(screen.queryByText(fechaCorta('2030-06-13'))).not.toBeNull();
     });
   });
 
@@ -158,7 +212,7 @@ describe('cambio de fechas propio', () => {
     await waitFor(() => {
       expect(screen.queryByText(/esas fechas no están libres/)).not.toBeNull();
     });
-    expect(screen.queryByText('2030-06-10')).not.toBeNull();
+    expect(screen.queryByText(fechaCorta('2030-06-10'))).not.toBeNull();
   });
 });
 
