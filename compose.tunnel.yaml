@@ -116,6 +116,18 @@ services:
       - ./tools/operacion:/sondeo:ro
     restart: unless-stopped
 
+  # Simulacro semanal: integrity_check + esquema + tablas sobre copia temporal del
+  # respaldo más reciente. Lee /backups en solo lectura (la copia vive en /tmp) y
+  # grita al log si algo no cuadra. Arranca corriendo una vez al desplegar.
+  simulacro:
+    build: ./tools/operacion
+    command: ["/usr/local/bin/programar-simulacro.sh"]
+    environment:
+      SIMULACRO_INTERVAL_SECONDS: ${SIMULACRO_INTERVAL_SECONDS:-604800}
+    volumes:
+      - hotel-backups:/backups:ro
+    restart: unless-stopped
+
 volumes:
   hotel-data:
   hotel-backups:

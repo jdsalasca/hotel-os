@@ -121,6 +121,10 @@ try {
 if (tunel) {
   comprobar(new RegExp(`^  vigia:`, 'm').test(tunel),
     'compose.tunnel.yaml define el servicio vigia (sondeo OAuth diario)');
+  // Simulacro semanal: la integridad solo se sabe pasándole integrity_check de verdad;
+  // si nadie lo corre en prod, la corrupción se descubre el día del desastre.
+  comprobar(new RegExp(`^  simulacro:`, 'm').test(tunel),
+    'compose.tunnel.yaml define el servicio simulacro (drill semanal de restauración)');
 }
 
 // 5. Base SEO/compartir: sin robots.txt el SPA contesta su index.html a los
