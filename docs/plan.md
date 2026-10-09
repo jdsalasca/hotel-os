@@ -602,6 +602,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   repinta la cabecera montada). Ahora recarga como entrar/salir; probado en
   vivo hasta el logout. 94/94, captura. Evidencia:
   `docs/evidence/round-160/verificacion.md`.
+- [x] **Ronda 161 - Origen y movimientos con su nombre.** El comprobante rotulaba
+  "Estado" a origen+historial (el estado ya sale en la etiqueta). Split en dos
+  filas; E2E del dinero completo en stack local (reserva H-F469608A) + captura.
+  95/95. Evidencia: `docs/evidence/round-161/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»

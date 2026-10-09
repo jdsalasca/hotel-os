@@ -149,3 +149,23 @@ describe('correo de la sesión en la consulta', () => {
     expect(document.querySelector('form.ancho-formulario.no-imprimir')).not.toBeNull();
   });
 });
+
+describe('origen del comprobante', () => {
+  it('el origen y los movimientos llevan su nombre, no el de Estado', async () => {
+    sesion({});
+    await montar();
+    fireEvent.change(screen.getByLabelText('Código de reserva'), {
+      target: { value: 'H-ABC123' },
+    });
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'yo@hotel.test' },
+    });
+    fireEvent.click(screen.getByText('Consultar reserva'));
+    await screen.findByText('Imprimir comprobante');
+    const ficha = document.querySelector('.comprobante')?.textContent ?? '';
+    expect(ficha).toContain('Origen');
+    expect(ficha).toContain('Reserva creada desde WEB');
+    expect(ficha).toContain('Movimientos');
+    expect(screen.queryByText('Estado')).toBeNull();
+  });
+});
