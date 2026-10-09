@@ -127,6 +127,20 @@ if (tunel) {
     'compose.tunnel.yaml define el servicio simulacro (drill semanal de restauración)');
 }
 
+// 6. Caché HTTP con criterio: los assets llevan hash en el nombre (inmutables un año)
+// y el HTML de entrada se revalida siempre (si no, cada deploy tarda horas en verse,
+// ver ronda 162). Sin esto, nginx no envía Cache-Control y manda el azar del borde.
+if (dockerfile) {
+  const config = dockerfile
+    .split('\n')
+    .filter((linea) => !linea.trimStart().startsWith('#'))
+    .join('\n');
+  comprobar(config.includes('location /assets/') && config.includes('max-age=31536000'),
+    'nginx cachea /assets/ un año (llevan hash, son inmutables)');
+  comprobar(config.includes('location = /index.html') && config.includes('"no-cache"'),
+    'nginx revalida /index.html siempre (el deploy se ve al recargar)');
+}
+
 // 5. Base SEO/compartir: sin robots.txt el SPA contesta su index.html a los
 // rastreadores, y sin OG el enlace compartido sale pelado (ver round-144).
 let robots = '';

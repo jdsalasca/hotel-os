@@ -87,6 +87,28 @@ server {
   # Esta sí estaba en el Caddy y en Vercel, pero faltaba aquí: el hotel no necesita cámara ni
   # micrófono, y decirlo de más no cuesta nada.
   add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  # Caché con criterio (ronda 162). Los assets llevan hash en el nombre: inmutables un
+  # año, el navegador ni revalida. OJO con nginx: en cuanto un location lleva add_header,
+  # OLVIDA los del nivel server para esa ruta; por eso aquí se repiten los de seguridad.
+  location /assets/ {
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src https://www.openstreetmap.org; img-src 'self' data:; font-src 'self'; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self'; form-action 'self'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  }
+
+  # El HTML de entrada se revalida siempre: si no, cada deploy tarda horas en verse
+  # (el borde lo cachea por defecto). Misma herencia que arriba: se repiten.
+  location = /index.html {
+    add_header Cache-Control "no-cache" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src https://www.openstreetmap.org; img-src 'self' data:; font-src 'self'; style-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self'; form-action 'self'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  }
 }
 EOF
 EXPOSE 80
