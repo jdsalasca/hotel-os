@@ -356,6 +356,254 @@ export function PaginaAdminInventario() {
     (noche) => noche.estado === 'MANTENIMIENTO' || noche.estado === 'FUERA_DE_SERVICIO',
   ).length;
 
+  const inventarioIncompleto =
+    habitaciones !== null &&
+    tipos !== null &&
+    planes !== null &&
+    (habitaciones.length === 0 || tipos.length === 0 || planes.length === 0);
+  const altaGuiada = (
+    <section id="alta-guiada" className="asistente mt-e6" aria-label="Alta guiada del inventario">
+      <h2 className="t-xl">Alta del hotel, paso a paso</h2>
+      <p className="seccion__intro mb-0">
+        Primero el tipo, luego sus habitaciones y servicios, y al final el plan con el que se
+        venden. Sin plan y sin precios, la web no muestra habitaciones.
+      </p>
+      <ol className="asistente__progreso">
+        {PASOS.map((p) => (
+          <li key={p.n}>
+            <button
+              type="button"
+              className={`asistente__paso${p.n === paso ? ' asistente__paso--actual' : ''}`}
+              aria-current={p.n === paso ? 'step' : undefined}
+              disabled={p.deshabilitado}
+              title={p.deshabilitado ? 'Primero crea un tipo de habitación' : undefined}
+              onClick={() => setPaso(p.n)}
+            >
+              <span aria-hidden="true" className="asistente__numero">{p.n}</span> {p.titulo}
+            </button>
+          </li>
+        ))}
+      </ol>
+      <h3 ref={tituloPaso} tabIndex={-1} className="t-lg">
+        Paso {paso}: {PASOS[paso - 1]?.titulo}
+      </h3>
+      {paso === 1 ? (
+      <form
+        className="tarjeta pila"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void accion(() =>
+            api.post('/api/admin/tipos', {
+              codigo: nuevoTipo.codigo,
+              nombre: nuevoTipo.nombre,
+              capacidadMax: Number(nuevoTipo.capacidadMax),
+            }),
+          );
+        }}
+      >
+        <h2 className="t-lg mb-0">Nuevo tipo de habitación</h2>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="tipo-codigo">Código</label>
+          <input id="tipo-codigo" required value={nuevoTipo.codigo} onChange={(e) => setNuevoTipo({ ...nuevoTipo, codigo: e.target.value })} />
+        </div>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="tipo-nombre">Nombre</label>
+          <input id="tipo-nombre" required value={nuevoTipo.nombre} onChange={(e) => setNuevoTipo({ ...nuevoTipo, nombre: e.target.value })} />
+        </div>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="tipo-capacidad">Capacidad máxima</label>
+          <input
+            id="tipo-capacidad"
+            type="number"
+            min={1}
+            required
+            value={nuevoTipo.capacidadMax}
+            onChange={(e) => setNuevoTipo({ ...nuevoTipo, capacidadMax: Number(e.target.value) })}
+          />
+        </div>
+        <button className="boton boton--primario" type="submit">Crear tipo</button>
+      </form>
+      ) : null}
+      {paso === 2 ? (
+      <form
+        className="tarjeta pila"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void accion(() =>
+            api.post('/api/admin/habitaciones', {
+              codigo: nuevaHabitacion.codigo,
+              roomTypeId: Number(nuevaHabitacion.roomTypeId),
+              nombre: nuevaHabitacion.nombre,
+            }),
+          );
+        }}
+      >
+        <h2 className="t-lg mb-0">Nueva habitación</h2>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="hab-codigo">Código</label>
+          <input id="hab-codigo" required className="cifra" value={nuevaHabitacion.codigo} onChange={(e) => setNuevaHabitacion({ ...nuevaHabitacion, codigo: e.target.value })} />
+        </div>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="hab-tipo">Tipo</label>
+          <select
+            id="hab-tipo"
+            required
+            value={nuevaHabitacion.roomTypeId}
+            onChange={(e) => setNuevaHabitacion({ ...nuevaHabitacion, roomTypeId: e.target.value })}
+          >
+            <option value="">Selecciona un tipo</option>
+            {tipos?.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nombre} (máx. {t.capacidadMax})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="hab-nombre">Nombre</label>
+          <input id="hab-nombre" value={nuevaHabitacion.nombre} onChange={(e) => setNuevaHabitacion({ ...nuevaHabitacion, nombre: e.target.value })} />
+        </div>
+        <button className="boton boton--primario" type="submit" disabled={!nuevaHabitacion.roomTypeId}>
+          Crear habitación
+        </button>
+      </form>
+      ) : null}
+      {paso === 3 ? (
+      <form
+        className="tarjeta pila"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!tipoServicios) return;
+          void accion(() =>
+            api.put(`/api/admin/tipos/${tipoServicios}/amenidades`, { ids: marcados }),
+          );
+        }}
+      >
+        <h2 className="t-lg mb-0">Servicios del tipo</h2>
+        <p className="campo__ayuda sin-margen">
+          Marca lo que tiene cada tipo: la web lo muestra en cada oferta.
+        </p>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="serv-tipo">Tipo</label>
+          <select
+            id="serv-tipo"
+            value={tipoServicios}
+            onChange={(e) => void elegirTipoServicios(e.target.value)}
+          >
+            <option value="">Selecciona un tipo</option>
+            {tipos?.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        {catalogoServicios === null ? <p className="cargando">Cargando servicios…</p> : null}
+        {catalogoServicios !== null && tipoServicios ? (
+          <fieldset className="grupo-chequeos">
+            <legend className="campo__etiqueta">Servicios incluidos</legend>
+            {catalogoServicios.map((a) => (
+              <label key={a.id} className="chequeo">
+                <input
+                  type="checkbox"
+                  checked={marcados.includes(a.id)}
+                  onChange={() => alternarServicio(a.id)}
+                />
+                {a.nombre}
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
+        <button className="boton boton--primario" type="submit" disabled={!tipoServicios}>
+          Guardar servicios
+        </button>
+      </form>
+      ) : null}
+      {paso === 4 ? (
+      <form
+        className="tarjeta pila"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void accion(() =>
+            api.post('/api/admin/planes', {
+              codigo: nuevoPlan.codigo,
+              nombre: nuevoPlan.nombre,
+              moneda: nuevoPlan.moneda,
+              descuentoPct: nuevoPlan.descuentoPct === '' ? null : Number(nuevoPlan.descuentoPct),
+            }),
+          );
+        }}
+      >
+        <h2 className="t-lg mb-0">Nuevo plan tarifario</h2>
+        <p className="campo__ayuda sin-margen">
+          Un plan agrupa precios. Sin plan y sin precios, la web no muestra habitaciones.
+        </p>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="plan-codigo">Código</label>
+          <input id="plan-codigo" required value={nuevoPlan.codigo} onChange={(e) => setNuevoPlan({ ...nuevoPlan, codigo: e.target.value.toUpperCase() })} />
+        </div>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="plan-nombre">Nombre</label>
+          <input id="plan-nombre" required value={nuevoPlan.nombre} onChange={(e) => setNuevoPlan({ ...nuevoPlan, nombre: e.target.value })} />
+        </div>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="plan-moneda">Moneda</label>
+          <select
+            id="plan-moneda"
+            required
+            value={nuevoPlan.moneda}
+            onChange={(e) => setNuevoPlan({ ...nuevoPlan, moneda: e.target.value })}
+          >
+            {MONEDAS.map((m) => (
+              <option key={m.codigo} value={m.codigo}>
+                {m.codigo} — {m.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="campo">
+          <label className="campo__etiqueta" htmlFor="plan-descuento">Descuento % (opcional)</label>
+          <input
+            id="plan-descuento"
+            type="number"
+            min={0}
+            max={100}
+            placeholder="0"
+            value={nuevoPlan.descuentoPct}
+            onChange={(e) => setNuevoPlan({ ...nuevoPlan, descuentoPct: e.target.value })}
+          />
+        </div>
+        <button className="boton boton--primario" type="submit">Crear plan</button>
+      </form>
+      ) : null}
+      <div className="asistente__navegacion">
+        <button
+          className="boton boton--secundario"
+          type="button"
+          disabled={paso === 1}
+          onClick={() => setPaso(paso - 1)}
+        >
+          Anterior
+        </button>
+        {paso < 4 ? (
+          <button
+            className="boton boton--primario"
+            type="button"
+            disabled={!puedeAvanzar}
+            title={!puedeAvanzar ? 'Primero crea un tipo de habitación' : undefined}
+            onClick={() => setPaso(paso + 1)}
+          >
+            Siguiente
+          </button>
+        ) : (
+          <span className="campo__ayuda sin-margen">
+            Con el plan creado, fija sus precios por noche más abajo.
+          </span>
+        )}
+      </div>
+    </section>
+  );
+
   return (
     <main id="contenido" className="centrado">
       <section className="seccion">
@@ -367,6 +615,8 @@ export function PaginaAdminInventario() {
 
         {error ? <MensajeError texto={error} /> : null}
         {cargando ? <Cargando /> : null}
+
+        {inventarioIncompleto ? altaGuiada : null}
 
         <div className="campo ancho-campo mb-e5">
           <label className="campo__etiqueta" htmlFor="mes-inv">Mes</label>
@@ -513,250 +763,13 @@ export function PaginaAdminInventario() {
         ) : (
           <p className="campo__ayuda">
             No hay habitaciones registradas todavía.{' '}
-            <a href="#alta-guiada">Créalas con el alta guiada de abajo</a>.
+            <a href="#alta-guiada">{inventarioIncompleto ? 'Créalas con el alta guiada de arriba' : 'Créalas con el alta guiada de abajo'}</a>.
           </p>
         )}
 
-        <section id="alta-guiada" className="asistente mt-e6" aria-label="Alta guiada del inventario">
-          <h2 className="t-xl">Alta del hotel, paso a paso</h2>
-          <p className="seccion__intro mb-0">
-            Primero el tipo, luego sus habitaciones y servicios, y al final el plan con el que se
-            venden. Sin plan y sin precios, la web no muestra habitaciones.
-          </p>
-          <ol className="asistente__progreso">
-            {PASOS.map((p) => (
-              <li key={p.n}>
-                <button
-                  type="button"
-                  className={`asistente__paso${p.n === paso ? ' asistente__paso--actual' : ''}`}
-                  aria-current={p.n === paso ? 'step' : undefined}
-                  disabled={p.deshabilitado}
-                  title={p.deshabilitado ? 'Primero crea un tipo de habitación' : undefined}
-                  onClick={() => setPaso(p.n)}
-                >
-                  <span aria-hidden="true" className="asistente__numero">{p.n}</span> {p.titulo}
-                </button>
-              </li>
-            ))}
-          </ol>
-          <h3 ref={tituloPaso} tabIndex={-1} className="t-lg">
-            Paso {paso}: {PASOS[paso - 1]?.titulo}
-          </h3>
-          {paso === 1 ? (
-          <form
-            className="tarjeta pila"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void accion(() =>
-                api.post('/api/admin/tipos', {
-                  codigo: nuevoTipo.codigo,
-                  nombre: nuevoTipo.nombre,
-                  capacidadMax: Number(nuevoTipo.capacidadMax),
-                }),
-              );
-            }}
-          >
-            <h2 className="t-lg mb-0">Nuevo tipo de habitación</h2>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="tipo-codigo">Código</label>
-              <input id="tipo-codigo" required value={nuevoTipo.codigo} onChange={(e) => setNuevoTipo({ ...nuevoTipo, codigo: e.target.value })} />
-            </div>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="tipo-nombre">Nombre</label>
-              <input id="tipo-nombre" required value={nuevoTipo.nombre} onChange={(e) => setNuevoTipo({ ...nuevoTipo, nombre: e.target.value })} />
-            </div>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="tipo-capacidad">Capacidad máxima</label>
-              <input
-                id="tipo-capacidad"
-                type="number"
-                min={1}
-                required
-                value={nuevoTipo.capacidadMax}
-                onChange={(e) => setNuevoTipo({ ...nuevoTipo, capacidadMax: Number(e.target.value) })}
-              />
-            </div>
-            <button className="boton boton--primario" type="submit">Crear tipo</button>
-          </form>
-          ) : null}
-          {paso === 2 ? (
-          <form
-            className="tarjeta pila"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void accion(() =>
-                api.post('/api/admin/habitaciones', {
-                  codigo: nuevaHabitacion.codigo,
-                  roomTypeId: Number(nuevaHabitacion.roomTypeId),
-                  nombre: nuevaHabitacion.nombre,
-                }),
-              );
-            }}
-          >
-            <h2 className="t-lg mb-0">Nueva habitación</h2>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="hab-codigo">Código</label>
-              <input id="hab-codigo" required className="cifra" value={nuevaHabitacion.codigo} onChange={(e) => setNuevaHabitacion({ ...nuevaHabitacion, codigo: e.target.value })} />
-            </div>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="hab-tipo">Tipo</label>
-              <select
-                id="hab-tipo"
-                required
-                value={nuevaHabitacion.roomTypeId}
-                onChange={(e) => setNuevaHabitacion({ ...nuevaHabitacion, roomTypeId: e.target.value })}
-              >
-                <option value="">Selecciona un tipo</option>
-                {tipos?.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre} (máx. {t.capacidadMax})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="hab-nombre">Nombre</label>
-              <input id="hab-nombre" value={nuevaHabitacion.nombre} onChange={(e) => setNuevaHabitacion({ ...nuevaHabitacion, nombre: e.target.value })} />
-            </div>
-            <button className="boton boton--primario" type="submit" disabled={!nuevaHabitacion.roomTypeId}>
-              Crear habitación
-            </button>
-          </form>
-          ) : null}
-          {paso === 3 ? (
-          <form
-            className="tarjeta pila"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!tipoServicios) return;
-              void accion(() =>
-                api.put(`/api/admin/tipos/${tipoServicios}/amenidades`, { ids: marcados }),
-              );
-            }}
-          >
-            <h2 className="t-lg mb-0">Servicios del tipo</h2>
-            <p className="campo__ayuda sin-margen">
-              Marca lo que tiene cada tipo: la web lo muestra en cada oferta.
-            </p>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="serv-tipo">Tipo</label>
-              <select
-                id="serv-tipo"
-                value={tipoServicios}
-                onChange={(e) => void elegirTipoServicios(e.target.value)}
-              >
-                <option value="">Selecciona un tipo</option>
-                {tipos?.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {catalogoServicios === null ? <p className="cargando">Cargando servicios…</p> : null}
-            {catalogoServicios !== null && tipoServicios ? (
-              <fieldset className="grupo-chequeos">
-                <legend className="campo__etiqueta">Servicios incluidos</legend>
-                {catalogoServicios.map((a) => (
-                  <label key={a.id} className="chequeo">
-                    <input
-                      type="checkbox"
-                      checked={marcados.includes(a.id)}
-                      onChange={() => alternarServicio(a.id)}
-                    />
-                    {a.nombre}
-                  </label>
-                ))}
-              </fieldset>
-            ) : null}
-            <button className="boton boton--primario" type="submit" disabled={!tipoServicios}>
-              Guardar servicios
-            </button>
-          </form>
-          ) : null}
-          {paso === 4 ? (
-          <form
-            className="tarjeta pila"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void accion(() =>
-                api.post('/api/admin/planes', {
-                  codigo: nuevoPlan.codigo,
-                  nombre: nuevoPlan.nombre,
-                  moneda: nuevoPlan.moneda,
-                  descuentoPct: nuevoPlan.descuentoPct === '' ? null : Number(nuevoPlan.descuentoPct),
-                }),
-              );
-            }}
-          >
-            <h2 className="t-lg mb-0">Nuevo plan tarifario</h2>
-            <p className="campo__ayuda sin-margen">
-              Un plan agrupa precios. Sin plan y sin precios, la web no muestra habitaciones.
-            </p>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="plan-codigo">Código</label>
-              <input id="plan-codigo" required value={nuevoPlan.codigo} onChange={(e) => setNuevoPlan({ ...nuevoPlan, codigo: e.target.value.toUpperCase() })} />
-            </div>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="plan-nombre">Nombre</label>
-              <input id="plan-nombre" required value={nuevoPlan.nombre} onChange={(e) => setNuevoPlan({ ...nuevoPlan, nombre: e.target.value })} />
-            </div>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="plan-moneda">Moneda</label>
-              <select
-                id="plan-moneda"
-                required
-                value={nuevoPlan.moneda}
-                onChange={(e) => setNuevoPlan({ ...nuevoPlan, moneda: e.target.value })}
-              >
-                {MONEDAS.map((m) => (
-                  <option key={m.codigo} value={m.codigo}>
-                    {m.codigo} — {m.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="campo">
-              <label className="campo__etiqueta" htmlFor="plan-descuento">Descuento % (opcional)</label>
-              <input
-                id="plan-descuento"
-                type="number"
-                min={0}
-                max={100}
-                placeholder="0"
-                value={nuevoPlan.descuentoPct}
-                onChange={(e) => setNuevoPlan({ ...nuevoPlan, descuentoPct: e.target.value })}
-              />
-            </div>
-            <button className="boton boton--primario" type="submit">Crear plan</button>
-          </form>
-          ) : null}
-          <div className="asistente__navegacion">
-            <button
-              className="boton boton--secundario"
-              type="button"
-              disabled={paso === 1}
-              onClick={() => setPaso(paso - 1)}
-            >
-              Anterior
-            </button>
-            {paso < 4 ? (
-              <button
-                className="boton boton--primario"
-                type="button"
-                disabled={!puedeAvanzar}
-                title={!puedeAvanzar ? 'Primero crea un tipo de habitación' : undefined}
-                onClick={() => setPaso(paso + 1)}
-              >
-                Siguiente
-              </button>
-            ) : (
-              <span className="campo__ayuda sin-margen">
-                Con el plan creado, fija sus precios por noche más abajo.
-              </span>
-            )}
-          </div>
-        </section>
+
+
+        {!inventarioIncompleto ? altaGuiada : null}
 
         <div className="rejilla mt-e6">
           <form

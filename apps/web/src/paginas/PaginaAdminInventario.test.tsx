@@ -10,6 +10,7 @@ import { PaginaAdminInventario } from './PaginaAdminInventario';
  */
 const estado = vi.hoisted(() => ({
   diferidas: [] as { url: string; resolver: (v: unknown) => void }[],
+  habitaciones: [] as { id: number; codigo: string; roomTypeId: number; nombre: string; estado: string }[],
   // Solo el test del calendario retiene la tanda de carga; al resto le resuelve
   // al momento para poblar tipos y planes (Promise.all espera a las cinco).
   retenerCalendario: false,
@@ -35,7 +36,7 @@ vi.mock('../api/cliente', () => ({
         estado.diferidas.push({ url, resolver: d.resolver });
         return d.promesa;
       }
-      if (url === '/api/admin/habitaciones') return Promise.resolve([]);
+      if (url === '/api/admin/habitaciones') return Promise.resolve(estado.habitaciones);
       if (url === '/api/admin/tipos') {
         return Promise.resolve([
           { id: 1, codigo: 'DOB', nombre: 'Doble', capacidadMax: 2 },
@@ -86,6 +87,7 @@ function sesionConectada() {
 afterEach(() => {
   cleanup();
   estado.diferidas.length = 0;
+  estado.habitaciones = [];
   estado.retenerCalendario = false;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -104,6 +106,33 @@ async function montar() {
     expect(screen.getByLabelText('Plan', { selector: '#tar-plan' })).toBeTruthy();
   });
 }
+
+describe('prioridad del alta inicial del inventario', () => {
+  it('muestra el asistente antes del calendario cuando aún no hay habitaciones', async () => {
+    await montar();
+    const encabezados = Array.from(document.querySelectorAll('h2')).map((h) => h.textContent?.trim());
+
+    expect(encabezados.indexOf('Alta del hotel, paso a paso')).toBeGreaterThanOrEqual(0);
+    expect(encabezados.indexOf('Alta del hotel, paso a paso')).toBeLessThan(
+      encabezados.indexOf('Calendario de ocupación'),
+    );
+    expect(screen.getByText(/Créalas con el alta guiada de arriba/)).toBeTruthy();
+  });
+
+  it('mantiene el calendario antes del asistente si ya hay tipos, habitación y plan', async () => {
+    estado.habitaciones = [
+      { id: 1, codigo: '101', roomTypeId: 1, nombre: 'Principal', estado: 'ACTIVA' },
+    ];
+    await montar();
+    const encabezados = Array.from(document.querySelectorAll('h2')).map((h) => h.textContent?.trim());
+
+    expect(encabezados.indexOf('Calendario de ocupación')).toBeGreaterThanOrEqual(0);
+    expect(encabezados.indexOf('Calendario de ocupación')).toBeLessThan(
+      encabezados.indexOf('Alta del hotel, paso a paso'),
+    );
+    expect(screen.getAllByText('101').length).toBeGreaterThanOrEqual(1);
+  });
+});
 
 function plan(value: string) {
   fireEvent.change(screen.getByLabelText('Plan', { selector: '#tar-plan' }), {
