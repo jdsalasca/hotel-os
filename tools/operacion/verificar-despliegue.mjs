@@ -125,6 +125,14 @@ if (tunel) {
   // si nadie lo corre en prod, la corrupción se descubre el día del desastre.
   comprobar(new RegExp(`^  simulacro:`, 'm').test(tunel),
     'compose.tunnel.yaml define el servicio simulacro (drill semanal de restauración)');
+  // Rotación de logs: el driver json-file crece sin fin por defecto; un api verboso
+  // más meses de uptime llenan el disco del mini PC (ver ronda 165).
+  const bloques = tunel.split(/^\s{2}(?=[a-z-]+:\s*$)/m);
+  for (const servicio of ['api', 'web', 'respaldo', 'vigia', 'simulacro']) {
+    const bloque = bloques.find((b) => b.startsWith(`${servicio}:`));
+    comprobar(!!bloque && bloque.includes('max-size:'),
+      `compose.tunnel.yaml rota logs de ${servicio}`);
+  }
 }
 
 // 6. Caché HTTP con criterio: los assets llevan hash en el nombre (inmutables un año)

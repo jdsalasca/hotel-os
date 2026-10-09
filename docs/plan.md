@@ -618,6 +618,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   Imprimir + enlace wa.me con código y fechas (reusa `enlaceWhatsApp`); sin
   teléfono no hay enlace. 4/4, suite 97/97. Evidencia:
   `docs/evidence/round-164/verificacion.md`.
+- [x] **Ronda 165 - Rotación de logs en prod.** Los 5 servicios con `max-size
+  10m × max-file 3` (el json-file crece sin fin; disco al 22% pero prevenido) +
+  prune de imágenes huérfanas. El verificador lo exige. Evidencia:
+  `docs/evidence/round-165/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»
