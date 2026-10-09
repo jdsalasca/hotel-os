@@ -715,6 +715,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    distancia en línea recta, solo aparece con el hotel ubicado y el enlace queda entero
    en móvil. Evidencia:
    `docs/evidence/round-178/verificacion.md`.
+- [x] **Ronda 179 - El menú móvil se cierra con Escape.** Al cerrar desde el teclado,
+   devuelve el foco al botón del menú para no dejarlo dentro de una navegación oculta.
+   Evidencia: `docs/evidence/round-179/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
    (hoy, si el hotel cambia la política, quien vuelva ve la nueva). Lint frontend exige
    tocar `package-lock.json` y choca con la instalación en paralelo. Modo claro/oscuro lo

@@ -1,5 +1,5 @@
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from './api/cliente';
 import { useSesion } from './api/useSesion';
 import { useSesionHuesped } from './api/useSesionHuesped';
@@ -116,6 +116,7 @@ export function App() {
   const ruta = useLocation().pathname;
   const enPanel = ruta.startsWith('/admin');
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const botonMenuRef = useRef<HTMLButtonElement | null>(null);
   const [hotel, setHotel] = useState<Record<string, string> | null>(null);
   // El pie solo ofrece el mapa del panel a quien ya entró: al visitante le sobran
   // siete enlaces a puertas con candado (ahora llegan a PuertaAdmin, pero igual
@@ -145,7 +146,15 @@ export function App() {
       </a>
       <VolverArribaAlNavegar />
 
-      <header className="cabecera no-imprimir">
+      <header
+        className="cabecera no-imprimir"
+        onKeyDown={(evento) => {
+          if (evento.key !== 'Escape' || !menuAbierto) return;
+          evento.preventDefault();
+          setMenuAbierto(false);
+          botonMenuRef.current?.focus();
+        }}
+      >
         <div className="cabecera__interna">
           <NavLink to="/" className="cabecera__marca">
             <img src="/icono-hotel.svg" alt="" width={28} height={28} className="cabecera__logo" />
@@ -154,6 +163,7 @@ export function App() {
           <button
             type="button"
             className="cabecera__menu"
+            ref={botonMenuRef}
             aria-controls="navegacion-principal"
             aria-expanded={menuAbierto}
             aria-label={menuAbierto ? 'Cerrar menú principal' : 'Abrir menú principal'}
