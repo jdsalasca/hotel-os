@@ -683,8 +683,17 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   8. ~~Venta pausada sin callejones sin salida~~ — hecho en R170 (estado explicado,
      navegación a Mis reservas unificada, sin búsqueda ni calendario mientras está pausada).
      Evidencia: docs/evidence/round-170/verificacion.md.
-- [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
-   siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
+- [x] **Ronda 172 - El auditor de accesibilidad arrancaba y cubria el panel.**
+  `tools/accesibilidad/auditar.mjs` no llegaba a medir ni una página: `networkidle` nunca
+  se cumple (la web mantiene conexiones) y `browser.newPage()` está prohibido por axe
+  (exige `newContext()`). Además solo miraba las 6 rutas públicas, nunca el panel. Ahora
+  cubre 12 rutas (6 públicas + 6 del panel) con login demo y su propia base: **0
+  violaciones WCAG A/AA, exit 0**. La app era accesible; lo roto era lo que lo medía.
+  Evidencia: `docs/evidence/round-172/verificacion.md`.
+- [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA,
+  copia externa) siguen bloqueados. El panel de recepción (check-in/out, no-show) lo
+  lleva otra agente en paralelo. Sin ellos: modo claro/oscuro (medido como no cerrable
+  en ronda chica) y lint frontend (requiere tocar `package-lock.json`).
 
 
 ## Criterios de aceptación, verificados con ejecución real
