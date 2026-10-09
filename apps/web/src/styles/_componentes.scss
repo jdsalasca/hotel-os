@@ -15,6 +15,7 @@
 // --- Botones ---
 .boton {
   @include boton-base;
+  text-decoration: none;
 
   &--primario {
     background: $teja;
@@ -743,6 +744,33 @@
     flex-wrap: wrap;
     gap: $e-3;
     margin-top: $e-4;
+  }
+
+  &__estado {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    margin: 0;
+    padding: $e-2 $e-3;
+    border: 1px solid rgba(251, 249, 245, 0.72);
+    border-radius: $radio-full;
+    background: rgba(42, 37, 31, 0.62);
+    color: #fff;
+    font-size: $texto-sm;
+    font-weight: $peso-fuerte;
+  }
+}
+
+.reserva-pausada {
+  max-width: 58rem;
+  margin-inline: auto;
+
+  &__contacto { margin-block: 0; }
+
+  &__acciones {
+    display: flex;
+    flex-wrap: wrap;
+    margin-block-start: $e-2;
   }
 }
 

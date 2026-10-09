@@ -30,10 +30,11 @@ describe('App', () => {
     );
     await screen.findByText('¿Cuándo quieres venir?');
     subir.mockClear();
-    fireEvent.click(screen.getByRole('link', { name: 'Consultar reserva' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Mis reservas' }));
     await waitFor(() => {
       expect(subir).toHaveBeenCalledWith(0, 0);
     });
+    expect(await screen.findByRole('heading', { name: 'Mis reservas' })).toBeTruthy();
   });
 
   it('abre la navegación compacta y la cierra después de elegir un destino', async () => {
@@ -61,13 +62,56 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú principal' }));
     expect(screen.getByRole('button', { name: 'Cerrar menú principal' }).getAttribute('aria-expanded')).toBe('true');
 
-    fireEvent.click(screen.getByRole('link', { name: 'Consultar reserva' }));
-    await screen.findByRole('heading', { name: 'Consultar una reserva' });
+    fireEvent.click(screen.getByRole('link', { name: 'Mis reservas' }));
+    await screen.findByRole('heading', { name: 'Mis reservas' });
+    expect(await screen.findByRole('link', { name: 'Entrar con Google' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Consultar una reserva sin entrar' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Abrir menú principal' }).getAttribute('aria-expanded')).toBe('false');
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú principal' }));
-    fireEvent.click(screen.getByRole('link', { name: 'Consultar reserva' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Mis reservas' }));
     expect(screen.getByRole('button', { name: 'Abrir menú principal' }).getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('usa un solo acceso del huésped y lo mantiene activo al consultar por código', async () => {
+    window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/hotel')) return new Response('{}', { status: 200 });
+      if (ruta.includes('/api/admin/sesion') || ruta.includes('/api/yo')) {
+        return new Response('{}', { status: 401 });
+      }
+      if (ruta.includes('/api/lugares')) return new Response('{"hotel":{},"lugares":[]}', { status: 200 });
+      if (ruta.includes('/api/hotel/venta')) return new Response('{"a_la_venta":true}', { status: 200 });
+      if (ruta.includes('/api/disponibilidad/calendario')) return new Response('{"dias":[]}', { status: 200 });
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findByText('¿Cuándo quieres venir?');
+    const nav = container.querySelector('header nav[aria-label="Navegación principal"]');
+    const enlacesHuesped = nav?.querySelectorAll('a[href="/mis-reservas"]');
+    expect(enlacesHuesped).toHaveLength(1);
+    expect(nav?.querySelector('a[href="/consulta"]')).toBeNull();
+
+    fireEvent.click(enlacesHuesped![0]!);
+    expect(await screen.findByRole('heading', { name: 'Mis reservas' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Entrar con Google' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Consultar una reserva sin entrar' })).toBeTruthy();
+
+    cleanup();
+    render(
+      <MemoryRouter initialEntries={['/consulta']}>
+        <App />
+      </MemoryRouter>,
+    );
+    const acceso = await screen.findByRole('link', { name: /Mis reservas/ });
+    expect(acceso.getAttribute('aria-current')).toBe('page');
+    expect(await screen.findByRole('heading', { name: 'Consultar una reserva' })).toBeTruthy();
   });
 
   it('muestra accesos del panel en lugar de mezclar las rutas públicas', async () => {

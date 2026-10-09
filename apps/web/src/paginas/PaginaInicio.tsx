@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, nuevaClaveIdempotencia } from '../api/cliente';
 import { fechaCorta, hoyIso, mananaIso, monto } from '../api/formato';
-import { Aviso, HuecoImagen, MensajeError, Vacio } from '../componentes/Estado';
+import { Aviso, HuecoImagen, MensajeError } from '../componentes/Estado';
 
 type Oferta = {
   habitacion: { id: number; codigo: string; nombre: string };
@@ -136,12 +136,30 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
    * si falla, tampoco se bloquea nada.
    */
   const [venta, setVenta] = useState<boolean | null>(null);
+  const [ventaComprobada, setVentaComprobada] = useState(false);
 
   useEffect(() => {
     void api
       .get<{ a_la_venta: boolean }>('/api/hotel/venta')
-      .then((r) => setVenta(r.a_la_venta !== false))
-      .catch(() => setVenta(null));
+      .then((r) => {
+        const disponible = r.a_la_venta !== false;
+        setVenta(disponible);
+        setCargandoCal(disponible);
+        if (!disponible) {
+          peticionBusqueda.current++;
+          setOfertas(null);
+          setBusqueda(null);
+          setBuscado(false);
+          setError(null);
+          setCargando(false);
+        }
+        setVentaComprobada(true);
+      })
+      .catch(() => {
+        setVenta(null);
+        setCargandoCal(true);
+        setVentaComprobada(true);
+      });
   }, []);
 
   /** Contacto público para el estado vacío: sin habitaciones, que al menos escriban. */
@@ -161,6 +179,13 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   // El calendario es una sola petición por mes: si el huésped cambia de mes o de huéspedes antes
   // de que vuelva, la respuesta vieja se ignora en vez de pintar otro mes.
   useEffect(() => {
+    if (!ventaComprobada || venta === false) {
+      peticionCal.current++;
+      setDias([]);
+      setErrorCal(null);
+      setCargandoCal(false);
+      return;
+    }
     if (!huespedes || huespedes < 1) {
       setDias([]);
       return;
@@ -182,9 +207,10 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       .finally(() => {
         if (peticionCal.current === id) setCargandoCal(false);
       });
-  }, [mes, huespedes]);
+  }, [mes, huespedes, venta, ventaComprobada]);
 
   async function buscarCon(llegadaIso: string, salidaIso: string, huespedesN: number) {
+    if (venta === false) return;
     // Como el calendario: si el huésped lanza otra búsqueda antes de que vuelva esta,
     // la tardía se ignora en vez de pintar el viaje anterior.
     const id = ++peticionBusqueda.current;
@@ -211,16 +237,22 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   }
 
   useEffect(() => {
+    if (!ventaComprobada) return;
     const anterior = restauracionPendiente.current;
     if (!anterior) return;
     restauracionPendiente.current = null;
+    if (venta === false) {
+      navegar('/', { replace: true, state: null });
+      return;
+    }
     void buscarCon(anterior.llegada, anterior.salida, anterior.huespedes);
     // Consumir el estado evita repetir la búsqueda si se refresca la página.
     navegar('/', { replace: true, state: null });
-  }, [navegar]);
+  }, [navegar, venta, ventaComprobada]);
 
   async function buscar(evento: React.FormEvent) {
     evento.preventDefault();
+    if (venta === false) return;
     if (fechasInvalidas) {
       document.getElementById(llegadaInvalida ? 'llegada' : 'salida')?.focus();
       return;
@@ -353,20 +385,63 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           <p className="portada__ojal">Sáchica · Villa de Leyva · Boyacá</p>
           <h1 className="portada__titulo">{nombreHotel}: reserva directa, sin intermediarios</h1>
           <p className="portada__texto">
-            Consulta la disponibilidad, reserva tus fechas y gestiona tu reserva con tu código o
-            tu cuenta de Google. Sin comisiones ni apps de terceros: lo que ves es lo que el
-            hotel configuró.
+            {venta === false
+              ? 'El hotel no está recibiendo nuevas reservas en línea por ahora. Si ya tienes una, puedes gestionarla con tu código o tu cuenta de Google.'
+              : 'Consulta la disponibilidad, reserva tus fechas y gestiona tu reserva con tu código o tu cuenta de Google. Sin comisiones ni apps de terceros: lo que ves es lo que el hotel configuró.'}
           </p>
           <p className="portada__acciones">
-            <a className="boton boton--primario" href="#titulo-buscar">
-              Ver disponibilidad
-            </a>{' '}
-            <a className="boton boton--secundario boton--claro" href="/consulta">
-              Consultar mi reserva
-            </a>
+            {venta === false ? (
+              <span className="portada__estado" role="status">Reservas en línea pausadas</span>
+            ) : (
+              <a className="boton boton--primario" href="#titulo-buscar">
+                Ver disponibilidad
+              </a>
+            )}{' '}
+            <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
+              Gestionar una reserva
+            </Link>
           </p>
         </div>
       </section>
+
+      {venta === false ? (
+        <div className="centrado">
+          <section className="seccion reserva-pausada" aria-labelledby="titulo-buscar">
+            <h2 id="titulo-buscar" className="seccion__titulo">
+              Reservas en línea pausadas
+            </h2>
+            <Aviso tono="aviso" titulo="No estamos tomando nuevas reservas en este momento">
+              <p>Vuelve a consultar más adelante; la búsqueda y el calendario no están disponibles mientras la venta esté pausada.</p>
+              {contacto && (contacto.email || contacto.telefono) ? (
+                <p className="reserva-pausada__contacto">
+                  {contacto.email ? (
+                    <>
+                      Escríbenos a{' '}
+                      <a href={`mailto:${contacto.email}`}>{contacto.email}</a>
+                    </>
+                  ) : null}
+                  {contacto.email && contacto.telefono ? ' o ' : null}
+                  {contacto.telefono ? (
+                    <>
+                      llámanos al{' '}
+                      <a href={`tel:${contacto.telefono.replace(/[\s-]/g, '')}`}>
+                        {contacto.telefono}
+                      </a>
+                    </>
+                  ) : null}
+                  .
+                </p>
+              ) : null}
+              <p>Si ya tienes una reserva, puedes entrar con Google o consultarla con su código y correo.</p>
+              <div className="reserva-pausada__acciones">
+                <Link className="boton boton--primario" to="/mis-reservas">
+                  Gestionar o consultar una reserva
+                </Link>
+              </div>
+            </Aviso>
+          </section>
+        </div>
+      ) : null}
 
       <div className="centrado">
         <section className="seccion" aria-labelledby="titulo-descubre">
@@ -453,6 +528,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
         </section>
       </div>
 
+      {venta === false ? null : (
       <div className="centrado">
         <section className="seccion" aria-labelledby="titulo-pasos">
           <h2 id="titulo-pasos" className="seccion__titulo">
@@ -483,6 +559,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           </ol>
         </section>
       </div>
+      )}
 
       {mapa !== null &&
       (mapa.hotel.ubicado || mapa.lugares.length > 0) ? (
@@ -556,6 +633,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
         </div>
       ) : null}
 
+      {venta === false ? null : (
       <div className="centrado">
         <section className="seccion" aria-labelledby="titulo-buscar">
           <h2 id="titulo-buscar" className="seccion__titulo">
@@ -623,15 +701,10 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
               <button
                 className="boton boton--primario"
                 type="submit"
-                disabled={cargando || !llegada || !salida || venta === false}
+                disabled={cargando || !llegada || !salida}
               >
                 {cargando ? 'Buscando…' : 'Buscar disponibilidad'}
               </button>
-              {venta === false ? (
-                <p className="campo__ayuda">
-                  Sin habitaciones publicadas: la búsqueda no traerá nada todavía.
-                </p>
-              ) : null}
             </div>
           </form>
         </section>
@@ -667,39 +740,11 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           </div>
 
           {errorCal ? <MensajeError texto={errorCal} /> : null}
-          {cargandoCal ? <p className="cargando" role="status">Cargando el mes…</p> : null}
-
-          {venta === false && !errorCal ? (
-            <>
-              <Vacio
-                titulo="Este hotel aún no publica habitaciones"
-                detalle="Estamos preparando el inventario: vuelve pronto."
-              />
-              {contacto && (contacto.email || contacto.telefono) ? (
-                <p className="campo__ayuda">
-                  Mientras tanto,{' '}
-                  {contacto.email ? (
-                    <>
-                      escríbenos a{' '}
-                      <a href={`mailto:${contacto.email}`}>{contacto.email}</a>
-                    </>
-                  ) : null}
-                  {contacto.email && contacto.telefono ? ' o ' : null}
-                  {contacto.telefono ? (
-                    <>
-                      llámanos al{' '}
-                      <a href={`tel:${contacto.telefono.replace(/[\s-]/g, '')}`}>
-                        {contacto.telefono}
-                      </a>
-                    </>
-                  ) : null}
-                  .
-                </p>
-              ) : null}
-            </>
+          {cargandoCal || !ventaComprobada ? (
+            <p className="cargando" role="status">Comprobando disponibilidad…</p>
           ) : null}
 
-          {venta !== false && !cargandoCal && !errorCal ? (
+          {ventaComprobada && !cargandoCal && !errorCal ? (
             <div className="calendario-mes__rejilla" role="group" aria-label={`Disponibilidad de ${nombreMes}`}>
               {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => (
                 <span key={d} className="calendario-mes__semana" aria-hidden="true">{d}</span>
@@ -855,6 +900,7 @@ function distanciaKm(desdeLat: number, desdeLng: number, hastaLat: number, hasta
           </div>
         ) : null}
       </div>
+      )}
     </main>
   );
 }

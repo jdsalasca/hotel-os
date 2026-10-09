@@ -653,6 +653,12 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   frontend, chequeo de tipos y capturas móvil/escritorio aprobados. La compilación
   de producción sigue pendiente: Vite se atascó en transforming… también en la
   copia limpia de develop. Evidencia: docs/evidence/round-153/verificacion.md.
+- [x] **Ronda 170 - La portada aclara cuándo la venta está pausada.** Cinco mejoras:
+  estado visible desde el hero, acceso a reservas existentes, formulario/calendario
+  ocultos cuando no se puede comprar, navegación unificada en `/mis-reservas` y
+  sección activa también en `/consulta`. Pausa y venta activa verificadas en
+  escritorio y móvil con Playwright local. Evidencia:
+  `docs/evidence/round-170/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. ~~Recibo descargable~~ — hecho en R129 (imprimir + no-imprimir).
@@ -668,6 +674,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
      validación de fechas y huéspedes, calendario accesible, resultados anteriores
      bloqueados al cambiar criterios y datos de sesión precargados). Evidencia:
      docs/evidence/round-167/verificacion.md.
+  8. ~~Venta pausada sin callejones sin salida~~ — hecho en R170 (estado explicado,
+     navegación a Mis reservas unificada, sin búsqueda ni calendario mientras está pausada).
+     Evidencia: docs/evidence/round-170/verificacion.md.
 - [ ] **Siguiente: qué queda abierto.** Los ítems externos (dominio, credenciales OTA, copia externa)
    siguen bloqueados. Sin ellos: revisar el plan de indicadores y el borde del frontend.
 

@@ -1,0 +1,17 @@
+
+> hotel-web@0.1.0 build
+> npm run typecheck && vite build
+
+
+> hotel-web@0.1.0 typecheck
+> tsc --noEmit
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 70 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   1.77 kB │ gzip:   0.73 kB
+dist/assets/index-BabFPf_t.css   21.74 kB │ gzip:   4.68 kB
+dist/assets/index-D0TpVlLh.js   369.20 kB │ gzip: 106.49 kB
+✓ built in 3m 30s

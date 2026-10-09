@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { api } from './api/cliente';
 import { useSesion } from './api/useSesion';
@@ -176,8 +176,12 @@ export function App() {
             ) : (
               <>
                 <NavLink to="/" end>Reservar</NavLink>
-                <NavLink to="/consulta">Consultar reserva</NavLink>
-                <NavLink to="/mis-reservas">Mis reservas <BadgeMensajes /></NavLink>
+                <Link
+                  to="/mis-reservas"
+                  aria-current={ruta === '/consulta' || ruta === '/mis-reservas' ? 'page' : undefined}
+                >
+                  Mis reservas <BadgeMensajes />
+                </Link>
                 <NavLink to="/admin">Panel</NavLink>
               </>
             )}

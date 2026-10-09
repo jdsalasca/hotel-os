@@ -17,6 +17,7 @@ const estado = vi.hoisted(() => ({
   sinResultados: false,
   sinVenta: false,
   fallaVenta: false,
+  llamadasCalendario: [] as string[],
   hotel: null as null | Record<string, string>,
   diasCalendario: [] as Array<{
     fecha: string;
@@ -71,6 +72,7 @@ vi.mock('../api/cliente', () => {
       };
     }
     if (url.startsWith('/api/disponibilidad/calendario?')) {
+      estado.llamadasCalendario.push(url);
       return { mes: '2030-06', huespedes: 2, dias: estado.diasCalendario };
     }
     if (url === '/api/hotel/venta') {
@@ -99,6 +101,7 @@ afterEach(() => {
   estado.sinResultados = false;
   estado.sinVenta = false;
   estado.fallaVenta = false;
+  estado.llamadasCalendario.length = 0;
   estado.hotel = null;
   estado.diasCalendario.length = 0;
   vi.unstubAllGlobals();
@@ -117,16 +120,26 @@ async function buscar() {
   await screen.findAllByText('Elegir esta habitación');
 }
 
-describe('hotel sin nada que vender', () => {
-  it('lo dice en vez de fingir un mes lleno', async () => {
+describe('reservas en línea pausadas', () => {
+  it('explica la pausa y retira todos los controles de búsqueda que no pueden funcionar', async () => {
     estado.sinVenta = true;
     render(
       <MemoryRouter>
         <PaginaInicio />
       </MemoryRouter>,
     );
-    await screen.findByText('Este hotel aún no publica habitaciones');
+
+    const aviso = await screen.findByRole('heading', { name: 'Reservas en línea pausadas' });
+    const collage = document.querySelector('.collage');
+    expect(aviso.closest('section')?.compareDocumentPosition(collage!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.queryByRole('heading', { name: 'Reservar es así de simple' })).toBeNull();
+    expect(screen.queryByLabelText('Llegada')).toBeNull();
+    expect(screen.queryByLabelText('Salida')).toBeNull();
+    expect(screen.queryByLabelText('Huéspedes')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Buscar disponibilidad' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mes anterior' })).toBeNull();
     expect(document.querySelector('.calendario-mes__rejilla')).toBeNull();
+    expect(estado.llamadasCalendario).toHaveLength(0);
   });
 
   it('con venta muestra el calendario como siempre', async () => {
@@ -138,6 +151,8 @@ describe('hotel sin nada que vender', () => {
     await waitFor(() => {
       expect(document.querySelector('.calendario-mes__rejilla')).not.toBeNull();
     });
+    expect(screen.getByLabelText('Llegada')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Buscar disponibilidad' })).toBeTruthy();
   });
 
   it('el vacío trae cómo contactar al hotel', async () => {
@@ -165,22 +180,20 @@ describe('hotel sin nada que vender', () => {
         <PaginaInicio />
       </MemoryRouter>,
     );
-    await screen.findByText('Este hotel aún no publica habitaciones');
+    await screen.findByRole('heading', { name: 'Reservas en línea pausadas' });
     expect(screen.queryByText(/hola@hotel\.test/)).toBeNull();
   });
 
-  it('sin venta la búsqueda se deshabilita con motivo', async () => {
+  it('la portada ofrece gestionar una reserva existente aunque la venta esté pausada', async () => {
     estado.sinVenta = true;
     render(
       <MemoryRouter>
         <PaginaInicio />
       </MemoryRouter>,
     );
-    await screen.findByText(/la búsqueda no traerá nada todavía/);
-    const boton = screen.getByRole('button', {
-      name: 'Buscar disponibilidad',
-    }) as HTMLButtonElement;
-    expect(boton.disabled).toBe(true);
+    const enlace = await screen.findByRole('link', { name: 'Gestionar una reserva' });
+    expect(enlace.getAttribute('href')).toBe('/mis-reservas');
+    expect(screen.queryByRole('link', { name: 'Ver disponibilidad' })).toBeNull();
   });
 
   it('si la venta falla al leer, la búsqueda sigue abierta', async () => {
@@ -333,8 +346,8 @@ describe('detalle de la oferta', () => {
 
   it('indica cuántas opciones puede elegir el huésped', async () => {
     await buscar();
-    const estadoResultados = screen.getByRole('status');
-    expect(estadoResultados.textContent).toBe('Encontramos 1 opción disponible.');
+    const estadoResultados = screen.getByText('Encontramos 1 opción disponible.');
+    expect(estadoResultados.getAttribute('role')).toBe('status');
     expect(estadoResultados.getAttribute('aria-live')).toBe('polite');
   });
 
