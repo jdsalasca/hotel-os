@@ -20,8 +20,12 @@ directa, eso es visibilidad perdida.
 
 ## Verificación (salida real, 2026-10-09)
 - `node tools/operacion/verificar-despliegue.mjs` → exit 0.
-- En prod tras el deploy: `curl /robots.txt` (text/plain con Disallow),
-  `curl /sitemap.xml` (5 loc) y OG en el HTML servido.
+- En prod tras el deploy: `/sitemap.xml` 200 text/xml con las 5 loc; OG completo
+  en el HTML servido; `/api/health` ok.
+- `/robots.txt` aún devuelve el SPA por CACHÉ DEL BORDE (`cf-cache-status: HIT`
+  de cuando era fallback): el origen ya lo sirve bien (200 text/plain verificado
+  dentro del contenedor). ACCIÓN DEL DUEÑO: Cloudflare → Caching → purgar
+  `/robots.txt` (o Purge Everything).
 
 ## Despliegue
 - Merge a `develop`, push y `compose up -d --build` en TopNUC con health OK.
