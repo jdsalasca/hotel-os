@@ -40,8 +40,13 @@ a un buscador cercano al inicio. No cambiaron la API ni las reglas de reserva.
 - `portada-escritorio.png`
 - `portada-movil.png`
 
-## Observación de producción antes del push
+## Observación de producción después del push
 
-`https://hotel.eridu.top/` mostró venta pausada. El hero y el aviso inferior repiten
-acciones que llevan a `/mis-reservas`; el código actual de `origin/develop` ya conserva
-una sola acción en el hero. Se comprobará el estado del sitio después del push.
+El commit `321e12c` quedó en `origin/develop`. En una comprobación pública posterior,
+`https://hotel.eridu.top/` cargó por HTTPS, pero el orden visible siguió siendo hero,
+galería, pasos de reserva y, al final, formulario y calendario. La mejora de esta ronda
+todavía no se refleja en el sitio público. La portada sí muestra una sola acción para
+reservas existentes, correspondiente a la mejora anterior.
+
+No se encontraron flujos ni ejecuciones de GitHub Actions para `develop`; por lo tanto,
+el push confirma la integración al remoto, pero no demuestra un despliegue en producción.
