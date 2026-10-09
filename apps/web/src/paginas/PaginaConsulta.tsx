@@ -195,9 +195,15 @@ export function PaginaConsulta() {
                 </div>
               ) : null}
               <div>
-                <dt className="campo__etiqueta">Estado</dt>
+                <dt className="campo__etiqueta">Origen</dt>
                 <dd className="sin-margen">
-                  Reserva creada desde {comprobante.reserva.origen} · {comprobante.historial.length}{' '}
+                  Reserva creada desde {comprobante.reserva.origen}
+                </dd>
+              </div>
+              <div>
+                <dt className="campo__etiqueta">Movimientos</dt>
+                <dd className="sin-margen">
+                  {comprobante.historial.length}{' '}
                   {comprobante.historial.length === 1 ? 'movimiento registrado' : 'movimientos registrados'}
                 </dd>
               </div>
