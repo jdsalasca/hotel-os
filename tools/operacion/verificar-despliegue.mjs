@@ -109,6 +109,20 @@ for (const compose of ['compose.yaml', 'compose.production.yaml', 'compose.tunne
   }
 }
 
+// 4c. Vigía OAuth en el túnel (prod): un sondeo diario del camino ida-vuelta para que la
+// próxima rotura (como el SameSite de la ronda 151) quede registrada sin esperar al dueño.
+// Solo el túnel vigila prod; el resto de composes no sirven tráfico público.
+let tunel = '';
+try {
+  tunel = readFileSync('compose.tunnel.yaml', 'utf8');
+} catch (e) {
+  comprobar(false, 'compose.tunnel.yaml se puede leer');
+}
+if (tunel) {
+  comprobar(new RegExp(`^  vigia:`, 'm').test(tunel),
+    'compose.tunnel.yaml define el servicio vigia (sondeo OAuth diario)');
+}
+
 // 5. Base SEO/compartir: sin robots.txt el SPA contesta su index.html a los
 // rastreadores, y sin OG el enlace compartido sale pelado (ver round-144).
 let robots = '';
