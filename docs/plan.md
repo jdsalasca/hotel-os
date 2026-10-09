@@ -762,12 +762,18 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   pasa al nombre y se conserva el estado visible/oculto. La tabla bloquea acciones incompatibles
   durante la edición y sus botones se acomodan en móvil. Verificación y capturas:
   `docs/evidence/round-189/verificacion.md`.
+- [x] **Ronda 190 - Elegir cómo consultar las reservas.** Sin sesión, Google y la consulta por
+  código/correo aparecen como dos opciones separadas, con CTA del mismo ancho, dos columnas en
+  escritorio y apiladas en móvil. Se conservan las rutas y la autenticación existentes. Suite de
+  143 pruebas, chequeo de tipos, build Vite y revisión visual en Chrome aprobados. Evidencia:
+  `docs/evidence/round-190/verificacion.md`.
 
 ### Próximas mejoras de usabilidad
 
 | Misión | Impacto | Esfuerzo | Estado |
 |---|---:|---:|---|
 | Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | Coordinar cuando se cierre el trabajo activo en reservas |
+| Opciones de consulta de reservas por cuenta o código | Alto | Bajo | **Cerrada en R190** |
 | Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | **Cerrada en R188** |
 | Selector de moneda compartido entre hotel e inventario | Medio | Bajo | **Cerrada en R187** |
 | Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Edición de sitios lista en R189; falta cerrar el modelo operativo y la curaduría del mapa |
