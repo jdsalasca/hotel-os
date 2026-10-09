@@ -20,6 +20,7 @@ import { BadgeMensajes } from './componentes/BadgeMensajes';
 import { Etiqueta } from './componentes/Estado';
 import { PaginaAdminLugares } from './paginas/PaginaAdminLugares';
 import { PaginaMisReservas } from './paginas/PaginaMisReservas';
+import { PaginaNoEncontrada } from './paginas/PaginaNoEncontrada';
 import { PaginaPrivacidad } from './paginas/PaginaPrivacidad';
 import { PaginaTerminos } from './paginas/PaginaTerminos';
 
@@ -152,6 +153,7 @@ export function App() {
         <Route path="/admin/indicadores" element={<PaginaAdminIndicadores />} />
         <Route path="/admin/auditoria" element={<PaginaAdminAuditoria />} />
         <Route path="/admin/lugares" element={<PaginaAdminLugares />} />
+        <Route path="*" element={<PaginaNoEncontrada />} />
       </Routes>
 
       <footer className="pie no-imprimir">
