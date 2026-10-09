@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { api } from './api/cliente';
 import { useSesion } from './api/useSesion';
@@ -26,6 +26,18 @@ import { PaginaTerminos } from './paginas/PaginaTerminos';
 
 function texto(valor?: string): string {
   return valor?.trim() ?? '';
+}
+
+/**
+ * Cada ruta empieza arriba: sin esto, el scroll se hereda de la página anterior y
+ * se aterriza a mitad de la nueva (verificado en prod: 1500 → 492 al ir a /consulta).
+ */
+function VolverArribaAlNavegar() {
+  const ruta = useLocation().pathname;
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [ruta]);
+  return null;
 }
 
 /**
@@ -112,6 +124,7 @@ export function App() {
       <a className="solo-lectores" href="#contenido">
         Saltar al contenido principal
       </a>
+      <VolverArribaAlNavegar />
 
       <header className="cabecera no-imprimir">
         <div className="cabecera__interna">
