@@ -569,6 +569,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   Google (en dev regía Lax y nunca se vio). Lax en composes + test que lo exige,
   `FalloOauth2` con causa, handlers que no lanzan, aviso y rol. Suite 437/442
   (5 rojos del colega). Evidencia: `docs/evidence/round-151/verificacion.md`.
+- [x] **Ronda 152 - Vigía OAuth diario en prod.** Bucle + servicio `vigia` que
+  corre el sondeo a diario y lo deja en el log; el verificador lo exige para que
+  no se pierda. Loop probado en contenedor, logs verdes en prod. Evidencia:
+  `docs/evidence/round-152/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.

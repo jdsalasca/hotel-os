@@ -104,6 +104,18 @@ services:
       - hotel-backups:/backups
     restart: unless-stopped
 
+  # Vigía OAuth: sondeo diario del camino ida-vuelta de Google contra prod. La rotura
+  # de SameSite de la ronda 151 solo la vio el dueño días después; esto la deja
+  # registrada en el log sin esperar a nadie. Sin volúmenes de datos: solo red.
+  vigia:
+    image: node:22-alpine
+    command: ["/bin/sh", "/sondeo/vigilar-oauth.sh", "https://hotel.eridu.top"]
+    environment:
+      VIGIA_INTERVAL_SECONDS: ${VIGIA_INTERVAL_SECONDS:-86400}
+    volumes:
+      - ./tools/operacion:/sondeo:ro
+    restart: unless-stopped
+
 volumes:
   hotel-data:
   hotel-backups:
