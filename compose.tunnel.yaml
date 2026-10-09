@@ -68,6 +68,13 @@ services:
       retries: 5
       start_period: 40s
     restart: unless-stopped
+    # Logs acotados (ronda 165): 3 archivos de 10 MB por contenedor; sin esto el
+    # json-file crece sin fin. `docker logs` sigue igual: solo rota.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   web:
     build:
@@ -88,6 +95,13 @@ services:
       timeout: 5s
       retries: 3
     restart: unless-stopped
+    # Logs acotados (ronda 165): 3 archivos de 10 MB por contenedor; sin esto el
+    # json-file crece sin fin. `docker logs` sigue igual: solo rota.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Respaldos programados: una copia consistente al día con retención configurable. Igual que
   # en producción; el modo túnel los había dejado por fuera y el volumen estaba vacío. El
@@ -103,6 +117,13 @@ services:
       - hotel-data:/data
       - hotel-backups:/backups
     restart: unless-stopped
+    # Logs acotados (ronda 165): 3 archivos de 10 MB por contenedor; sin esto el
+    # json-file crece sin fin. `docker logs` sigue igual: solo rota.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Vigía OAuth: sondeo diario del camino ida-vuelta de Google contra prod. La rotura
   # de SameSite de la ronda 151 solo la vio el dueño días después; esto la deja
@@ -115,6 +136,13 @@ services:
     volumes:
       - ./tools/operacion:/sondeo:ro
     restart: unless-stopped
+    # Logs acotados (ronda 165): 3 archivos de 10 MB por contenedor; sin esto el
+    # json-file crece sin fin. `docker logs` sigue igual: solo rota.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Simulacro semanal: integrity_check + esquema + tablas sobre copia temporal del
   # respaldo más reciente. Lee /backups en solo lectura (la copia vive en /tmp) y
@@ -127,6 +155,13 @@ services:
     volumes:
       - hotel-backups:/backups:ro
     restart: unless-stopped
+    # Logs acotados (ronda 165): 3 archivos de 10 MB por contenedor; sin esto el
+    # json-file crece sin fin. `docker logs` sigue igual: solo rota.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   hotel-data:
