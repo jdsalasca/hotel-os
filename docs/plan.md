@@ -589,6 +589,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `react-router-dom` 7.8.2 → 7.18.4 y `vite` 7.1.7 → 7.3.7: audit total 3 high
   → 0. `tsc` ×2, 90/90, build ok, desplegado. Evidencia:
   `docs/evidence/round-157/verificacion.md`.
+- [x] **Ronda 158 - Muro antipánico en toda la app.** Un render roto dejaba el
+  hueco mudo; `MuroAntipanico` con key por ruta muestra salida y se resetea al
+  navegar. 2/2 + suite 92/92, captura post-deploy. Evidencia:
+  `docs/evidence/round-158/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»

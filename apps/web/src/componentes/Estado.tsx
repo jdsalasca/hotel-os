@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Component } from 'react';
 import { Link } from 'react-router-dom';
 
 /** Estados compartidos: carga, error y vacío. Usarlos bien evita pantallas a medias. */
@@ -75,6 +76,38 @@ export function PuertaAdmin({ children }: { children: ReactNode }) {
       </Link>
     </Aviso>
   );
+}
+
+/**
+ * Muro antipánico de toda la app: si una página revienta al renderizar (dato raro
+ * del backend, lo que sea), se muestra una salida en vez de la pantalla en blanco.
+ * El error sigue saliendo por la consola del navegador para diagnosticar; aquí no
+ * se traga nada, solo se le da a la persona a dónde ir.
+ */
+export class MuroAntipanico extends Component<{ children: ReactNode }, { roto: boolean }> {
+  state = { roto: false };
+
+  static getDerivedStateFromError(): { roto: boolean } {
+    return { roto: true };
+  }
+
+  render() {
+    if (!this.state.roto) return this.props.children;
+    return (
+      <main id="contenido" className="centrado">
+        <section className="seccion">
+          <Aviso tono="error" titulo="Algo se rompió en esta pantalla">
+            <p>Prueba recargar o vuelve al inicio. Si sigue así, avísanos.</p>
+            <p>
+              <Link className="boton boton--primario" to="/">
+                Volver al inicio
+              </Link>
+            </p>
+          </Aviso>
+        </section>
+      </main>
+    );
+  }
 }
 
 /**
