@@ -561,6 +561,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   ida, vuelta con código falso y rebote con motivo; `--self-test` prueba que
   detecta. 7 ok en prod + traza `[invalid_grant]` en el log (cadena probada).
   Sin cambio en la app. Evidencia: `docs/evidence/round-149/verificacion.md`.
+- [x] **Ronda 150 - Al navegar se vuelve arriba.** Medido en prod (1500 → 492 al
+  ir a /consulta): `VolverArribaAlNavegar` con cada ruta. 1/1 a nivel App, suite
+  81/81, captura post-deploy. Evidencia: `docs/evidence/round-150/verificacion.md`.
 
 ## Misiones candidatas (impacto/esfuerzo, se toma la de mayor impacto cerrable)
 1. Recibo/comprobante descargable de la reserva (PDF o imprimible) — medio/medio.
