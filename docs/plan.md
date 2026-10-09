@@ -614,6 +614,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   `@type Hotel` (nombre, URL, imagen y Sáchica/Boyacá/CO, nada inventado).
   Verificador lo exige; JSON validado + presente en prod. Evidencia:
   `docs/evidence/round-163/verificacion.md`.
+- [x] **Ronda 164 - Imprimir y WhatsApp en el comprobante propio.** Botón
+  Imprimir + enlace wa.me con código y fechas (reusa `enlaceWhatsApp`); sin
+  teléfono no hay enlace. 4/4, suite 97/97. Evidencia:
+  `docs/evidence/round-164/verificacion.md`.
 
 - [ ] **Ronda 153 - Cinco mejoras de usabilidad en la reserva.** Navegación
   contextual para huésped y panel con menú móvil desplegable; «Cambiar fechas»

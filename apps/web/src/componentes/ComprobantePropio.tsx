@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Aviso, Cargando, Etiqueta } from './Estado';
+import { enlaceWhatsApp } from '../api/formato';
 
 export type ComprobantePropioDatos = {
   reserva: {
@@ -15,7 +16,7 @@ export type ComprobantePropioDatos = {
     pendienteCents: number | null;
   };
   habitacion: { codigo: string; nombre: string; tipo: string } | null;
-  hotel: { nombre?: string | null };
+  hotel: { nombre?: string | null; contacto_telefono?: string | null };
 };
 
 function monto(cents: number | null, moneda: string | null): string | null {
@@ -49,8 +50,13 @@ export function ComprobantePropio({
   const r = datos.reserva;
   const pagada =
     r.totalCents !== null && r.moneda !== null && (r.pendienteCents ?? r.totalCents) <= 0;
+  const wa = enlaceWhatsApp(
+    datos.hotel.contacto_telefono ?? '',
+    `Hola, soy ${r.codigo}: quisiera confirmar mi reserva del ${r.llegada} al ${r.salida}.`,
+  );
 
   return (
+    <>
     <dl className="pila gap-e1">
       {datos.hotel.nombre?.trim() ? (
         <>
@@ -85,5 +91,19 @@ export function ComprobantePropio({
         )}
       </dd>
     </dl>
+    <p className="sin-margen no-imprimir">
+      <button className="boton boton--secundario boton--chico" type="button" onClick={() => window.print()}>
+        Imprimir
+      </button>
+      {wa ? (
+        <>
+          {' '}
+          <a className="boton boton--fantasma boton--chico" href={wa} target="_blank" rel="noreferrer">
+            Compartir por WhatsApp
+          </a>
+        </>
+      ) : null}
+    </p>
+    </>
   );
 }
