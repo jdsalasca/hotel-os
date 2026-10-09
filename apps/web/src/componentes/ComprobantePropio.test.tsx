@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ComprobantePropio } from './ComprobantePropio';
 
 const COMPROBANTE = {
@@ -16,7 +16,7 @@ const COMPROBANTE = {
     pendienteCents: 0,
   },
   habitacion: { codigo: '101', nombre: 'Habitación 101', tipo: 'Doble' },
-  hotel: { nombre: 'Hotel Eridu' },
+  hotel: { nombre: 'Hotel Eridu', contacto_telefono: '+57 300 1234567' },
 };
 
 describe('ComprobantePropio', () => {
@@ -36,5 +36,28 @@ describe('ComprobantePropio', () => {
   it('avisa si el comprobante no se puede leer', async () => {
     render(<ComprobantePropio codigo="H-404" cargar={() => Promise.reject(new Error('falló'))} />);
     await screen.findByText('No se pudo leer el comprobante');
+  });
+
+  it('imprime y comparte por WhatsApp con el teléfono del hotel', async () => {
+    const imprimir = vi.fn();
+    vi.stubGlobal('print', imprimir);
+    const cargar = vi.fn(() => Promise.resolve(COMPROBANTE));
+    render(<ComprobantePropio codigo="H-123" cargar={cargar} />);
+    await screen.findByText('Habitación 101 · Doble');
+    fireEvent.click(screen.getByRole('button', { name: 'Imprimir' }));
+    expect(imprimir).toHaveBeenCalledTimes(1);
+    const wa = screen.getByRole('link', { name: /WhatsApp/ });
+    expect(wa.getAttribute('href')).toContain('https://wa.me/573001234567');
+    expect(wa.getAttribute('href')).toContain('H-123');
+    vi.unstubAllGlobals();
+  });
+
+  it('sin teléfono no ofrece WhatsApp', async () => {
+    const sinTel = { ...COMPROBANTE, hotel: { nombre: 'Hotel Eridu' } };
+    const cargar = vi.fn(() => Promise.resolve(sinTel));
+    render(<ComprobantePropio codigo="H-123" cargar={cargar} />);
+    await screen.findByText('Habitación 101 · Doble');
+    expect(screen.queryByRole('link', { name: /WhatsApp/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Imprimir' })).toBeTruthy();
   });
 });
