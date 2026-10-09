@@ -718,6 +718,15 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 179 - El menú móvil se cierra con Escape.** Al cerrar desde el teclado,
    devuelve el foco al botón del menú para no dejarlo dentro de una navegación oculta.
    Evidencia: `docs/evidence/round-179/verificacion.md`.
+- [x] **Ronda 182 - Cinco mejoras de usabilidad en la reserva.** Pausa visible y
+   una sola acción para reservas existentes; fechas actuales al volver a cambiar;
+   llegada y salida validadas; aviso de recálculo de tarifa; foco inicial en llegada.
+   Evidencia: `docs/evidence/round-182/verificacion.md`.
+- [x] **Ronda 183 - La búsqueda aparece inmediatamente después de la portada.**
+   El formulario, calendario y resultados quedan antes de la galería, los pasos y
+   el mapa; no cambia la lógica de disponibilidad ni de reserva. Verificado con
+   131 pruebas frontend, typecheck de pruebas, build Docker y capturas de escritorio
+   y móvil. Evidencia: `docs/evidence/round-183/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
    (hoy, si el hotel cambia la política, quien vuelva ve la nueva). Lint frontend exige
    tocar `package-lock.json` y choca con la instalación en paralelo. Modo claro/oscuro lo

@@ -121,6 +121,23 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('prioridad de la reserva en la portada', () => {
+  it('muestra el formulario y el calendario antes de la galería', async () => {
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+
+    const formulario = await screen.findByRole('heading', { name: '¿Cuándo quieres venir?' });
+    const calendario = await screen.findByRole('heading', { name: 'Calendario de disponibilidad' });
+    const galeria = screen.getByRole('heading', { name: 'A minutos de lo mejor de Boyacá' });
+
+    expect(formulario.compareDocumentPosition(galeria)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(calendario.compareDocumentPosition(galeria)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+});
+
 async function buscar() {
   render(
     <MemoryRouter>
