@@ -84,6 +84,7 @@ export function PaginaAdminReservas() {
   const [habitaciones, setHabitaciones] = useState<Habitacion[] | null>(null);
   const [nuevaHabitacion, setNuevaHabitacion] = useState('');
   const [nuevasFechas, setNuevasFechas] = useState({ llegada: '', salida: '' });
+  const [nuevoGrupo, setNuevoGrupo] = useState('');
   const [saldo, setSaldo] = useState<Saldo | null>(null);
   const [abono, setAbono] = useState({ monto: '', concepto: '' });
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +169,7 @@ export function PaginaAdminReservas() {
       setHabitaciones(habs);
       setNuevaHabitacion('');
       setNuevasFechas({ llegada: '', salida: '' });
+      setNuevoGrupo('');
       setAbono({ monto: '', concepto: '' });
       try {
         setSaldo(await api.get<Saldo>(`/api/admin/reservas/${codigo}/saldo`));
@@ -200,6 +202,18 @@ export function PaginaAdminReservas() {
       await abrir(codigo);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cambiar las fechas');
+    }
+  }
+
+  async function cambiarHuespedes(codigo: string) {
+    if (!nuevoGrupo) return;
+    setError(null);
+    try {
+      await api.post(`/api/admin/reservas/${codigo}/huespedes`, { huespedes: Number(nuevoGrupo) });
+      await cargar();
+      await abrir(codigo);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudieron cambiar los huéspedes');
     }
   }
 
@@ -602,6 +616,37 @@ export function PaginaAdminReservas() {
                 </div>
                 <button className="boton boton--secundario boton--chico" type="submit" disabled={!nuevaHabitacion}>
                   Reasignar
+                </button>
+              </form>
+            ) : null}
+            {admiteDinero(detalle.reserva.estado) ? (
+              <form
+                className="campos no-imprimir"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void cambiarHuespedes(detalle.reserva.codigo);
+                }}
+              >
+                <div className="campo">
+                  <label className="campo__etiqueta" htmlFor="grupo-huespedes">
+                    Huéspedes (ahora {detalle.reserva.huespedes})
+                  </label>
+                  <input
+                    id="grupo-huespedes"
+                    type="number"
+                    min={1}
+                    step={1}
+                    inputMode="numeric"
+                    value={nuevoGrupo}
+                    onChange={(e) => setNuevoGrupo(e.target.value)}
+                    placeholder={String(detalle.reserva.huespedes)}
+                  />
+                  <p className="campo__ayuda">
+                    Si el grupo no cabe en la habitación, el hotel lo dice y no cambia nada.
+                  </p>
+                </div>
+                <button className="boton boton--secundario boton--chico" type="submit" disabled={!nuevoGrupo}>
+                  Cambiar huéspedes
                 </button>
               </form>
             ) : null}

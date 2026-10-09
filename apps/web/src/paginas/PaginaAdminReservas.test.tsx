@@ -162,6 +162,48 @@ describe('impresión del detalle', () => {
   });
 });
 
+describe('cambiar huespedes desde el panel', () => {
+  // El campo se busca por id, no por texto de label: React parte "Huéspedes (ahora 1)"
+    // en varios nodos y una expresión regular sobre el label no casa.
+    const CAMPO_GRUPO = () => document.querySelector('#grupo-huespedes') as HTMLInputElement;
+
+  it('una reserva vigente ofrece el formulario con el grupo actual', async () => {
+    await montar();
+    fireEvent.click(screen.getByText('Ver detalle'));
+    await waitFor(() => {
+      expect(CAMPO_GRUPO()).toBeTruthy();
+    });
+    expect(screen.getByText(/Huéspedes \(ahora 1\)/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cambiar huéspedes' })).toBeTruthy();
+  });
+
+  it('envía el grupo nuevo al endpoint de huéspedes', async () => {
+    await montar();
+    fireEvent.click(screen.getByText('Ver detalle'));
+    await waitFor(() => {
+      expect(CAMPO_GRUPO()).toBeTruthy();
+    });
+    fireEvent.change(CAMPO_GRUPO(), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar huéspedes' }));
+
+    await waitFor(() => {
+      expect(estado.postes.some((p) => p.url === '/api/admin/reservas/H-PANEL1/huespedes')).toBe(true);
+    });
+    const envio = estado.postes.find((p) => p.url === '/api/admin/reservas/H-PANEL1/huespedes');
+    expect(envio?.cuerpo).toEqual({ huespedes: 3 });
+  });
+
+  it('una reserva cerrada no ofrece cambiar huéspedes', async () => {
+    estado.detalle = 'CANCELADA';
+    await montar();
+    fireEvent.click(screen.getByText('Ver detalle'));
+    await waitFor(() => {
+      expect(screen.getByText(/no admite abonos/)).toBeTruthy();
+    });
+    expect(screen.queryByRole('button', { name: 'Cambiar huéspedes' })).toBeNull();
+  });
+});
+
 describe('cobro en reserva cerrada', () => {
   it('una reserva viva ofrece el abono', async () => {
     await montar();
