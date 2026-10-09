@@ -214,6 +214,9 @@ describe('vigencia de las lecturas del inventario', () => {
     await montar();
     fireEvent.click(screen.getByText('Siguiente'));
     fireEvent.click(screen.getByText('Siguiente'));
+    expect(
+      screen.getByText('Marca solo los servicios que tienen todas las habitaciones de este tipo. Se mostrarán en sus ofertas.'),
+    ).toBeTruthy();
     tipo('1', '#serv-tipo');
     await waitFor(() => {
       expect(peticiones('/api/amenidades/por-tipo?').length).toBe(1);

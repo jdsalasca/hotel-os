@@ -468,7 +468,7 @@ export function PaginaAdminInventario() {
       >
         <h2 className="t-lg mb-0">Servicios del tipo</h2>
         <p className="campo__ayuda sin-margen">
-          Marca lo que tiene cada tipo: la web lo muestra en cada oferta.
+          Marca solo los servicios que tienen todas las habitaciones de este tipo. Se mostrarán en sus ofertas.
         </p>
         <div className="campo">
           <label className="campo__etiqueta" htmlFor="serv-tipo">Tipo</label>

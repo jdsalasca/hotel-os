@@ -751,12 +751,18 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   desbordamiento en escritorio y móvil. La API fue simulada. Evidencia:
   `docs/evidence/round-187/verificacion.md`.
 
+- [x] **Ronda 188 - Filtro de amenidades en disponibilidad.** El huésped filtra las ofertas
+  disponibles por una o varias amenidades (todas deben coincidir), ve el conteo y puede limpiar
+  el filtro; el panel aclara que cada selección aplica al tipo completo. 140 pruebas frontend,
+  typechecks, build Vite y revisión visual de escritorio/móvil aprobados. APIs simuladas durante
+  la revisión visual. Evidencia: `docs/evidence/round-188/verificacion.md`.
+
 ### Próximas mejoras de usabilidad
 
 | Misión | Impacto | Esfuerzo | Estado |
 |---|---:|---:|---|
 | Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | Coordinar cuando se cierre el trabajo activo en reservas |
-| Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | Pendiente de revisar el flujo actual |
+| Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | **Cerrada en R188** |
 | Selector de moneda compartido entre hotel e inventario | Medio | Bajo | **Cerrada en R187** |
 | Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Diseñar primero el modelo operativo |
 | Conversación huésped-hotel con estados y notificaciones | Alto | Alto | Requiere diseño de un subsistema nuevo |

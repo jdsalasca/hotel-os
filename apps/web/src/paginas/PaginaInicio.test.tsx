@@ -14,6 +14,8 @@ const estado = vi.hoisted(() => ({
   llamadasDetalle: [] as string[],
   llamadasBusqueda: [] as string[],
   dosPlanes: false,
+  dosTipos: false,
+  amenidadesPorTipo: {} as Record<string, { id: number; codigo: string; nombre: string }[]>,
   sinResultados: false,
   sinVenta: false,
   fallaVenta: false,
@@ -37,10 +39,10 @@ const estado = vi.hoisted(() => ({
 }));
 
 vi.mock('../api/cliente', () => {
-  function oferta(planId: number, nombrePlan: string) {
+  function oferta(planId: number, nombrePlan: string, tipoId = 9) {
     return {
-      habitacion: { id: 5, codigo: '101', nombre: 'Hab 101' },
-      tipo: { id: 9, codigo: 'DOB', nombre: 'Doble', capacidadMax: 2 },
+      habitacion: { id: tipoId === 9 ? 5 : 6, codigo: tipoId === 9 ? '101' : '201', nombre: 'Hab 101' },
+      tipo: { id: tipoId, codigo: tipoId === 9 ? 'DOB' : 'SUI', nombre: tipoId === 9 ? 'Doble' : 'Suite', capacidadMax: 2 },
       totalCents: 300000,
       moneda: 'COP',
       noches: 2,
@@ -76,6 +78,8 @@ vi.mock('../api/cliente', () => {
         huespedes: Number(q.get('huespedes')),
         ofertas: estado.sinResultados
           ? []
+          : estado.dosTipos
+          ? [oferta(7, 'Estándar', 9), oferta(8, 'Flexible', 10)]
           : estado.dosPlanes
           ? [oferta(7, 'Estándar'), oferta(8, 'Flexible')]
           : [oferta(7, 'Estándar')],
@@ -96,7 +100,7 @@ vi.mock('../api/cliente', () => {
         contacto_telefono: '+57 300 1234567',
       };
     }
-    if (url.startsWith('/api/amenidades/por-tipo?')) return { porTipo: {} };
+    if (url.startsWith('/api/amenidades/por-tipo?')) return { porTipo: estado.amenidadesPorTipo };
     if (url === '/api/lugares') {
       return estado.lugaresPublicos ?? { hotel: { ubicado: false }, lugares: [] };
     }
@@ -110,6 +114,8 @@ afterEach(() => {
   estado.llamadasDetalle.length = 0;
   estado.llamadasBusqueda.length = 0;
   estado.dosPlanes = false;
+  estado.dosTipos = false;
+  estado.amenidadesPorTipo = {};
   estado.sinResultados = false;
   estado.sinVenta = false;
   estado.fallaVenta = false;
@@ -514,5 +520,42 @@ describe('detalle de la oferta', () => {
     fireEvent.click(botones[1]!);
     await waitFor(() => expect(estado.llamadasDetalle.length).toBe(2));
     expect(document.querySelectorAll('.desglose__noches').length).toBe(2);
+  });
+
+  it('filtra por todas las amenidades elegidas, cuenta coincidencias y permite quitar el filtro', async () => {
+    estado.dosTipos = true;
+    estado.amenidadesPorTipo = {
+      '9': [
+        { id: 1, codigo: 'WIFI', nombre: 'Wi-Fi' },
+        { id: 2, codigo: 'DESAYUNO', nombre: 'Desayuno incluido' },
+      ],
+      '10': [
+        { id: 1, codigo: 'WIFI', nombre: 'Wi-Fi' },
+        { id: 3, codigo: 'BANO_PRIVADO', nombre: 'Baño privado' },
+      ],
+    };
+
+    await buscar();
+
+    const filtros = await screen.findByRole('group', { name: 'Filtrar por servicios' });
+    expect(within(filtros).getByLabelText('Wi-Fi')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Suite' })).toBeTruthy();
+
+    fireEvent.click(within(filtros).getByLabelText('Desayuno incluido'));
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Suite' })).toBeNull();
+    });
+    expect(screen.getByText('1 de 2 opciones disponibles coincide con los servicios elegidos.')).toBeTruthy();
+
+    fireEvent.click(within(filtros).getByLabelText('Wi-Fi'));
+    expect(screen.getByRole('heading', { name: 'Doble' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Suite' })).toBeNull();
+
+    fireEvent.click(within(filtros).getByLabelText('Baño privado'));
+    expect(await screen.findByText('No hay opciones con todos esos servicios. Prueba quitando alguno.')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Doble' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar filtros' }));
+    expect(await screen.findByRole('heading', { name: 'Suite' })).toBeTruthy();
   });
 });

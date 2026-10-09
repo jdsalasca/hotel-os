@@ -673,6 +673,36 @@
 }
 
 // --- Servicios de la oferta: pastillas con lo que trae el tipo ---
+.filtro-servicios {
+  display: grid;
+  gap: $e-3;
+  margin: $e-4 0;
+  padding: $e-4;
+  border: 1px solid $borde;
+  border-radius: $radio;
+  background: $blanco-fachada;
+
+  legend {
+    padding-inline: $e-2;
+    font-weight: $peso-fuerte;
+  }
+
+  &__opciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $e-3 $e-5;
+  }
+
+  &__vacio {
+    width: 100%;
+    max-width: none;
+  }
+
+  > .boton {
+    justify-self: start;
+  }
+}
+
 .servicios {
   display: flex;
   flex-wrap: wrap;

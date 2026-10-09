@@ -15,6 +15,8 @@ type Oferta = {
   totalSinDescuentoCents: number;
 };
 
+type Amenidad = { id: number; nombre: string };
+
 type RespuestaDisponibilidad = {
   llegada: string;
   salida: string;
@@ -102,7 +104,11 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   const [buscado, setBuscado] = useState(false);
   const resultadosRef = useRef<HTMLDivElement | null>(null);
   const [detalles, setDetalles] = useState<Record<string, DetalleOferta>>({});
-  const [servicios, setServicios] = useState<Record<number, string[]>>({});
+  const [servicios, setServicios] = useState<Record<number, Amenidad[]>>({});
+  const [serviciosCargando, setServiciosCargando] = useState(false);
+  const [serviciosError, setServiciosError] = useState(false);
+  const [amenidadesSeleccionadas, setAmenidadesSeleccionadas] = useState<number[]>([]);
+  const peticionServicios = useRef(0);
   const [mapa, setMapa] = useState<{
     hotel: { ubicado: boolean; latitud?: number; longitud?: number };
     lugares: { id: number; nombre: string; descripcion: string; latitud: number; longitud: number }[];
@@ -221,7 +227,12 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       const r = await api.get<RespuestaDisponibilidad>(`/api/disponibilidad?${consulta}`);
       if (peticionBusqueda.current !== id) return;
       if (r.error) setError(r.error);
-      setOfertas(r.ofertas ?? []);
+      const nuevasOfertas = r.ofertas ?? [];
+      setOfertas(nuevasOfertas);
+      setServicios({});
+      setServiciosCargando(nuevasOfertas.length > 0);
+      setServiciosError(false);
+      setAmenidadesSeleccionadas([]);
       setBusqueda({ llegada: llegadaIso, salida: salidaIso, huespedes: huespedesN });
       // Resultados nuevos, detalles viejos fuera: lo abierto era de otra búsqueda.
       setDetalles({});
@@ -288,19 +299,35 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   /** Servicios de los tipos en pantalla: una sola lectura para todas las ofertas. */
   useEffect(() => {
     const ids = [...new Set((ofertas ?? []).map((o) => o.tipo.id))];
-    if (ids.length === 0) return;
+    const peticion = ++peticionServicios.current;
+    if (ids.length === 0) {
+      setServicios({});
+      setServiciosCargando(false);
+      setServiciosError(false);
+      return;
+    }
+    setServiciosCargando(true);
+    setServiciosError(false);
     void api
-      .get<{ porTipo: Record<string, { nombre: string }[]> }>(
+      .get<{ porTipo: Record<string, Amenidad[]> }>(
         `/api/amenidades/por-tipo?ids=${ids.join(',')}`,
       )
       .then((datos) => {
-        const mapa: Record<number, string[]> = {};
+        if (peticionServicios.current !== peticion) return;
+        const mapa: Record<number, Amenidad[]> = {};
         for (const [tipoId, lista] of Object.entries(datos.porTipo ?? {})) {
-          mapa[Number(tipoId)] = (lista ?? []).map((a) => a.nombre);
+          mapa[Number(tipoId)] = lista ?? [];
         }
         setServicios(mapa);
       })
-      .catch(() => setServicios({}));
+      .catch(() => {
+        if (peticionServicios.current !== peticion) return;
+        setServicios({});
+        setServiciosError(true);
+      })
+      .finally(() => {
+        if (peticionServicios.current === peticion) setServiciosCargando(false);
+      });
   }, [ofertas]);
 
 /** Distancia en línea recta, redondeada al metro. El enlace abre la ruta real. */
@@ -380,6 +407,17 @@ function formatearDistancia(metros: number): string {
   const [anioCal = 0, mesCal = 1] = mes.split('-').map(Number);
   const huecoInicial = (new Date(anioCal, mesCal - 1, 1).getDay() + 6) % 7;
   const nombreMes = new Date(`${mes}-01T12:00:00`).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+  const idsAmenidades = new Set<number>();
+  const amenidadesDisponibles = Object.values(servicios).flat().filter((amenidad) => {
+    if (idsAmenidades.has(amenidad.id)) return false;
+    idsAmenidades.add(amenidad.id);
+    return true;
+  });
+  const ofertasFiltradas = (ofertas ?? []).filter((oferta) =>
+    amenidadesSeleccionadas.every((amenidadId) =>
+      (servicios[oferta.tipo.id] ?? []).some((amenidad) => amenidad.id === amenidadId),
+    ),
+  );
 
   return (
     <main id="contenido">
@@ -626,16 +664,67 @@ function formatearDistancia(metros: number): string {
                   Habitaciones disponibles
                 </h2>
                 <p className="seccion__intro" role="status" aria-live="polite" aria-atomic="true">
-                  Encontramos {ofertas.length}{' '}
-                  {ofertas.length === 1 ? 'opción disponible' : 'opciones disponibles'}.
+                  {amenidadesSeleccionadas.length === 0 ? (
+                    <>Encontramos {ofertas.length}{' '}
+                      {ofertas.length === 1 ? 'opción disponible' : 'opciones disponibles'}.</>
+                  ) : (
+                    <>{ofertasFiltradas.length} de {ofertas.length} opciones disponibles{' '}
+                      {ofertasFiltradas.length === 1 ? 'coincide' : 'coinciden'} con los servicios elegidos.</>
+                  )}
                 </p>
                 <p className="seccion__intro">
                   Del {fechaCorta(baseBusqueda.llegada)} al {fechaCorta(baseBusqueda.salida)} para{' '}
                   {baseBusqueda.huespedes}{' '}
                   {baseBusqueda.huespedes === 1 ? 'huésped' : 'huéspedes'}.
                 </p>
+                {serviciosCargando ? (
+                  <p className="cargando" role="status">Cargando servicios de las habitaciones…</p>
+                ) : null}
+                {serviciosError ? (
+                  <p className="campo__ayuda" role="status">
+                    No se pudieron cargar los servicios para filtrar; puedes ver todas las habitaciones disponibles.
+                  </p>
+                ) : null}
+                {amenidadesDisponibles.length > 0 ? (
+                  <fieldset className="filtro-servicios">
+                    <legend>Filtrar por servicios</legend>
+                    <p className="campo__ayuda sin-margen">
+                      Marca uno o varios; mostraremos habitaciones que incluyan todos.
+                    </p>
+                    <div className="filtro-servicios__opciones">
+                      {amenidadesDisponibles.map((amenidad) => (
+                        <label key={amenidad.id} className="chequeo">
+                          <input
+                            type="checkbox"
+                            checked={amenidadesSeleccionadas.includes(amenidad.id)}
+                            onChange={() => setAmenidadesSeleccionadas((seleccionadas) =>
+                              seleccionadas.includes(amenidad.id)
+                                ? seleccionadas.filter((id) => id !== amenidad.id)
+                                : [...seleccionadas, amenidad.id],
+                            )}
+                          />
+                          {amenidad.nombre}
+                        </label>
+                      ))}
+                    </div>
+                    {amenidadesSeleccionadas.length > 0 ? (
+                      <button
+                        className="boton boton--fantasma boton--chico"
+                        type="button"
+                        onClick={() => setAmenidadesSeleccionadas([])}
+                      >
+                        Quitar filtros
+                      </button>
+                    ) : null}
+                  </fieldset>
+                ) : null}
+                {amenidadesSeleccionadas.length > 0 && ofertasFiltradas.length === 0 ? (
+                  <p className="vacio filtro-servicios__vacio" role="status" aria-live="polite">
+                    No hay opciones con todos esos servicios. Prueba quitando alguno.
+                  </p>
+                ) : null}
                 <div className="rejilla">
-                  {ofertas.map((oferta) => {
+                  {ofertasFiltradas.map((oferta) => {
                     const id = oferta.habitacion.id;
                     const clave = claveDetalle(oferta);
                     const abierto = !!detalleAbierto[clave];
@@ -657,7 +746,7 @@ function formatearDistancia(metros: number): string {
                         {(servicios[oferta.tipo.id] ?? []).length > 0 ? (
                           <ul className="servicios" aria-label={`Servicios de ${oferta.tipo.nombre}`}>
                             {(servicios[oferta.tipo.id] ?? []).map((servicio) => (
-                              <li key={servicio} className="servicios__item">{servicio}</li>
+                              <li key={servicio.id} className="servicios__item">{servicio.nombre}</li>
                             ))}
                           </ul>
                         ) : null}
