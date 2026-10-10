@@ -194,6 +194,17 @@ describe('distancias de sitios', () => {
       .toBeNull();
   });
 
+  /** Los cuatro números del `bbox` del iframe, ya decodificados y con tipo garantizado. */
+  async function recuadroDelMapa(): Promise<[number, number, number, number]> {
+    const src = decodeURIComponent(
+      (await screen.findByTitle(/Mapa de/)).getAttribute('src') ?? '');
+    const partes = (src.match(/bbox=([^&]*)/)?.[1] ?? '').split(',').map(Number);
+    if (partes.length !== 4 || partes.some((n) => Number.isNaN(n))) {
+      throw new Error('el iframe del mapa no trae un bbox de cuatro números: ' + src);
+    }
+    return partes as [number, number, number, number];
+  }
+
   it('el encuadre se ajusta a los sitios para que sus pines no se solapen', async () => {
     // Hotel y sitio a ~300 m (0.0022 grados). Con el margen fijo de 0.03 el mapa abarca
     // ~6 km y los tres pines caen en el mismo punto de pantalla: el sitio no se ve.
@@ -209,10 +220,7 @@ describe('distancias de sitios', () => {
     };
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
 
-    const url = decodeURIComponent(
-      (await screen.findByTitle(/Mapa de/)).getAttribute('src') ?? '');
-    const [oeste, sur, este, norte] = (url.match(/bbox=([^&]*)/)?.[1] ?? '')
-      .split(',').map(Number);
+    const [oeste, sur, este, norte] = await recuadroDelMapa();
     // Ambos extremos dentro: si un sitio queda fuera, no se ve.
     expect(oeste).toBeLessThanOrEqual(-74.049);
     expect(norte).toBeGreaterThanOrEqual(5.6672);
@@ -231,10 +239,7 @@ describe('distancias de sitios', () => {
     };
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
 
-    const url = decodeURIComponent(
-      (await screen.findByTitle(/Mapa de/)).getAttribute('src') ?? '');
-    const [oeste, , este] = (url.match(/bbox=([^&]*)/)?.[1] ?? '')
-      .split(',').map(Number);
+    const [oeste, , este] = await recuadroDelMapa();
     expect(oeste).toBeLessThanOrEqual(-74.1);
     expect(este).toBeGreaterThanOrEqual(-74.0477);
     expect(este - oeste).toBeGreaterThan(0.05);
@@ -247,10 +252,7 @@ describe('distancias de sitios', () => {
     };
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
 
-    const url = decodeURIComponent(
-      (await screen.findByTitle(/Mapa de/)).getAttribute('src') ?? '');
-    const [oeste, sur, este, norte] = (url.match(/bbox=([^&]*)/)?.[1] ?? '')
-      .split(',').map(Number);
+    const [oeste, sur, este, norte] = await recuadroDelMapa();
     // Solo el hotel: se aplica el margen mínimo (0.0025°), no el de 0.03° que dejaba
     // el hotel como una motita en un mapa de 6 km.
     expect(oeste).toBeCloseTo(-74.0502, 3);
