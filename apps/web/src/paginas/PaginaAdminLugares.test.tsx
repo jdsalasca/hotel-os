@@ -3,6 +3,16 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter } from 'react-router-dom';
 import { PaginaAdminLugares } from './PaginaAdminLugares';
 
+type LugarFixture = {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  latitud: number;
+  longitud: number;
+  activo: boolean;
+  metros?: number;
+};
+
 const estado = vi.hoisted(() => ({
   lugares: [
     {
@@ -13,7 +23,7 @@ const estado = vi.hoisted(() => ({
       longitud: -73.525,
       activo: true,
     },
-  ],
+  ] as LugarFixture[],
   cambios: [] as {
     ruta: string;
     cuerpo: {
