@@ -1,0 +1,8 @@
+﻿orden en pantalla:
+  1. Z Calonge a 33 m
+  2. M a 900 m a 912 m
+  3. A a 2 km a 2 km
+desborde horizontal: false
+errores JS: 2
+  - Failed to load resource: the server responded with a status of 401 ()
+  - Failed to load resource: the server responded with a status of 401 ()

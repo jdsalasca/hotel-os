@@ -111,7 +111,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   const peticionServicios = useRef(0);
   const [mapa, setMapa] = useState<{
     hotel: { ubicado: boolean; latitud?: number; longitud?: number };
-    lugares: { id: number; nombre: string; descripcion: string; latitud: number; longitud: number }[];
+    lugares: LugarPublico[];
   } | null>(null);
 
   /** Mapa y distancias: una sola lectura; si el hotel no se ubicó, la sección no se muestra. */
@@ -119,7 +119,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
     void api
       .get<{
         hotel: { ubicado: boolean; latitud?: number; longitud?: number };
-        lugares: { id: number; nombre: string; descripcion: string; latitud: number; longitud: number }[];
+        lugares: LugarPublico[];
       }>('/api/lugares')
       .then((datos) => setMapa(datos))
       .catch(() => setMapa(null));
@@ -330,21 +330,19 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
       });
   }, [ofertas]);
 
-/** Distancia en línea recta, redondeada al metro. El enlace abre la ruta real. */
-function distanciaMetros(
-  desdeLat: number,
-  desdeLng: number,
-  hastaLat: number,
-  hastaLng: number,
-): number {
-  const rad = (g: number) => (g * Math.PI) / 180;
-  const dLat = rad(hastaLat - desdeLat);
-  const dLng = rad(hastaLng - desdeLng);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(rad(desdeLat)) * Math.cos(rad(hastaLat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return Math.round(2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a))));
-}
+/**
+ * Un sitio como lo manda el servidor. `metros` es opcional a propósito: si el hotel no está
+ * ubicado el servidor no mide, y la pantalla no inventa el número que falta. Cuando sí viene,
+ * es el mismo que ordena la lista, así que el huésped ve el orden y la cifra de acuerdo.
+ */
+type LugarPublico = {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  latitud: number;
+  longitud: number;
+  metros?: number;
+};
 
 /**
  * Encuadre del mapa: todos los puntos con un margen, pero **con un mínimo y un máximo**.
@@ -1021,17 +1019,12 @@ function marcadoresDelMapa(
                       <div>
                         <strong>{lugar.nombre}</strong>
                         {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
-                        <span className="mapa__distancia">
-                          {' '}
-                          a {formatearDistancia(
-                            distanciaMetros(
-                              mapa.hotel.latitud ?? 0,
-                              mapa.hotel.longitud ?? 0,
-                              lugar.latitud,
-                              lugar.longitud,
-                            ),
-                          )}
-                        </span>
+                        {lugar.metros === undefined ? null : (
+                          <span className="mapa__distancia">
+                            {' '}
+                            a {formatearDistancia(lugar.metros)}
+                          </span>
+                        )}
                       </div>
                       <a
                         className="boton boton--fantasma boton--chico"

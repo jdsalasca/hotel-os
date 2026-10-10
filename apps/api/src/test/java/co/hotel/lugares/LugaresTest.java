@@ -174,4 +174,53 @@ class LugaresTest {
       .andExpect(jsonPath("$.hotel.ubicado").value(false))
       .andExpect(jsonPath("$.lugares[0].metros").doesNotExist());
   }
+
+  @Test
+  @DisplayName("los sitios salen de mas cerca a mas lejos, no por nombre")
+  void sitiosOrdenadosPorCercania() throws Exception {
+    var admin = user("admin@hotel.test").roles("ADMIN");
+    jdbc.update("INSERT INTO hotel_config(clave,valor,actualizado_en) VALUES"
+      + "('latitud','5.65',datetime('now')),('longitud','-73.52',datetime('now'))");
+    // Los nombres van al reves del orden de cercania: a 300 m, a 900 m y a 2 km. Alfabetico
+    // seria "A 300 m" (a 2 km), "B 900 m" y "C al lado" (a 300 m): el huesped veria primero
+    // el sitio mas lejano.
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "C al lado", "latitud", 5.6475, "longitud", -73.52))))
+      .andExpect(status().isCreated());
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "B 900 m", "latitud", 5.658, "longitud", -73.52))))
+      .andExpect(status().isCreated());
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "A 2 km", "latitud", 5.668, "longitud", -73.52))))
+      .andExpect(status().isCreated());
+
+    mvc.perform(get("/api/lugares"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.lugares[0].nombre").value("C al lado"))
+      .andExpect(jsonPath("$.lugares[1].nombre").value("B 900 m"))
+      .andExpect(jsonPath("$.lugares[2].nombre").value("A 2 km"));
+  }
+
+  @Test
+  @DisplayName("sin hotel ubicado el orden alfabetico se mantiene")
+  void sinHotelOrdenPorNombre() throws Exception {
+    var admin = user("admin@hotel.test").roles("ADMIN");
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "Zorro", "latitud", 5.6, "longitud", -73.5))))
+      .andExpect(status().isCreated());
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "Arbol", "latitud", 5.7, "longitud", -73.4))))
+      .andExpect(status().isCreated());
+
+    // Sin punto del hotel no hay a que medir: el orden alfabetico es la unica cosa estable.
+    mvc.perform(get("/api/lugares"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.lugares[0].nombre").value("Arbol"))
+      .andExpect(jsonPath("$.lugares[1].nombre").value("Zorro"));
+  }
 }

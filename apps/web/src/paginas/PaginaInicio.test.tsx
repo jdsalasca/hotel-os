@@ -34,6 +34,7 @@ const estado = vi.hoisted(() => ({
       descripcion: string;
       latitud: number;
       longitud: number;
+      metros?: number;
     }>;
   },
 }));
@@ -309,6 +310,7 @@ describe('distancias de sitios', () => {
         descripcion: '',
         latitud: 4.0004,
         longitud: -74,
+        metros: 44,
       }],
     };
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
@@ -325,6 +327,7 @@ describe('distancias de sitios', () => {
         descripcion: '',
         latitud: 4,
         longitud: -74,
+        metros: 0,
       }],
     };
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
@@ -341,11 +344,51 @@ describe('distancias de sitios', () => {
         descripcion: '',
         latitud: 4.01,
         longitud: -74,
+        metros: 1112,
       }],
     };
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
 
     expect(await screen.findByText('a 1,1 km')).toBeTruthy();
+  });
+
+  it('muestra la distancia que calculó el servidor, no la que rehace el navegador', async () => {
+    // Las coordenadas darían 111 m si el navegador las midiera por su cuenta. El servidor
+    // dice 40 m (mide por carretera, o redondea, o lo que sea): la pantalla muestra 40 m,
+    // porque el número que ve el huésped tiene que ser el mismo que ordena la lista.
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'Sitio medido',
+        descripcion: '',
+        latitud: 4.001,
+        longitud: -74,
+        metros: 40,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('a 40 m')).toBeTruthy();
+  });
+
+  it('omite la distancia si el servidor no la manda', async () => {
+    // Sin `metros` (hotel sin ubicar) la pantalla no inventa un número al lado del sitio.
+    estado.lugaresPublicos = {
+      hotel: { ubicado: false },
+      lugares: [{
+        id: 1,
+        nombre: 'Sitio sin medir',
+        descripcion: '',
+        latitud: 4.001,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    await screen.findByRole('heading', { name: 'Encuéntranos y explora' });
+    expect(screen.queryByText(/^a .*m$/)).toBeNull();
+    expect(screen.queryByText(/^a .*km$/)).toBeNull();
   });
 });
 

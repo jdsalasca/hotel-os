@@ -815,9 +815,9 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   movía el encuadre y guardaba su centro; la verificación visual mostró que el visor trae
   arrastre propio y se desincronizaba de lo que se guardaba, así que se invirtió el modelo.
   148/148 frontend, sin errores de tipos. Evidencia: `docs/evidence/round-180/evidencia.md`.
-- [ ] **Siguiente: qué queda abierto.** Congelar las condiciones ya está hecho (R180).
-   Cerrar el modelo operativo de sitios turísticos (curaduría del mapa, que ya edita en
-   R189). Lint frontend exige tocar `package-lock.json` y choca con la instalación en
+- [ ] **Siguiente: qué queda abierto.** Congelar las condiciones ya está hecho (R180) y la
+   curaduría del mapa quedó cerrada con la R196 (orden por cercanía y una sola medida de
+   distancia). Lint frontend exige tocar `package-lock.json` y choca con la instalación en
    paralelo. Modo claro/oscuro lo midió el plan como no cerrable en ronda chica. Recepción
    lo lleva otra agente. Los ítems externos (dominio, credenciales OTA, copia externa)
    siguen bloqueados.
@@ -829,6 +829,14 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   chequeo de tipos de pruebas, build y revisión visual con datos sintéticos en escritorio (1440 px)
   y móvil (390 px) aprobados; sin desbordamiento horizontal. Evidencia:
   `docs/evidence/round-195/verificacion.md`.
+- [x] **Ronda 196 — Los sitios se listan de más cerca a más lejos.** La portada los ordenaba
+  alfabéticamente (`ORDER BY nombre`), así que un sitio a 2 km salía antes que uno a 300 m
+  solo por llamarse "A". Además ignoraba la distancia que la API ya le mandaba y la
+  recalculaba en el navegador con una copia del haversine. Ahora el servidor ordena por
+  cercanía y la pantalla muestra ese mismo número; sin hotel ubicado se conserva el orden
+  alfabético porque no hay con qué ordenar. 458 backend / 158 frontend, y verificado contra
+  los contenedores: 33 m, 912 m y 2 km, en ese orden, con nombres puestos al revés a
+  propósito. Evidencia: `docs/evidence/round-196/verificacion.md`.
 
 
 ## Criterios de aceptación, verificados con ejecución real

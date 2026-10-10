@@ -40,7 +40,24 @@ public class LugaresController {
     // medir, y un número inventado es peor que un campo ausente. Cada lugar sale con su
     // `metros` (o sin él), que es lo que el mapa muestra como "a X m" / "a X km".
     var lugares = repo.activos().stream().map(l -> conDistancia(l, lat, lng)).toList();
-    return Map.of("hotel", hotel, "lugares", lugares);
+    return Map.of("hotel", hotel, "lugares", porCercania(lugares));
+  }
+
+  /**
+   * La lista pública va de más cerca a más lejos: quien lee "qué hay cerca" quiere primero lo
+   * que tiene al lado, no lo que empieza por A. La distancia se ordena una sola vez, aquí,
+   * con el mismo número que se muestra en pantalla.
+   *
+   * Sin hotel ubicado no hay con qué ordenar, así que se respeta el orden por nombre del
+   * repositorio en vez de inventar una cercanía.
+   */
+  private static List<Map<String, Object>> porCercania(List<Map<String, Object>> lugares) {
+    // Si no hay `metros` en el primero es que el hotel no está ubicado: no hay con qué
+    // ordenar y se respeta el orden por nombre del repositorio.
+    if (lugares.isEmpty() || lugares.get(0).get("metros") == null) return lugares;
+    return lugares.stream()
+      .sorted(java.util.Comparator.comparingLong(l -> ((Number) l.get("metros")).longValue()))
+      .toList();
   }
 
   /** Distancia en línea recta sobre la esfera (haversine). El viaje real es más largo. */
