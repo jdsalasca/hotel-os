@@ -47,7 +47,7 @@ describe('SaludoSesion', () => {
       </MemoryRouter>,
     );
     await waitFor(() => {
-      expect(screen.getByText('Bienvenido de vuelta, savatar62')).toBeTruthy();
+      expect(screen.getByText('Bienvenido de vuelta, Savatar62')).toBeTruthy();
     });
   });
 

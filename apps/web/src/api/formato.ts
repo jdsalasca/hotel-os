@@ -55,14 +55,30 @@ export function enlaceWhatsApp(telefono: string, texto: string): string | null {
 }
 
 /**
- * Quién saluda en la cabecera: el nombre si hay, si no lo de antes del @ (que
- * "savatar62@gmail.com" salga como "savatar62" y no cortado a la mitad). El correo
- * completo queda en el `title` para no perderlo.
+ * Quién saluda en la cabecera: el nombre si hay, si no lo de antes del @darle forma de
+ * nombre, porque "savatar62@gmail.com" suelto en la cabecera se lee como un identificador
+ * y no como un saludo. El correo completo queda en el `title` para no perderlo.
  */
 export function nombreCorto(nombre: string | null | undefined, email: string): string {
   const limpio = (nombre ?? '').trim();
   if (limpio.length > 0) return limpio;
   const correo = (email ?? '').trim();
   const arroba = correo.indexOf('@');
-  return arroba > 0 ? correo.slice(0, arroba) : correo;
+  return comoNombre(arroba > 0 ? correo.slice(0, arroba) : correo);
+}
+
+/**
+ * Convierte el usuario de un correo en algo que se pueda leer como nombre: separadores
+ *--"puntos", guiones, signos más y guiones bajos-- pasan a espacio y cada palabra empieza
+ * en mayúscula. Los números y letras sueltas se conservan: "savatar62" es mejor que
+ * "Savatar". Si no queda nada legible, se devuelve el original.
+ */
+function comoNombre(parte: string): string {
+  const palabras = parte
+    .split(/[.\-_+]+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1));
+  if (palabras.length === 0) return parte;
+  return palabras.join(' ');
 }

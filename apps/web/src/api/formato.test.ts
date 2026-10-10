@@ -37,14 +37,24 @@ describe('enlaceWhatsApp', () => {
 });
 
 describe('nombreCorto', () => {
-  it('prefiere el nombre y cae a lo de antes del @', () => {
-    expect(nombreCorto('Juan Pérez', 'juan@hotel.test')).toBe('Juan Pérez');
-    expect(nombreCorto('', 'savatar62@gmail.com')).toBe('savatar62');
-    expect(nombreCorto('  ', 'a@b.co')).toBe('a');
-  });
+it('prefiere el nombre y cae a lo de antes del @', () => {
+      expect(nombreCorto('Juan Pérez', 'juan@hotel.test')).toBe('Juan Pérez');
+      expect(nombreCorto('', 'savatar62@gmail.com')).toBe('Savatar62');
+      expect(nombreCorto('  ', 'a@b.co')).toBe('A');
+    });
 
-  it('sin nada muestra el correo tal cual', () => {
-    expect(nombreCorto('', '')).toBe('');
-    expect(nombreCorto('', 'sin-arroba')).toBe('sin-arroba');
-  });
+    it('sin nada muestra el correo tal cual', () => {
+      expect(nombreCorto('', '')).toBe('');
+      expect(nombreCorto('', 'sin-arroba')).toBe('Sin Arroba');
+    });
+
+    it('da forma de nombre a lo que sale del correo: "dueno@..." se lee "Dueno"', () => {
+      expect(nombreCorto('', 'dueno@hotel.test')).toBe('Dueno');
+      expect(nombreCorto('', 'savatar62@gmail.com')).toBe('Savatar62');
+      // Separadores a espacio y mayúscula en cada palabra; los números se conservan.
+      expect(nombreCorto('', 'ana.maria+reservas@hotel.test')).toBe('Ana Maria Reservas');
+      expect(nombreCorto('', 'juan_perez-1@hotel.test')).toBe('Juan Perez 1');
+      // Sin acentos que inventar: no hay forma de saber si el usuario escribe "dueno" o "dueño".
+      expect(nombreCorto('', 'dueño@hotel.test')).toBe('Dueño');
+    });
 });
