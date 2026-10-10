@@ -346,6 +346,45 @@ function distanciaMetros(
   return Math.round(2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a))));
 }
 
+/**
+ * Encuadre del mapa: todos los puntos con un margen, pero **con un mínimo y un máximo**.
+ *
+ * El hotel solo llevaba un margen fijo de 0.03° (unos 6 km de lado): los sitios a 300 m
+ * cabían dentro pero sus pines caían en el mismo punto de pantalla, y un sitio a 10 km
+ * se quedaba fuera del encuadre sin aparecer en ninguna parte. Ahora el recuadro se ajusta
+ * a la dispersión real —con aire alrededor— y solo se ensancha cuando hace falta.
+ */
+function encuadreDelMapa(
+  hotel: { latitud: number; longitud: number },
+  lugares: { latitud: number; longitud: number }[],
+): { oeste: number; sur: number; este: number; norte: number } {
+  const puntos = [{ latitud: hotel.latitud, longitud: hotel.longitud }, ...lugares];
+  let minLat = hotel.latitud;
+  let maxLat = hotel.latitud;
+  let minLng = hotel.longitud;
+  let maxLng = hotel.longitud;
+  for (const punto of puntos) {
+    minLat = Math.min(minLat, punto.latitud);
+    maxLat = Math.max(maxLat, punto.latitud);
+    minLng = Math.min(minLng, punto.longitud);
+    maxLng = Math.max(maxLng, punto.longitud);
+  }
+  // Aire en grados, con topes: sin mínimo el mapa sería un punto cuando el sitio está al
+  // lado; sin máximo un sitio a 30 km dejaría el hotel en una esquina diminuta.
+  const margen = (sur: number, norte: number) => {
+    const dispersion = (norte - sur) / 2;
+    return Math.min(Math.max(dispersion * 0.35, 0.0025), 0.06);
+  };
+  const margenLat = margen(minLat, maxLat);
+  const margenLng = margen(minLng, maxLng);
+  return {
+    oeste: minLng - margenLng,
+    este: maxLng + margenLng,
+    sur: minLat - margenLat,
+    norte: maxLat + margenLat,
+  };
+}
+
 function formatearDistancia(metros: number): string {
   if (metros < 1000) return `${metros} m`;
   return `${(metros / 1000).toLocaleString('es-CO', { maximumFractionDigits: 1 })} km`;
@@ -965,11 +1004,13 @@ function marcadoresDelMapa(
                   className="mapa__marco"
                   title={`Mapa de ${nombreHotel}`}
                   loading="lazy"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                    mapa.hotel.longitud - 0.03
-                  }%2C${mapa.hotel.latitud - 0.02}%2C${mapa.hotel.longitud + 0.03}%2C${
-                    mapa.hotel.latitud + 0.02
-                  }&layer=mapnik&marker=${encodeURIComponent(marcadoresDelMapa(
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${(() => {
+                    const b = encuadreDelMapa(
+                      { latitud: mapa.hotel.latitud, longitud: mapa.hotel.longitud },
+                      mapa.lugares,
+                    );
+                    return `${b.oeste}%2C${b.sur}%2C${b.este}%2C${b.norte}`;
+                  })()}&layer=mapnik&marker=${encodeURIComponent(marcadoresDelMapa(
                     { latitud: mapa.hotel.latitud, longitud: mapa.hotel.longitud },
                     mapa.lugares,
                   ))}`}

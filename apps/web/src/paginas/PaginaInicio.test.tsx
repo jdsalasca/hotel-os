@@ -194,6 +194,71 @@ describe('distancias de sitios', () => {
       .toBeNull();
   });
 
+  it('el encuadre se ajusta a los sitios para que sus pines no se solapen', async () => {
+    // Hotel y sitio a ~300 m (0.0022 grados). Con el margen fijo de 0.03 el mapa abarca
+    // ~6 km y los tres pines caen en el mismo punto de pantalla: el sitio no se ve.
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 5.6672, longitud: -74.0477 },
+      lugares: [{
+        id: 1,
+        nombre: 'Casona',
+        descripcion: '',
+        latitud: 5.665,
+        longitud: -74.049,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    const url = decodeURIComponent(
+      (await screen.findByTitle(/Mapa de/)).getAttribute('src') ?? '');
+    const [oeste, sur, este, norte] = (url.match(/bbox=([^&]*)/)?.[1] ?? '')
+      .split(',').map(Number);
+    // Ambos extremos dentro: si un sitio queda fuera, no se ve.
+    expect(oeste).toBeLessThanOrEqual(-74.049);
+    expect(norte).toBeGreaterThanOrEqual(5.6672);
+    // Y con la escala justa: ~1 km de lado, no los ~6 km del margen fijo.
+    expect(este - oeste).toBeLessThan(0.01);
+    expect(norte - sur).toBeLessThan(0.01);
+  });
+
+  it('el encuadre se ensancha si hay un sitio lejos', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 5.6672, longitud: -74.0477 },
+      lugares: [
+        { id: 1, nombre: 'Cerca', descripcion: '', latitud: 5.665, longitud: -74.049 },
+        { id: 2, nombre: 'Lejos', descripcion: '', latitud: 5.75, longitud: -74.1 },
+      ],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    const url = decodeURIComponent(
+      (await screen.findByTitle(/Mapa de/)).getAttribute('src') ?? '');
+    const [oeste, , este] = (url.match(/bbox=([^&]*)/)?.[1] ?? '')
+      .split(',').map(Number);
+    expect(oeste).toBeLessThanOrEqual(-74.1);
+    expect(este).toBeGreaterThanOrEqual(-74.0477);
+    expect(este - oeste).toBeGreaterThan(0.05);
+  });
+
+  it('sin sitios, el encuadre usa el margen mínimo', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 5.6672, longitud: -74.0477 },
+      lugares: [],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    const url = decodeURIComponent(
+      (await screen.findByTitle(/Mapa de/)).getAttribute('src') ?? '');
+    const [oeste, sur, este, norte] = (url.match(/bbox=([^&]*)/)?.[1] ?? '')
+      .split(',').map(Number);
+    // Solo el hotel: se aplica el margen mínimo (0.0025°), no el de 0.03° que dejaba
+    // el hotel como una motita en un mapa de 6 km.
+    expect(oeste).toBeCloseTo(-74.0502, 3);
+    expect(este).toBeCloseTo(-74.0452, 3);
+    expect(sur).toBeCloseTo(5.6647, 3);
+    expect(norte).toBeCloseTo(5.6697, 3);
+  });
+
   it('el mapa marca el hotel y los sitios, no solo el hotel', async () => {
     estado.lugaresPublicos = {
       hotel: { ubicado: true, latitud: 4, longitud: -74 },

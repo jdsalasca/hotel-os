@@ -801,6 +801,12 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    Limitación medida: el encuadre sigue fijo (±0.03°) y a 300 m los pines se solapan;
    ajustar el bbox al conjunto de puntos es lo siguiente. Evidencia:
    `docs/evidence/round-193/verificacion.md`.
+- [x] **Ronda 194 — El encuadre del mapa se ajusta a los sitios.** La R193 dejó los pines
+   solapados: el encuadre seguía fijo (±0.03°, ~6 km) y un sitio a más de ~3 km quedaba
+   además fuera del mapa sin aviso. Ahora el recuadro se calcula sobre hotel + sitios con
+   aire del 35% de la dispersión, acotado entre 0.0025° y 0.06°. Verificado: el mapa bajó
+   de ~6 km a ~1 km de lado y se ven las calles del pueblo. 150/150 frontend. Evidencia:
+   `docs/evidence/round-194/verificacion.md`.
 - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones ya está hecho (R180).
    Cerrar el modelo operativo de sitios turísticos (curaduría del mapa, que ya edita en
    R189). Lint frontend exige tocar `package-lock.json` y choca con la instalación en
