@@ -15,10 +15,10 @@ type Fila = {
   huespedes: number;
   estado: string;
   creado_en: string;
-  total_cents: number;
-  moneda: string;
-  abonado_cents: number;
-  pendiente_cents: number;
+  total_cents: number | null;
+  moneda: string | null;
+  abonado_cents: number | null;
+  pendiente_cents: number | null;
 };
 
 const estado = vi.hoisted(() => ({
@@ -119,7 +119,7 @@ async function montar() {
     </MemoryRouter>,
   );
   await waitFor(() => {
-    expect(screen.getByText('H-MIA1')).toBeTruthy();
+    expect(screen.getByRole('table', { name: 'Reservas de yo@hotel.test' })).toBeTruthy();
   });
 }
 
@@ -176,6 +176,128 @@ describe('resumen de mis reservas', () => {
         codigos: ['H-RECHAZADA', 'H-CANCELADA', 'H-ANTERIOR'],
       },
     ]);
+  });
+
+  it('resume el saldo de estadías vigentes sin mezclar monedas ni incluir las finalizadas', async () => {
+    estado.lista.push(
+      {
+        ...filaInicial(),
+        codigo: 'H-COP-CERCA',
+        llegada: fechaRelativa(2),
+        salida: fechaRelativa(4),
+        total_cents: 240000,
+        abonado_cents: 140000,
+        pendiente_cents: 100000,
+      },
+      {
+        ...filaInicial(),
+        codigo: 'H-COP-LEJANA',
+        llegada: fechaRelativa(7),
+        salida: fechaRelativa(9),
+        total_cents: 500000,
+        abonado_cents: 300000,
+        pendiente_cents: 200000,
+      },
+      {
+        ...filaInicial(),
+        codigo: 'H-USD',
+        llegada: fechaRelativa(10),
+        salida: fechaRelativa(12),
+        total_cents: 20000,
+        moneda: 'USD',
+        abonado_cents: 5000,
+        pendiente_cents: 15000,
+      },
+      {
+        ...filaInicial(),
+        codigo: 'H-CANCELADA',
+        estado: 'CANCELADA',
+        llegada: fechaRelativa(3),
+        salida: fechaRelativa(5),
+        pendiente_cents: 900000,
+      },
+      {
+        ...filaInicial(),
+        codigo: 'H-RECHAZADA',
+        estado: 'RECHAZADA',
+        llegada: fechaRelativa(5),
+        salida: fechaRelativa(7),
+        pendiente_cents: 800000,
+      },
+      {
+        ...filaInicial(),
+        codigo: 'H-ANTERIOR',
+        llegada: fechaRelativa(-10),
+        salida: fechaRelativa(-8),
+        pendiente_cents: 700000,
+      },
+    );
+    await montar();
+
+    const resumen = screen.getByRole('region', { name: 'Pagos por completar' });
+    expect(Array.from(resumen.querySelectorAll('dd')).map((importe) => importe.textContent)).toEqual([
+      montoCompartido(300000, 'COP'),
+      montoCompartido(15000, 'USD'),
+    ]);
+  });
+
+  it('advierte cuando una estadía no tiene saldo o moneda suficiente para resumirse', async () => {
+    estado.lista.push(
+      {
+        ...filaInicial(),
+        codigo: 'H-COP-CONOCIDA',
+        llegada: fechaRelativa(1),
+        salida: fechaRelativa(3),
+      },
+      {
+        ...filaInicial(),
+        codigo: 'H-SIN-MONEDA',
+        llegada: fechaRelativa(2),
+        salida: fechaRelativa(4),
+        moneda: null,
+      },
+    );
+    await montar();
+
+    const resumen = screen.getByRole('region', { name: 'Pagos por completar' });
+    expect(resumen.textContent).toContain('1 estadía no está disponible');
+    expect(resumen.textContent).toContain(montoCompartido(300000, 'COP'));
+  });
+
+  it('muestra los estados rechazados y no presentados como finalizados', async () => {
+    estado.lista.push(
+      { ...filaInicial(), codigo: 'H-PENDIENTE', llegada: fechaRelativa(2), salida: fechaRelativa(4) },
+      { ...filaInicial(), codigo: 'H-CONFIRMADA', estado: 'CONFIRMADA', llegada: fechaRelativa(3), salida: fechaRelativa(5) },
+      { ...filaInicial(), codigo: 'H-CANCELADA', estado: 'CANCELADA', llegada: fechaRelativa(4), salida: fechaRelativa(6) },
+      { ...filaInicial(), codigo: 'H-RECHAZADA', estado: 'RECHAZADA', llegada: fechaRelativa(5), salida: fechaRelativa(7) },
+      { ...filaInicial(), codigo: 'H-NO-PRESENTADA', estado: 'NO_PRESENTADA', llegada: fechaRelativa(6), salida: fechaRelativa(8) },
+    );
+    await montar();
+
+    const tonosEsperados = [
+      ['H-PENDIENTE', 'etiqueta--aviso'],
+      ['H-CONFIRMADA', 'etiqueta--exito'],
+      ['H-CANCELADA', 'etiqueta--error'],
+      ['H-RECHAZADA', 'etiqueta--error'],
+      ['H-NO-PRESENTADA', 'etiqueta--error'],
+    ] as const;
+    for (const [codigo, tono] of tonosEsperados) {
+      const etiqueta = screen.getByText(codigo).closest('tr')?.querySelector('.etiqueta');
+      expect(etiqueta?.classList.contains(tono)).toBe(true);
+    }
+  });
+
+  it('no muestra el resumen cuando no quedan saldos por completar', async () => {
+    estado.lista.push({
+      ...filaInicial(),
+      llegada: fechaRelativa(2),
+      salida: fechaRelativa(4),
+      abonado_cents: 300000,
+      pendiente_cents: 0,
+    });
+    await montar();
+
+    expect(screen.queryByRole('region', { name: 'Pagos por completar' })).toBeNull();
   });
 });
 

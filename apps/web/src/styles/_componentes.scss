@@ -41,6 +41,34 @@
   &__accion { margin-top: auto; }
 }
 
+.mis-reservas-pagos {
+  @include pila($e-3);
+  margin-bottom: $e-4;
+
+  &__encabezado { @include pila($e-1); }
+
+  &__titulo {
+    margin: 0;
+    font-family: $fuente-titulo;
+    font-size: $texto-lg;
+    line-height: 1.25;
+  }
+
+  &__descripcion { margin: 0; color: $tinta-suave; }
+
+  &__montos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: $e-3 $e-5;
+    margin: 0;
+  }
+
+  &__importe { @include pila($e-1); }
+
+  dt { color: $tinta-suave; font-size: $texto-xs; }
+  dd { margin: 0; font-size: $texto-lg; font-weight: $peso-medio; }
+}
+
 @media (min-width: 48rem) {
   .mis-reservas-opciones {
     grid-template-columns: repeat(2, minmax(0, 1fr));
