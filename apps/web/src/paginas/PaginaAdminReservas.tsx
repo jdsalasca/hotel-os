@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, urlApi } from '../api/cliente';
 import { fechaCorta, monto } from '../api/formato';
 import { useSesion } from '../api/useSesion';
+import { useActualizacionPeriodicaVisible } from '../api/useActualizacionPeriodicaVisible';
 import { Aviso, Cargando, Etiqueta, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 
@@ -169,6 +170,8 @@ export function PaginaAdminReservas() {
       // El contador es complementario: una falla suya no bloquea la lista de reservas.
     }
   }
+
+  useActualizacionPeriodicaVisible(actualizarMensajesNuevos, sesion.haySesion === true);
 
   useEffect(() => {
     void cargar();
@@ -494,6 +497,7 @@ export function PaginaAdminReservas() {
                           {(mensajesNuevos[r.codigo] ?? 0) > 0 ? (
                             <span
                               className="insignia"
+                              role="status"
                               aria-label={`${mensajesNuevos[r.codigo]} mensajes sin leer`}
                             >
                               {mensajesNuevos[r.codigo]} sin leer
@@ -621,7 +625,7 @@ export function PaginaAdminReservas() {
                   const hilo = await api.get<Hilo>(
                     `/api/admin/reservas/${detalle.reserva.codigo}/mensajes${antesDe ? `?antes_de=${antesDe}` : ''}`,
                   );
-                  if (!antesDe) await actualizarMensajesNuevos();
+                  if (!antesDe) void actualizarMensajesNuevos();
                   return hilo;
                 }}
                 enviar={(texto) =>

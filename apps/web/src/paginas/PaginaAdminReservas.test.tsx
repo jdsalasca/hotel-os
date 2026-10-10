@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PaginaAdminReservas } from './PaginaAdminReservas';
 
@@ -94,6 +94,7 @@ function sesionConectada() {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   estado.postes.length = 0;
   estado.mensajesNuevos = {};
   estado.fila = 'PENDIENTE';
@@ -126,6 +127,19 @@ describe('mensajes nuevos en la lista de reservas', () => {
       expect(screen.queryByText('2 sin leer')).toBeNull();
     });
   });
+
+  it('actualiza el conteo mientras recepción deja abierta la lista', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    estado.mensajesNuevos = { 'H-PANEL1': 1 };
+    await montar();
+
+    expect(screen.getByText('1 sin leer')).toBeTruthy();
+    estado.mensajesNuevos = { 'H-PANEL1': 3 };
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+
+    expect(screen.getByText('3 sin leer')).toBeTruthy();
+  });
+
 });
 
 describe('nueva reserva manual', () => {

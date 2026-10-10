@@ -1,0 +1,39 @@
+
+> hotel-web@0.1.0 test
+> vitest run --reporter=dot
+
+
+ RUN  v5.0.3 C:/Users/jdsal/.codex/worktrees/r201-mensajes-vivos/hotel-os/apps/web
+
+Not implemented: Window's scrollTo() method
+stderr | src/componentes/Estado.test.tsx > MuroAntipanico > una página rota ofrece salidas, no la pantalla en blanco
+Error: pum
+    at Explota (C:/Users/jdsal/.codex/worktrees/r201-mensajes-vivos/hotel-os/apps/web/src/componentes/Estado.test.tsx:25:9)
+    at Object.react_stack_bottom_frame (C:\Users\jdsal\.codex\worktrees\r201-mensajes-vivos\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:23863:20)
+    at renderWithHooks (C:\Users\jdsal\.codex\worktrees\r201-mensajes-vivos\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:5529:22)
+    at updateFunctionComponent (C:\Users\jdsal\.codex\worktrees\r201-mensajes-vivos\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:8897:19)
+    at beginWork (C:\Users\jdsal\.codex\worktrees\r201-mensajes-vivos\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:10522:18)
+    at runWithFiberInDEV (C:\Users\jdsal\.codex\worktrees\r201-mensajes-vivos\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:1522:13)
+    at performUnitOfWork (C:\Users\jdsal\.codex\worktrees\r201-mensajes-vivos\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:15140:22)
+    at workLoopSync (C:\Users\jdsal\.codex\worktrees\r201-mensajes-vivos\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:14956:41)
+    at renderRootSync (C:\Users\jdsal\.codex\worktrees\r201-mensajes-vivos\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:14936:11)
+    at performWorkOnRoot (C:\Users\jdsal\.codex\worktrees\r201-mensajes-vivos\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:14462:44) {
+  [stack]: [Getter/Setter],
+  [message]: 'pum'
+}
+
+The above error occurred in the <Explota> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, MuroAntipanico.
+
+
+···················································································································································································
+
+ Test Files  28 passed (28)
+      Tests  179 passed (179)
+   Start at  18:41:38
+   Duration  24.59s (environment 55%, tests 33%, import 8%, transform 4%)
+
+Environment  jsdom was created 28 times · 82.61s total, 55% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments

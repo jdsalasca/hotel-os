@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PaginaAdminPanel } from './PaginaAdminPanel';
 
 describe('PaginaAdminPanel', () => {
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -48,5 +49,32 @@ describe('PaginaAdminPanel', () => {
     await waitFor(() => {
       expect(recargar).toHaveBeenCalled();
     });
+  });
+
+  it('anuncia al lector de pantalla los mensajes nuevos al actualizarse', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    let nuevos = 1;
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/admin/sesion')) {
+        return new Response(JSON.stringify({ email: 'admin@hotel.test', nombre: 'A' }), { status: 200 });
+      }
+      if (ruta.includes('/api/admin/mensajes/nuevos')) {
+        return new Response(JSON.stringify({ nuevos }), { status: 200 });
+      }
+      return new Response('{}', { status: 404 });
+    }) as unknown as typeof fetch;
+    render(
+      <MemoryRouter>
+        <PaginaAdminPanel />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('1 mensaje sin leer');
+    expect(screen.getByRole('status').textContent).toBe('1 mensaje sin leer');
+    nuevos = 4;
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+
+    expect(screen.getByRole('status').textContent).toBe('4 mensajes sin leer');
   });
 });

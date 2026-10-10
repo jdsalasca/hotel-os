@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
 import { fechaCorta, hoyIso, monto as montoCompartido } from '../api/formato';
 import { useSesionHuesped } from '../api/useSesionHuesped';
+import { useActualizacionPeriodicaVisible } from '../api/useActualizacionPeriodicaVisible';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 import { ComprobantePropio, type ComprobantePropioDatos } from '../componentes/ComprobantePropio';
 import { Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
@@ -152,16 +153,37 @@ export function PaginaMisReservas() {
     }
   }
 
+  async function actualizarMensajesNuevos() {
+    if (sesion.haySesion !== true) return;
+    try {
+      const datos = await api.get<{ nuevos: number; porReserva: Record<string, number> }>(
+        '/api/mis-reservas/mensajes/nuevos',
+      );
+      setNuevos(datos.porReserva ?? {});
+    } catch {
+      // Conserva el último conteo válido ante una falla temporal.
+    }
+  }
+
+  async function cargarMensajes(antesDe?: number): Promise<Hilo> {
+    if (hiloAbierto === null) return { mensajes: [] };
+    const consulta = antesDe ? '?antes_de=' + antesDe : '';
+    const hilo = await api.get<Hilo>(
+      '/api/mis-reservas/' + hiloAbierto + '/mensajes' + consulta,
+    );
+    if (!antesDe) void actualizarMensajesNuevos();
+    return hilo;
+  }
+
+  useActualizacionPeriodicaVisible(actualizarMensajesNuevos, sesion.haySesion === true);
+
   useEffect(() => {
     if (sesion.haySesion !== true) return;
     api
       .get<{ reservas: Reserva[] }>('/api/mis-reservas')
       .then((datos) => setReservas(datos.reservas))
       .catch((e: Error) => setError(e.message));
-    api
-      .get<{ nuevos: number; porReserva: Record<string, number> }>('/api/mis-reservas/mensajes/nuevos')
-      .then((datos) => setNuevos(datos.porReserva ?? {}))
-      .catch(() => setNuevos({}));
+    void actualizarMensajesNuevos();
   }, [sesion.haySesion]);
 
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
@@ -325,6 +347,7 @@ export function PaginaMisReservas() {
                         type="button"
                         onClick={() => setHiloAbierto((abierto) => (abierto === r.codigo ? null : r.codigo))}
                         aria-expanded={hiloAbierto === r.codigo}
+                        aria-live="polite"
                       >
                         Mensajes{(nuevos[r.codigo] ?? 0) > 0 ? ` (${nuevos[r.codigo]})` : ''}
                       </button>{' '}
@@ -503,22 +526,9 @@ export function PaginaMisReservas() {
             <HiloMensajes
               titulo={`Conversación de ${hiloAbierto}`}
               ladoPropio="HUESPED"
-              cargar={(antesDe) =>
-                api.get<Hilo>(
-                  `/api/mis-reservas/${hiloAbierto}/mensajes${antesDe ? `?antes_de=${antesDe}` : ''}`,
-                )
-              }
+              cargar={cargarMensajes}
               enviar={(texto) =>
-                api
-                  .post(`/api/mis-reservas/${hiloAbierto}/mensajes`, { texto })
-                  .then(() =>
-                    api
-                      .get<{ nuevos: number; porReserva: Record<string, number> }>(
-                        '/api/mis-reservas/mensajes/nuevos',
-                      )
-                      .then((datos) => setNuevos(datos.porReserva ?? {}))
-                      .catch(() => undefined),
-                  )
+                api.post('/api/mis-reservas/' + hiloAbierto + '/mensajes', { texto }).then(() => undefined)
               }
             />
           </div>

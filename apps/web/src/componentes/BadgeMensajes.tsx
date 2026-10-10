@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/cliente';
+import { useActualizacionPeriodicaVisible } from '../api/useActualizacionPeriodicaVisible';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 
 /**
@@ -10,20 +11,27 @@ export function BadgeMensajes() {
   const sesion = useSesionHuesped();
   const [nuevos, setNuevos] = useState(0);
 
-  useEffect(() => {
+  async function actualizarMensajesNuevos() {
     if (sesion.haySesion !== true) {
       setNuevos(0);
       return;
     }
-    void api
-      .get<{ nuevos: number }>('/api/mis-reservas/mensajes/nuevos')
-      .then((datos) => setNuevos(datos.nuevos))
-      .catch(() => setNuevos(0));
+    try {
+      const datos = await api.get<{ nuevos: number }>('/api/mis-reservas/mensajes/nuevos');
+      setNuevos(datos.nuevos);
+    } catch {
+      // Una falla transitoria no oculta el último conteo válido.
+    }
+  }
+
+  useEffect(() => {
+    void actualizarMensajesNuevos();
   }, [sesion.haySesion]);
+  useActualizacionPeriodicaVisible(actualizarMensajesNuevos, sesion.haySesion === true);
 
   if (nuevos <= 0) return null;
   return (
-    <span className="insignia" aria-label={`${nuevos} mensajes sin leer`}>
+    <span className="insignia" role="status" aria-label={`${nuevos} mensajes sin leer`}>
       {nuevos} sin leer
     </span>
   );

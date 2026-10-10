@@ -859,6 +859,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 - [x] **Ronda 200 — El chat indica quién ya leyó cada mensaje.** Los mensajes propios muestran «Visto por el hotel/huésped» o «Enviado · pendiente de lectura», según el `visto` ya devuelto por la API. El hilo abre y baja hasta lo recién enviado; actualizar conserva la posición si se consulta el historial y cargar mensajes anteriores mantiene el ancla visual. Sin cambios de API ni base de datos. Frontend 173/173, chequeo de tipos, build Vite y `git diff --check` aprobados. Chrome local con datos sintéticos: escritorio 1440 px y móvil 390 px sin desbordamiento horizontal; envío de prueba visible y cero errores/advertencias de consola. Evidencia: `docs/evidence/round-200/verificacion.md`.
 
+- [x] **Ronda 201 — Los mensajes nuevos se actualizan solos.** El contador del huésped y los conteos del panel/recepción se actualizan cada 30 segundos mientras la pestaña está visible; vuelven a consultarse al regresar a la pestaña. Una falla temporal conserva el último conteo válido y abrir el chat no espera una segunda consulta. El temporizador compartido se desactiva sin sesión y se limpia al desmontar. Los contadores anuncian cambios a lectores de pantalla. Sin cambios de API ni base de datos. Frontend 179/179, chequeo de tipos de pruebas, build Vite y `git diff --check` aprobados. Chrome local con datos sintéticos: componente e insignia reales con SCSS de producción, escritorio 1440 × 1000 y móvil 390 × 844; menú móvil abierto, sin desbordamiento y sin errores/advertencias de consola. Evidencia: `docs/evidence/round-201/verificacion.md`.
+
 
 ## Criterios de aceptación, verificados con ejecución real
 

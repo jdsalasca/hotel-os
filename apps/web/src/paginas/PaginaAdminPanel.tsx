@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
+import { useActualizacionPeriodicaVisible } from '../api/useActualizacionPeriodicaVisible';
 import { Cargando, MensajeError, PuertaAdmin } from '../componentes/Estado';
 import { ListaPreparacion } from '../componentes/ListaPreparacion';
 
@@ -17,13 +18,20 @@ export function PaginaAdminPanel() {
   const [guardandoNombre, setGuardandoNombre] = useState(false);
   const [nombreError, setNombreError] = useState<string | null>(null);
 
-  useEffect(() => {
+  async function actualizarMensajesNuevos() {
     if (sesion.haySesion !== true) return;
-    void api
-      .get<{ nuevos: number }>('/api/admin/mensajes/nuevos')
-      .then((datos) => setNuevos(datos.nuevos))
-      .catch(() => setNuevos(null));
+    try {
+      const datos = await api.get<{ nuevos: number }>('/api/admin/mensajes/nuevos');
+      setNuevos(datos.nuevos);
+    } catch {
+      // Conserva el último conteo si falla una consulta en segundo plano.
+    }
+  }
+
+  useEffect(() => {
+    void actualizarMensajesNuevos();
   }, [sesion.haySesion]);
+  useActualizacionPeriodicaVisible(actualizarMensajesNuevos, sesion.haySesion === true);
 
   useEffect(() => {
     if (sesion.haySesion === true) {
@@ -94,7 +102,7 @@ export function PaginaAdminPanel() {
             <p className="campo__ayuda sin-margen">
               Buscar, ver detalle, abonos, cambios y cancelaciones.
               {nuevos !== null && nuevos > 0 ? (
-                <> Tienes <strong>{nuevos} mensaje{nuevos === 1 ? '' : 's'} sin leer</strong>.</>
+                <> Tienes <strong role="status">{nuevos} mensaje{nuevos === 1 ? '' : 's'} sin leer</strong>.</>
               ) : null}
             </p>
             <p className="sin-margen">
