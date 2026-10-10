@@ -670,7 +670,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 1. ~~Recibo descargable~~ — hecho en R129 (imprimir + no-imprimir).
 2. Recordatorio de llegada por correo el día antes (requiere refresh token Gmail) —
    alto/bloqueado por credencial externa.
-3. Calendario del panel con arrastre para bloquear noches — alto/alto.
+3. ~~Calendario del panel con arrastre para bloquear noches~~ — hecho en R199: selección accesible y bloqueo con conflictos validados.
 4. ~~`/consulta` sin email para logueados~~ — hecho en R122 (prefill) + R117.
 5. Modo claro/oscuro en la web pública — bajo/medio (requiere pasar tokens SCSS
    a custom properties; medido: no cabe en una ronda chica).
@@ -786,10 +786,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | Misión | Impacto | Esfuerzo | Estado |
 |---|---:|---:|---|
 | Categorías y filtro para lugares turísticos | Alto | Medio | Completado en R198: categorías editables y filtro coordinado con el mapa |
-| Calendario del panel con arrastre para bloquear noches | Alto | Alto | Siguiente: validar conflictos con reservas y bloqueos actuales |
+| Calendario del panel con arrastre para bloquear noches | Alto | Alto | Completado en R199: selección por dos toques/teclado o arrastre y rechazo de conflictos |
 | Recordatorio de llegada por correo el día antes | Alto | Medio | Bloqueado por el refresh token de Gmail del hotel |
 | Tema claro/oscuro público | Medio | Alto | Pendiente; requiere pasar los tokens de SCSS a propiedades de tema |
-| Conversación huésped-hotel con estados y notificaciones | Alto | Alto | R197 cerró el conteo por reserva; siguen abiertos los estados y avisos adicionales |
+| Conversación huésped-hotel con estados y notificaciones | Alto | Alto | Siguiente candidata: R197 cerró el conteo por reserva; faltan estados y avisos adicionales |
 
 - [x] **Ronda 193 — El mapa marca los sitios, no solo el hotel.** La sección "Encuéntranos
    y explora" pintaba un único marcador (el del hotel) y los sitios solo aparecían en la
@@ -819,11 +819,6 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   movía el encuadre y guardaba su centro; la verificación visual mostró que el visor trae
   arrastre propio y se desincronizaba de lo que se guardaba, así que se invirtió el modelo.
   148/148 frontend, sin errores de tipos. Evidencia: `docs/evidence/round-180/evidencia.md`.
-- [ ] **Siguiente: bloquear noches desde el calendario del panel.** Diseñar la selección de
-   fechas y revisar conflictos con reservas, bloqueos existentes y la zona horaria antes de
-   guardar. El correo de llegada sigue bloqueado por la credencial Gmail; las mejoras de
-   conversación requieren una ronda separada.
-
 - [x] **Ronda 195 — Saldo pendiente visible y estados claros.** «Mis reservas» resume los saldos
   de estadías próximas y en curso por separado para cada moneda, excluye canceladas, rechazadas y
   anteriores, y avisa si faltan datos para calcular alguna. Los estados rechazados y no presentados
@@ -853,6 +848,14 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   161/161, typecheck y build Vite aprobados. Chrome con datos sintéticos en escritorio y móvil
   (390 px): sin desbordamiento ni errores de consola. Capturas y detalle:
   `docs/evidence/round-198/verificacion.md`.
+- [x] **Ronda 199 — Bloqueos desde el calendario de ocupación.** El administrador elige
+  noches libres con dos pulsaciones/teclas o arrastra con el ratón; el formulario muestra el
+  intervalo y la salida sin guardar automáticamente. El API revisa solapes de reservas y
+  bloqueos dentro de la transacción y responde 409 si el inventario cambió. Suite API 465
+  pruebas (0 fallos, 0 errores, 1 omitida), 58 específicas de inventario/controlador,
+  frontend 169/169, typecheck y build aprobados. Chrome local con datos sintéticos en escritorio
+  y móvil (390 px), cero desbordamiento del documento y cero errores de consola. Evidencia:
+  `docs/evidence/round-199/verificacion.md`.
 
 
 ## Criterios de aceptación, verificados con ejecución real

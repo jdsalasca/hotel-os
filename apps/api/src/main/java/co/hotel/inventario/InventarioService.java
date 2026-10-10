@@ -92,8 +92,17 @@ public class InventarioService {
     if (habitacionId != null && inventario.habitacionPorId(habitacionId).isEmpty())
       throw new DatosInvalidosException("habitación no encontrada");
     try {
-      return tx.enTransaccion(estado ->
-        inventario.insertarBloqueo(habitacionId, desde, hasta, motivo == null ? "" : motivo.trim()));
+      return tx.enTransaccion(estado -> {
+        boolean libre = habitacionId == null
+          ? inventario.todoElHotelEstaLibre(desde, hasta)
+          : inventario.estaLibre(habitacionId, desde, hasta);
+        if (!libre) {
+          throw new ConflictoBloqueoException(
+            "El periodo se cruza con una reserva o un bloqueo vigente; revisa el calendario.");
+        }
+        return inventario.insertarBloqueo(habitacionId, desde, hasta,
+          motivo == null ? "" : motivo.trim());
+      });
     } catch (org.springframework.dao.DataAccessException e) {
       if (mensajeContiene(e, "FOREIGN KEY"))
         throw new DatosInvalidosException("habitación no encontrada");

@@ -354,6 +354,8 @@ public class InventarioAdminController {
         : ResponseEntity.status(201).body(resultado);
     } catch (DatosInvalidosException e) {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    } catch (ConflictoBloqueoException e) {
+      return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
     } catch (DateTimeParseException e) {
       return ResponseEntity.badRequest().body(Map.of("error", "las fechas deben tener formato YYYY-MM-DD"));
     } catch (IllegalArgumentException e) {

@@ -62,6 +62,17 @@ class InventarioServiceTest {
     tarifas = new TarifaService(new TarifaRepository(jdbc), new InventarioRepository(jdbc), tx);
   }
 
+  private void registrarReserva(long roomId, String codigo, String estado,
+      String desde, String hasta) {
+    jdbc.update("INSERT INTO reservations(codigo,email,llegada,salida,huespedes,estado,origen,idempotencia)"
+      + " VALUES(?,?,?,?,?,?,?,?)", codigo, "huesped@test", desde, hasta, 1, estado,
+      "WEB", "idem-" + codigo);
+    long reservationId = jdbc.queryForObject("SELECT id FROM reservations WHERE codigo=?",
+      Long.class, codigo);
+    jdbc.update("INSERT INTO reservation_items(reservation_id,room_id,desde,hasta) VALUES(?,?,?,?)",
+      reservationId, roomId, desde, hasta);
+  }
+
   @Test
   @DisplayName("el hotel registra un tipo de habitación y sus habitaciones")
   void registraTipoYHabitaciones() {
@@ -116,6 +127,63 @@ class InventarioServiceTest {
     List<Habitacion> libres = svc.disponibles(LocalDate.parse("2026-11-02"), LocalDate.parse("2026-11-04"));
     assertEquals(1, libres.size());
     assertEquals(h1.id() + 1, libres.get(0).id());
+  }
+
+  @Test
+  @DisplayName("un bloqueo no puede cubrir noches de una reserva pendiente")
+  void bloquearReservaVigenteSeRechazaSinInsertar() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    Habitacion habitacion = svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    registrarReserva(habitacion.id(), "RES-1", "PENDIENTE", "2026-11-02", "2026-11-04");
+
+    var error = assertThrows(ConflictoBloqueoException.class, () -> svc.bloquear(habitacion.id(),
+      LocalDate.parse("2026-11-03"), LocalDate.parse("2026-11-05"), "Mantenimiento"));
+
+    assertTrue(error.getMessage().contains("reserva"));
+    assertTrue(svc.bloqueosVigentes().isEmpty(), "el bloqueo rechazado no deja filas");
+  }
+
+  @Test
+  @DisplayName("dos bloqueos no pueden cubrir la misma noche de una habitación")
+  void bloquearIntervaloYaBloqueadoSeRechazaSinInsertar() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    Habitacion habitacion = svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    svc.bloquear(habitacion.id(), LocalDate.parse("2026-11-01"),
+      LocalDate.parse("2026-11-04"), "Primera obra");
+
+    var error = assertThrows(ConflictoBloqueoException.class, () -> svc.bloquear(habitacion.id(),
+      LocalDate.parse("2026-11-03"), LocalDate.parse("2026-11-05"), "Segunda obra"));
+
+    assertTrue(error.getMessage().contains("bloqueo"));
+    assertEquals(1, svc.bloqueosVigentes().size(), "se conserva solo el bloqueo original");
+  }
+
+  @Test
+  @DisplayName("un bloqueo adyacente empieza el día de salida sin solaparse")
+  void bloqueoAdyacenteAReservaSePermite() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    Habitacion habitacion = svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    registrarReserva(habitacion.id(), "RES-1", "CONFIRMADA", "2026-11-01", "2026-11-03");
+
+    long bloqueoId = svc.bloquear(habitacion.id(), LocalDate.parse("2026-11-03"),
+      LocalDate.parse("2026-11-05"), "Mantenimiento");
+
+    assertTrue(bloqueoId > 0);
+    assertEquals(1, svc.bloqueosVigentes().size());
+  }
+
+  @Test
+  @DisplayName("un bloqueo global rechaza una reserva vigente de cualquier habitación")
+  void bloqueoGlobalConReservaSeRechazaSinInsertar() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    Habitacion habitacion = svc.crearHabitacion("101", tipo.id(), "Habitación 101");
+    registrarReserva(habitacion.id(), "RES-1", "CONFIRMADA", "2026-11-02", "2026-11-04");
+
+    var error = assertThrows(ConflictoBloqueoException.class, () -> svc.bloquearTodo(
+      LocalDate.parse("2026-11-03"), LocalDate.parse("2026-11-05"), "Cierre del hotel"));
+
+    assertTrue(error.getMessage().contains("reserva"));
+    assertTrue(svc.bloqueosVigentes().isEmpty(), "el bloqueo global rechazado no deja filas");
   }
 
   @Test

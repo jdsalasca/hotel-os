@@ -145,6 +145,19 @@ public class InventarioRepository {
     return libre != null && libre == 1;
   }
 
+  /** El hotel completo solo se puede cerrar si no hay reservas ni bloqueos en el periodo. */
+  public boolean todoElHotelEstaLibre(LocalDate desde, LocalDate hasta) {
+    Integer libre = jdbc.queryForObject(
+      "SELECT CASE WHEN EXISTS (SELECT 1 FROM reservation_items ri "
+        + "JOIN reservations res ON res.id = ri.reservation_id "
+        + "WHERE res.estado IN ('PENDIENTE','CONFIRMADA') "
+        + "AND ri.desde < ? AND ? < ri.hasta) "
+        + "OR EXISTS (SELECT 1 FROM blocks b WHERE b.desde < ? AND ? < b.hasta) "
+        + "THEN 0 ELSE 1 END",
+      Integer.class, hasta.toString(), desde.toString(), hasta.toString(), desde.toString());
+    return libre != null && libre == 1;
+  }
+
   /** Habitaciones activas sin reserva vigente ni bloqueo en el intervalo semiabierto. */
   public List<Habitacion> disponibles(LocalDate desde, LocalDate hasta) {
     return jdbc.query(

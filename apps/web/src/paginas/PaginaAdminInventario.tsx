@@ -25,6 +25,8 @@ const DIAS_SEMANA = [
 ];
 
 type Bloqueo = { id: number; habitacion: string; desde: string; hasta: string; motivo: string };
+type AnclaCalendario = { roomId: number; codigo: string; fecha: string };
+type RangoCalendario = { roomId: number; desde: string; hasta: string };
 type Amenidad = { id: number; codigo: string; nombre: string };
 /** Fila del calendario: una habitación con una entrada por noche del mes. */
 type CalendarioDia = {
@@ -77,6 +79,13 @@ export function PaginaAdminInventario() {
   const [nuevoTipo, setNuevoTipo] = useState({ codigo: '', nombre: '', capacidadMax: 2 });
   const [nuevaHabitacion, setNuevaHabitacion] = useState({ codigo: '', roomTypeId: '', nombre: '' });
   const [bloqueo, setBloqueo] = useState({ roomId: '', desde: '', hasta: '', motivo: '' });
+  const [seleccionCalendario, setSeleccionCalendario] = useState<RangoCalendario | null>(null);
+  const [mensajeSeleccion, setMensajeSeleccion] = useState(
+    'Elige una noche libre y luego la última noche del bloqueo.',
+  );
+  const anclaCalendario = useRef<AnclaCalendario | null>(null);
+  const arrastreCalendario = useRef<{ roomId: number; desde: string; seMovio: boolean } | null>(null);
+  const suprimirClicArrastre = useRef(false);
   const [nuevoPlan, setNuevoPlan] = useState({ codigo: '', nombre: '', moneda: 'COP', descuentoPct: '' });
   const [catalogoServicios, setCatalogoServicios] = useState<Amenidad[] | null>(null);
   const [tipoServicios, setTipoServicios] = useState('');
@@ -184,6 +193,10 @@ export function PaginaAdminInventario() {
   }
 
   useEffect(() => {
+    anclaCalendario.current = null;
+    arrastreCalendario.current = null;
+    setSeleccionCalendario(null);
+    setMensajeSeleccion('Elige una noche libre y luego la última noche del bloqueo.');
     void cargar();
   }, [mes]);
 
@@ -315,8 +328,10 @@ export function PaginaAdminInventario() {
     try {
       await tarea();
       await cargar();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo completar la operación');
+      return false;
     }
   }
 
@@ -328,6 +343,76 @@ export function PaginaAdminInventario() {
   const calendarioPorHabitacion = new Map(
     filasCalendario.map((fila) => [fila.id, new Map(fila.noches.map((noche) => [noche.fecha, noche]))]),
   );
+
+  function completarSeleccion(fila: CalendarioDia, inicio: string, fin: string) {
+    const desde = inicio <= fin ? inicio : fin;
+    const ultimaNoche = inicio <= fin ? fin : inicio;
+    const noches = calendarioPorHabitacion.get(fila.id);
+    for (let fecha = desde; fecha <= ultimaNoche; fecha = sumarDiasIso(fecha, 1)) {
+      const noche = noches?.get(fecha);
+      if (!noche || noche.estado !== 'LIBRE') {
+        const estado = noche ? estadoCalendario(noche.estado).etiqueta.toLowerCase() : 'sin datos';
+        anclaCalendario.current = null;
+        setSeleccionCalendario(null);
+        setBloqueo((actual) => ({ ...actual, desde: '', hasta: '' }));
+        setMensajeSeleccion(`No se puede seleccionar: la noche ${fecha} de ${fila.codigo} está ${estado}.`);
+        return;
+      }
+    }
+
+    const hasta = sumarDiasIso(ultimaNoche, 1);
+    const cantidad = Math.round((Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)) / 86_400_000);
+    setBloqueo((actual) => ({ ...actual, roomId: String(fila.id), desde, hasta }));
+    setSeleccionCalendario({ roomId: fila.id, desde, hasta: ultimaNoche });
+    setMensajeSeleccion(
+      `${cantidad} ${cantidad === 1 ? 'noche' : 'noches'} seleccionadas en ${fila.codigo}: ${desde} a ${ultimaNoche}. Salida: ${hasta}.`,
+    );
+    anclaCalendario.current = null;
+  }
+
+  function elegirNoche(fila: CalendarioDia, fecha: string) {
+    if (suprimirClicArrastre.current) {
+      suprimirClicArrastre.current = false;
+      return;
+    }
+    const ancla = anclaCalendario.current;
+    if (!ancla || ancla.roomId !== fila.id) {
+      anclaCalendario.current = { roomId: fila.id, codigo: fila.codigo, fecha };
+      setBloqueo((actual) => ({ ...actual, roomId: String(fila.id), desde: '', hasta: '' }));
+      setSeleccionCalendario({ roomId: fila.id, desde: fecha, hasta: fecha });
+      setMensajeSeleccion(`Inicio elegido: ${fecha} en ${fila.codigo}. Elige la última noche libre.`);
+      return;
+    }
+    completarSeleccion(fila, ancla.fecha, fecha);
+  }
+
+  function iniciarArrastre(fila: CalendarioDia, fecha: string, event: React.PointerEvent<HTMLButtonElement>) {
+    suprimirClicArrastre.current = false;
+    if (event.pointerType !== 'mouse' || event.button !== 0) return;
+    arrastreCalendario.current = { roomId: fila.id, desde: fecha, seMovio: false };
+  }
+
+  function moverArrastre(fila: CalendarioDia, fecha: string) {
+    const arrastre = arrastreCalendario.current;
+    if (arrastre?.roomId === fila.id && arrastre.desde !== fecha) arrastre.seMovio = true;
+  }
+
+  function terminarArrastre(fila: CalendarioDia, fecha: string) {
+    const arrastre = arrastreCalendario.current;
+    arrastreCalendario.current = null;
+    if (!arrastre || arrastre.roomId !== fila.id || !arrastre.seMovio) return;
+    suprimirClicArrastre.current = true;
+    window.setTimeout(() => { suprimirClicArrastre.current = false; }, 0);
+    completarSeleccion(fila, arrastre.desde, fecha);
+  }
+
+  function limpiarSeleccionCalendario() {
+    anclaCalendario.current = null;
+    arrastreCalendario.current = null;
+    setSeleccionCalendario(null);
+    setMensajeSeleccion('Elige una noche libre y luego la última noche del bloqueo.');
+  }
+
   const nochesCalendario = filasCalendario.flatMap((fila) => fila.noches);
   const hayTipos = (tipos?.length ?? 0) > 0;
   const PASOS = [
@@ -634,6 +719,13 @@ export function PaginaAdminInventario() {
                 </li>
               ))}
             </ul>
+            <p className="campo__ayuda ocupacion__ayuda">
+              Selecciona una noche libre y la última noche del bloqueo. También puedes arrastrar con el ratón;
+              las fechas se completan en el formulario para que las revises antes de aplicar.
+            </p>
+            <p className="ocupacion__seleccion" role="status" aria-label="Selección de noches">
+              {mensajeSeleccion}
+            </p>
             <div className="ocupacion" role="region" aria-labelledby="titulo-calendario" tabIndex={0}>
               <table className="ocupacion__tabla">
                 <caption>
@@ -675,9 +767,39 @@ export function PaginaAdminInventario() {
                           );
                         }
                         const estado = estadoCalendario(noche.estado);
+                        const seleccionada = seleccionCalendario?.roomId === fila.id
+                          && noche.fecha >= seleccionCalendario.desde
+                          && noche.fecha <= seleccionCalendario.hasta;
                         const texto = `${fila.codigo}, ${fechaCorta(noche.fecha)}, ${estado.etiqueta}${
                           noche.codigoReserva ? `, reserva ${noche.codigoReserva}` : ''
                         }`;
+                        if (noche.estado === 'LIBRE') {
+                          return (
+                            <td
+                              key={dia}
+                              className={`ocupacion__celda ocupacion__celda--libre${esFinDeSemana(dia) ? ' ocupacion__celda--fin-semana' : ''}${seleccionada ? ' ocupacion__celda--seleccionada' : ''}`}
+                              title={texto}
+                            >
+                              <button
+                                type="button"
+                                className="ocupacion__selector"
+                                aria-label={`Habitación ${fila.codigo}, noche ${noche.fecha}, libre`}
+                                onClick={() => elegirNoche(fila, noche.fecha)}
+                                onPointerDown={(event) => iniciarArrastre(fila, noche.fecha, event)}
+                                onPointerEnter={() => moverArrastre(fila, noche.fecha)}
+                                onPointerUp={() => terminarArrastre(fila, noche.fecha)}
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className={`ocupacion__marca ocupacion__marca--${claveEstadoCalendario(noche.estado)}`}
+                                >
+                                  {estado.simbolo}
+                                </span>
+                              </button>
+                              <span className="visually-hidden">{texto}</span>
+                            </td>
+                          );
+                        }
                         return (
                           <td
                             key={dia}
@@ -770,13 +892,18 @@ export function PaginaAdminInventario() {
                   hasta: bloqueo.hasta,
                   motivo: bloqueo.motivo,
                 }),
-              );
+              ).then((guardado) => {
+                if (!guardado) return;
+                setBloqueo({ roomId: '', desde: '', hasta: '', motivo: '' });
+                limpiarSeleccionCalendario();
+                setMensajeSeleccion('Bloqueo aplicado y calendario actualizado.');
+              });
             }}
           >
             <h2 className="t-lg mb-0">Bloqueo de mantenimiento</h2>
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="bloqueo-hab">Habitación</label>
-              <select id="bloqueo-hab" value={bloqueo.roomId} onChange={(e) => setBloqueo({ ...bloqueo, roomId: e.target.value })}>
+              <select id="bloqueo-hab" value={bloqueo.roomId} onChange={(e) => { limpiarSeleccionCalendario(); setBloqueo({ ...bloqueo, roomId: e.target.value }); }}>
                 <option value="">Todo el hotel</option>
                 {habitaciones?.map((h) => (
                   <option key={h.id} value={h.id}>{h.codigo}</option>
@@ -786,11 +913,11 @@ export function PaginaAdminInventario() {
             <div className="campos">
               <div className="campo">
                 <label className="campo__etiqueta" htmlFor="bloqueo-desde">Desde</label>
-                <input id="bloqueo-desde" type="date" required value={bloqueo.desde} onChange={(e) => setBloqueo({ ...bloqueo, desde: e.target.value })} />
+                <input id="bloqueo-desde" type="date" required value={bloqueo.desde} onChange={(e) => { limpiarSeleccionCalendario(); setBloqueo({ ...bloqueo, desde: e.target.value }); }} />
               </div>
               <div className="campo">
                 <label className="campo__etiqueta" htmlFor="bloqueo-hasta">Hasta</label>
-                <input id="bloqueo-hasta" type="date" required value={bloqueo.hasta} onChange={(e) => setBloqueo({ ...bloqueo, hasta: e.target.value })} />
+                <input id="bloqueo-hasta" type="date" required value={bloqueo.hasta} onChange={(e) => { limpiarSeleccionCalendario(); setBloqueo({ ...bloqueo, hasta: e.target.value }); }} />
               </div>
             </div>
             <div className="campo">
@@ -1152,6 +1279,15 @@ function diasDelMes(mes: string): string[] {
     dias.push(isoLocal(dia));
   }
   return dias;
+}
+
+/** Avanza días ISO en UTC para que la fecha del navegador no cambie el día seleccionado. */
+function sumarDiasIso(iso: string, cantidad: number): string {
+  const anio = Number(iso.slice(0, 4));
+  const mes = Number(iso.slice(5, 7));
+  const dia = Number(iso.slice(8, 10));
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia + cantidad));
+  return `${fecha.getUTCFullYear()}-${String(fecha.getUTCMonth() + 1).padStart(2, '0')}-${String(fecha.getUTCDate()).padStart(2, '0')}`;
 }
 
 /** Descuento de un plan: número, guardar y recargar la lista que manda el padre. */

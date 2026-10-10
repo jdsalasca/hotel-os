@@ -14,6 +14,8 @@ const estado = vi.hoisted(() => ({
   // Solo el test del calendario retiene la tanda de carga; al resto le resuelve
   // al momento para poblar tipos y planes (Promise.all espera a las cinco).
   retenerCalendario: false,
+  publicaciones: [] as { url: string; cuerpo: unknown }[],
+  errorPublicacion: null as Error | null,
 }));
 
 function diferida() {
@@ -66,7 +68,13 @@ vi.mock('../api/cliente', () => ({
       }
       throw new Error('ruta no esperada: ' + url);
     },
-    post: () => Promise.resolve({}),
+    post: (url: string, cuerpo?: unknown) => {
+      estado.publicaciones.push({ url, cuerpo });
+      if (url === '/api/admin/bloqueos' && estado.errorPublicacion) {
+        return Promise.reject(estado.errorPublicacion);
+      }
+      return Promise.resolve({});
+    },
     put: () => Promise.resolve({}),
   },
   // La página no lo usa, pero useSesion sí: sin esto pedirAdmin revienta.
@@ -89,6 +97,8 @@ afterEach(() => {
   estado.diferidas.length = 0;
   estado.habitaciones = [];
   estado.retenerCalendario = false;
+  estado.publicaciones.length = 0;
+  estado.errorPublicacion = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -131,6 +141,181 @@ describe('prioridad del alta inicial del inventario', () => {
       encabezados.indexOf('Alta del hotel, paso a paso'),
     );
     expect(screen.getAllByText('101').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('elige un rango libre y rellena el formulario sin bloquear hasta confirmar', async () => {
+    estado.habitaciones = [
+      { id: 1, codigo: '101', roomTypeId: 1, nombre: 'Principal', estado: 'ACTIVA' },
+    ];
+    estado.retenerCalendario = true;
+    await montar();
+    await waitFor(() => expect(peticiones('/api/admin/calendario?')).toHaveLength(1));
+    peticiones('/api/admin/calendario?')[0]!.resolver([{
+      id: 1,
+      codigo: '101',
+      noches: [
+        { fecha: '2026-10-01', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-02', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-03', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-04', estado: 'OCUPADA', codigoReserva: 'RES-4' },
+      ],
+    }]);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Habitación 101, noche 2026-10-01, libre/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Habitación 101, noche 2026-10-03, libre/ }));
+
+    expect((screen.getByLabelText('Habitación', { selector: '#bloqueo-hab' }) as HTMLSelectElement).value).toBe('1');
+    expect((screen.getByLabelText('Desde', { selector: '#bloqueo-desde' }) as HTMLInputElement).value).toBe('2026-10-01');
+    expect((screen.getByLabelText('Hasta', { selector: '#bloqueo-hasta' }) as HTMLInputElement).value).toBe('2026-10-04');
+    expect(screen.getByRole('status', { name: 'Selección de noches' }).textContent).toMatch(/3 noches/);
+    expect(screen.getByRole('status', { name: 'Selección de noches' }).textContent).toMatch(/2026-10-04/);
+    expect(screen.queryByRole('button', { name: /Habitación 101, noche 2026-10-04, libre/ })).toBeNull();
+    expect(estado.publicaciones).toHaveLength(0);
+  });
+
+  it('no permite completar un rango que cruza una noche ocupada', async () => {
+    estado.habitaciones = [
+      { id: 1, codigo: '101', roomTypeId: 1, nombre: 'Principal', estado: 'ACTIVA' },
+    ];
+    estado.retenerCalendario = true;
+    await montar();
+    await waitFor(() => expect(peticiones('/api/admin/calendario?')).toHaveLength(1));
+    peticiones('/api/admin/calendario?')[0]!.resolver([{
+      id: 1,
+      codigo: '101',
+      noches: [
+        { fecha: '2026-10-01', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-02', estado: 'OCUPADA', codigoReserva: 'RES-2' },
+        { fecha: '2026-10-03', estado: 'LIBRE', codigoReserva: null },
+      ],
+    }]);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Habitación 101, noche 2026-10-01, libre/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Habitación 101, noche 2026-10-03, libre/ }));
+
+    expect((screen.getByLabelText('Desde', { selector: '#bloqueo-desde' }) as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Hasta', { selector: '#bloqueo-hasta' }) as HTMLInputElement).value).toBe('');
+    expect(screen.getByRole('status', { name: 'Selección de noches' }).textContent).toMatch(/2026-10-02/);
+    expect(estado.publicaciones).toHaveLength(0);
+  });
+
+  it('un arrastre de ratón rellena el mismo intervalo semiabierto', async () => {
+    estado.habitaciones = [
+      { id: 1, codigo: '101', roomTypeId: 1, nombre: 'Principal', estado: 'ACTIVA' },
+    ];
+    estado.retenerCalendario = true;
+    await montar();
+    await waitFor(() => expect(peticiones('/api/admin/calendario?')).toHaveLength(1));
+    peticiones('/api/admin/calendario?')[0]!.resolver([{
+      id: 1,
+      codigo: '101',
+      noches: [
+        { fecha: '2026-10-01', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-02', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-03', estado: 'LIBRE', codigoReserva: null },
+      ],
+    }]);
+    const inicio = await screen.findByRole('button', { name: /Habitación 101, noche 2026-10-01, libre/ });
+    const fin = screen.getByRole('button', { name: /Habitación 101, noche 2026-10-03, libre/ });
+
+    fireEvent.pointerDown(inicio, { pointerType: 'mouse', button: 0 });
+    fireEvent.pointerEnter(fin, { pointerType: 'mouse', button: 0 });
+    fireEvent.pointerUp(fin, { pointerType: 'mouse', button: 0 });
+
+    expect((screen.getByLabelText('Desde', { selector: '#bloqueo-desde' }) as HTMLInputElement).value).toBe('2026-10-01');
+    expect((screen.getByLabelText('Hasta', { selector: '#bloqueo-hasta' }) as HTMLInputElement).value).toBe('2026-10-04');
+    expect(estado.publicaciones).toHaveLength(0);
+  });
+
+  it('conserva las fechas seleccionadas si el servidor rechaza el bloqueo', async () => {
+    estado.habitaciones = [
+      { id: 1, codigo: '101', roomTypeId: 1, nombre: 'Principal', estado: 'ACTIVA' },
+    ];
+    estado.retenerCalendario = true;
+    await montar();
+    await waitFor(() => expect(peticiones('/api/admin/calendario?')).toHaveLength(1));
+    peticiones('/api/admin/calendario?')[0]!.resolver([{
+      id: 1,
+      codigo: '101',
+      noches: [
+        { fecha: '2026-10-01', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-02', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-03', estado: 'LIBRE', codigoReserva: null },
+      ],
+    }]);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Habitación 101, noche 2026-10-01, libre/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Habitación 101, noche 2026-10-03, libre/ }));
+    estado.errorPublicacion = new Error('El periodo se cruza con una reserva o un bloqueo vigente.');
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar bloqueo' }));
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(/reserva o un bloqueo/);
+    expect(screen.getByRole('status', { name: 'Selección de noches' }).textContent).toMatch(/3 noches/);
+    expect((screen.getByLabelText('Desde', { selector: '#bloqueo-desde' }) as HTMLInputElement).value).toBe('2026-10-01');
+    expect((screen.getByLabelText('Hasta', { selector: '#bloqueo-hasta' }) as HTMLInputElement).value).toBe('2026-10-04');
+    expect(estado.publicaciones).toHaveLength(1);
+  });
+
+  it('limpia fechas manuales anteriores al iniciar una selección nueva', async () => {
+    estado.habitaciones = [
+      { id: 1, codigo: '101', roomTypeId: 1, nombre: 'Principal', estado: 'ACTIVA' },
+    ];
+    estado.retenerCalendario = true;
+    await montar();
+    await waitFor(() => expect(peticiones('/api/admin/calendario?')).toHaveLength(1));
+    peticiones('/api/admin/calendario?')[0]!.resolver([{
+      id: 1,
+      codigo: '101',
+      noches: [
+        { fecha: '2026-10-01', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-02', estado: 'LIBRE', codigoReserva: null },
+      ],
+    }]);
+    const desde = screen.getByLabelText('Desde', { selector: '#bloqueo-desde' }) as HTMLInputElement;
+    const hasta = screen.getByLabelText('Hasta', { selector: '#bloqueo-hasta' }) as HTMLInputElement;
+    fireEvent.change(desde, { target: { value: '2026-10-08' } });
+    fireEvent.change(hasta, { target: { value: '2026-10-10' } });
+
+    fireEvent.click(await screen.findByRole('button', { name: /Habitación 101, noche 2026-10-01, libre/ }));
+
+    expect(desde.value).toBe('');
+    expect(hasta.value).toBe('');
+    expect(screen.getByRole('status', { name: 'Selección de noches' }).textContent).toMatch(/Inicio elegido/);
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar bloqueo' }));
+    expect(estado.publicaciones).toHaveLength(0);
+  });
+
+  it('reinicia el inicio del calendario después de un rango que cruza una noche ocupada', async () => {
+    estado.habitaciones = [
+      { id: 1, codigo: '101', roomTypeId: 1, nombre: 'Principal', estado: 'ACTIVA' },
+    ];
+    estado.retenerCalendario = true;
+    await montar();
+    await waitFor(() => expect(peticiones('/api/admin/calendario?')).toHaveLength(1));
+    peticiones('/api/admin/calendario?')[0]!.resolver([{
+      id: 1,
+      codigo: '101',
+      noches: [
+        { fecha: '2026-10-01', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-02', estado: 'OCUPADA', codigoReserva: 'RES-2' },
+        { fecha: '2026-10-03', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-04', estado: 'LIBRE', codigoReserva: null },
+        { fecha: '2026-10-05', estado: 'LIBRE', codigoReserva: null },
+      ],
+    }]);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Habitación 101, noche 2026-10-01, libre/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Habitación 101, noche 2026-10-03, libre/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Habitación 101, noche 2026-10-04, libre/ }));
+
+    expect(screen.getByRole('status', { name: 'Selección de noches' }).textContent)
+      .toMatch(/Inicio elegido: 2026-10-04/);
+    fireEvent.click(screen.getByRole('button', { name: /Habitación 101, noche 2026-10-05, libre/ }));
+    expect((screen.getByLabelText('Desde', { selector: '#bloqueo-desde' }) as HTMLInputElement).value)
+      .toBe('2026-10-04');
+    expect((screen.getByLabelText('Hasta', { selector: '#bloqueo-hasta' }) as HTMLInputElement).value)
+      .toBe('2026-10-06');
+    expect(estado.publicaciones).toHaveLength(0);
   });
 });
 

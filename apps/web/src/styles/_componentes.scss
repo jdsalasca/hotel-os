@@ -1164,6 +1164,7 @@
 // --- Calendario de ocupación del panel ---
 .ocupacion {
   overflow: auto;
+  contain: paint;
   max-height: 34rem;
   border: 1px solid $borde;
   border-radius: $radio;
@@ -1183,6 +1184,21 @@
     list-style: none;
     font-size: $texto-sm;
     color: $tinta-suave;
+  }
+
+  &__ayuda {
+    margin: 0 0 $e-2;
+  }
+
+  &__seleccion {
+    min-height: 2.75rem;
+    margin: 0 0 $e-3;
+    padding: $e-2 $e-3;
+    border-left: 3px solid $teja;
+    border-radius: $radio;
+    background: $info-tenue;
+    color: $tinta;
+    font-size: $texto-sm;
   }
 
   &__tabla {
@@ -1248,6 +1264,37 @@
   &__celda--mantenimiento { background: $info-tenue; }
   &__celda--fuera-de-servicio { background: $piedra-clara; }
   &__celda--desconocida { background: $error-tenue; }
+  &__celda--seleccionada {
+    background: $info-tenue;
+    box-shadow: inset 0 0 0 2px $teja;
+  }
+
+  &__selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 2.6rem;
+    min-height: 2.5rem;
+    margin: (-$e-1) (-$e-2);
+    padding: $e-1 $e-2;
+    border: 0;
+    border-radius: $radio;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+
+    &:hover { background: $info-tenue; }
+
+    &:focus-visible {
+      position: relative;
+      z-index: 1;
+      outline: 3px solid $teja;
+      outline-offset: 1px;
+    }
+  }
 
   &__marca {
     display: inline-flex;
