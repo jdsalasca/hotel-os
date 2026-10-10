@@ -40,6 +40,30 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+describe('elegir el punto del hotel en el mapa', () => {
+  it('mover el punto cambia lo que se guarda, sin depender de arrastrar el visor', async () => {
+    estado.get.mockResolvedValue({ latitud: '', longitud: '' });
+    montar();
+    await waitFor(() => expect(estado.get).toHaveBeenCalled());
+
+    fireEvent.click(await screen.findByRole('button', { name: /ubicar en el mapa/i }));
+    const lat = () => (screen.getByLabelText(/Latitud del hotel/i) as HTMLInputElement).value;
+    const lng = () => (screen.getByLabelText(/Longitud del hotel/i) as HTMLInputElement).value;
+
+    // El punto verde es la fuente de verdad: moverlo cambia el valor, no solo la vista.
+    fireEvent.click(screen.getByRole('button', { name: /^Norte$/i }));
+    const trasNorte = Number(lat());
+    expect(trasNorte).toBeGreaterThan(5.65);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Este$/i }));
+    expect(Number(lng())).toBeGreaterThan(-73.52);
+
+    // Guardar el punto deja los campos listos para enviar.
+    fireEvent.click(screen.getByRole('button', { name: /usar este punto/i }));
+    await waitFor(() => expect(lat()).toBe(String(trasNorte)));
+  });
+});
+
 describe('configuración del hotel durante la carga', () => {
   it('bloquea la edición y el guardado hasta cargar los datos existentes', async () => {
     const lectura = diferida<Record<string, string>>();
