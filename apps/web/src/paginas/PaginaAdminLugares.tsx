@@ -11,7 +11,19 @@ type Lugar = {
   latitud: number;
   longitud: number;
   activo: boolean;
+  /** Distancia al hotel en metros. Viene del servidor; si el hotel aún no está ubicado, no viene. */
+  metros?: number;
 };
+
+/**
+ * MetrosExactos bajo el kilómetro y kilómetros con un decimal por encima: "240 m" y "3,5 km"
+ * se leen de un vistazo, que es justo lo que el hotelero quiere saber de un vistazo.
+ */
+function formatearDistancia(metros: number): string {
+  if (metros < 1000) return `${metros} m`;
+  const km = (metros / 1000).toLocaleString('es-CO', { maximumFractionDigits: 1 });
+  return `${km} km`;
+}
 
 const VACIO = { nombre: '', descripcion: '', latitud: '', longitud: '' };
 
@@ -214,6 +226,7 @@ export function PaginaAdminLugares() {
               <tr>
                 <th scope="col">Nombre</th>
                 <th scope="col">Punto</th>
+                <th scope="col">Distancia</th>
                 <th scope="col">Visible</th>
                 <th scope="col">Acciones</th>
               </tr>
@@ -224,6 +237,13 @@ export function PaginaAdminLugares() {
                   <td data-label="Nombre">{lugar.nombre}</td>
                   <td className="cifra" data-label="Punto">
                     {lugar.latitud}, {lugar.longitud}
+                  </td>
+                  <td className="cifra" data-label="Distancia">
+                    {lugar.metros === undefined ? (
+                      <span className="campo__ayuda">Ubica el hotel</span>
+                    ) : (
+                      formatearDistancia(lugar.metros)
+                    )}
                   </td>
                   <td data-label="Visible">{lugar.activo ? 'Sí' : 'No'}</td>
                   <td data-label="Acciones">

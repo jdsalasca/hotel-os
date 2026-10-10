@@ -1,23 +1,26 @@
-# Ronda 179 — Cierre accesible del menú móvil
+# Ronda 179 - El panel del hotelero ve la distancia de cada sitio
+
+## El hueco
+R177 dio la distancia al mapa público y R178 al endpoint del panel, pero el
+**panel no la mostraba**: el hotelero seguía viendo solo `5.635, -73.525`. La web
+pública sí la enseñaba (otro agente lo hizo), así que el dato existía en un lado
+y se desperdiciaba en el otro. Sin esto, nadie puede verificar que un sitio
+"queda cerquita" antes de publicarlo.
 
 ## Cambio
+- `Lugar` acepta `metros?: number` y la tabla del panel añade una columna
+  **Distancia**: metros exactos bajo el kilómetro, kilómetros con un decimal por
+  encima ("240 m", "3.450 km"). Sin `metros` (hotel sin ubicar) dice
+  "Ubica el hotel" en vez de un guion mudo.
+- Sin estilos nuevos: reusa `.cifra` y `.campo__ayuda` que ya existen.
 
-- La tecla Escape cierra la navegación compacta cuando el foco está en el encabezado.
-- El foco regresa al botón del menú después del cierre; `aria-expanded` vuelve a `false`.
-- No se modificaron estilos ni endpoints.
+## TDD rojo-verde
+- `"el panel dice a qué distancia queda cada sitio del hotel"`: **RED** sin el
+  cambio (`Unable to find an element with the text: 240 m`), **GREEN** con él.
+  Comprueba los dos formatos, no solo que exista el texto.
+- `PaginaAdminLugares.test.tsx`: 3/3.
+- Suite frontend completa: **27 archivos / 145 tests**, `Type Errors: no errors`.
 
-## TDD y verificación
-
-- RED: la prueba nueva falló porque, tras Escape, el botón seguía llamándose «Cerrar menú principal»; no aparecía el botón con nombre «Abrir menú principal».
-- GREEN: `npm test -- src/App.test.tsx --reporter=dot` — 8/8.
-- `npm test` — 24 archivos, 124/124.
-- `npm run test:typecheck` — exit 0.
-- `npm run build` — exit 0; 70 módulos transformados. JS 373,49 kB (107,44 kB gzip), CSS 22,25 kB (4,78 kB gzip).
-
-## Revisión visual y de teclado
-
-- Chrome local con viewport emulado de 390 × 844 px; ancho del documento: 390 px.
-- Se abrió el menú, se avanzó con Tab al primer enlace y se pulsó Escape.
-- El menú desapareció, el botón volvió a «Abrir menú principal», conservó el foco y anunció `aria-expanded="false"`.
-- La captura de la vista cerrada se inspeccionó visualmente: cabecera y portada caben en el ancho móvil, sin desbordamiento horizontal.
-- La consola mostró dos respuestas 401 en las comprobaciones de sesión de la portada anónima (`/api/yo` y `/api/admin/sesion`); las demás solicitudes visibles respondieron 200.
+## Nota de entorno
+Hecha en worktree limpio. `origin/develop` traía R190/R191 al integrarse; la
+distancia no toca APIs ni rutas de reservas.

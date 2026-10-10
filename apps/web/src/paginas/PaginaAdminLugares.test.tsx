@@ -90,6 +90,27 @@ afterEach(() => {
 });
 
 describe('edición de lugares del mapa', () => {
+it('el panel dice a qué distancia queda cada sitio del hotel', async () => {
+      estado.lugares = [
+        { id: 7, nombre: 'Al lado', descripcion: '', latitud: 5.635, longitud: -73.525, activo: true, metros: 240 },
+        { id: 8, nombre: 'Lejos', descripcion: '', latitud: -33.45, longitud: -70.67, activo: true, metros: 3450000 },
+      ];
+      conectarAdmin();
+      render(
+        <MemoryRouter>
+          <PaginaAdminLugares />
+        </MemoryRouter>,
+      );
+
+    // metros exactos bajo 1 km, y redondeado a un decimal por encima.
+    expect(await screen.findByText('240 m')).toBeTruthy();
+    expect(await screen.findByText('3.450 km')).toBeTruthy();
+
+    estado.lugares = [
+      { id: 7, nombre: 'Mirador del valle', descripcion: 'Vista sobre el valle', latitud: 5.635, longitud: -73.525, activo: true },
+    ];
+  });
+
   it('guarda los cambios del sitio elegido con PUT y actualiza la lista', async () => {
     await montar();
     const fila = screen.getByRole('row', { name: /Mirador del valle/ });
