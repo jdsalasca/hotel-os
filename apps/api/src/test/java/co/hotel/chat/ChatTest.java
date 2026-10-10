@@ -213,4 +213,44 @@ class ChatTest {
     assertEquals("aviso 0", json2.get("mensajes").get(0).get("texto").asText());
     assertEquals(false, json2.get("hay_mas").asBoolean());
   }
+
+  @Test
+  @Order(5)
+  @DisplayName("el panel agrupa los mensajes sin leer por reserva y conserva el total")
+  void mensajesNuevosPorReservaEnAdmin() throws Exception {
+    sembrar();
+    jdbc.update("UPDATE mensajes SET visto=1 WHERE autor='HUESPED' AND visto=0");
+    Long usuarioId = jdbc.queryForObject(
+      "SELECT id FROM usuarios WHERE email='chat@hotel.test'", Long.class);
+    jdbc.update("INSERT INTO reservations(codigo,email,nombre,llegada,salida,huespedes,estado,"
+      + "origen,idempotencia,creado_en,usuario_id)"
+      + " VALUES('CHAT04','chat@hotel.test','Chat','2030-06-10','2030-06-12',1,'CONFIRMADA',"
+      + "'WEB','idem-chat04',datetime('now'),?)", usuarioId);
+    Long primera = jdbc.queryForObject("SELECT id FROM reservations WHERE codigo='CHAT01'",
+      Long.class);
+    Long segunda = jdbc.queryForObject("SELECT id FROM reservations WHERE codigo='CHAT04'",
+      Long.class);
+    jdbc.update("INSERT INTO mensajes(reservation_id,autor,texto,creado_en,visto)"
+      + " VALUES(?,'HUESPED','Consulta uno',datetime('now'),0)", primera);
+    jdbc.update("INSERT INTO mensajes(reservation_id,autor,texto,creado_en,visto)"
+      + " VALUES(?,'HUESPED','Consulta dos',datetime('now'),0)", primera);
+    jdbc.update("INSERT INTO mensajes(reservation_id,autor,texto,creado_en,visto)"
+      + " VALUES(?,'HUESPED','Consulta tres',datetime('now'),0)", segunda);
+    var admin = user("admin@hotel.test").roles("ADMIN");
+
+    mvc.perform(get("/api/admin/mensajes/nuevos").with(admin))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.nuevos").value(3))
+      .andExpect(jsonPath("$.porReserva.CHAT01").value(2))
+      .andExpect(jsonPath("$.porReserva.CHAT04").value(1));
+
+    mvc.perform(get("/api/admin/reservas/CHAT01/mensajes").with(admin))
+      .andExpect(status().isOk());
+
+    mvc.perform(get("/api/admin/mensajes/nuevos").with(admin))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.nuevos").value(1))
+      .andExpect(jsonPath("$.porReserva.CHAT01").doesNotExist())
+      .andExpect(jsonPath("$.porReserva.CHAT04").value(1));
+  }
 }

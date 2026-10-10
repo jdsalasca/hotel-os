@@ -95,6 +95,7 @@ export function PaginaAdminReservas() {
   const [nuevasFechas, setNuevasFechas] = useState({ llegada: '', salida: '' });
   const [nuevoGrupo, setNuevoGrupo] = useState('');
   const [saldo, setSaldo] = useState<Saldo | null>(null);
+  const [mensajesNuevos, setMensajesNuevos] = useState<Record<string, number>>({});
   const [abono, setAbono] = useState({ monto: '', concepto: '' });
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -146,11 +147,26 @@ export function PaginaAdminReservas() {
       const consulta = new URLSearchParams({ limit: '100' });
       if (textoFiltro.trim() !== '') consulta.set('q', textoFiltro.trim());
       if (estadoFiltro !== '') consulta.set('estado', estadoFiltro);
-      setReservas(await api.get<Reserva[]>(`/api/admin/reservas?${consulta}`));
+      const [lista] = await Promise.all([
+        api.get<Reserva[]>(`/api/admin/reservas?${consulta}`),
+        actualizarMensajesNuevos(),
+      ]);
+      setReservas(lista);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cargar las reservas');
     } finally {
       setCargando(false);
+    }
+  }
+
+  async function actualizarMensajesNuevos() {
+    try {
+      const datos = await api.get<{ porReserva?: Record<string, number> }>(
+        '/api/admin/mensajes/nuevos',
+      );
+      setMensajesNuevos(datos.porReserva ?? {});
+    } catch {
+      // El contador es complementario: una falla suya no bloquea la lista de reservas.
     }
   }
 
@@ -475,6 +491,14 @@ export function PaginaAdminReservas() {
                         ) : null}
                         <button className="boton boton--chico boton--fantasma" onClick={() => abrir(r.codigo)}>
                           Ver detalle
+                          {(mensajesNuevos[r.codigo] ?? 0) > 0 ? (
+                            <span
+                              className="insignia"
+                              aria-label={`${mensajesNuevos[r.codigo]} mensajes sin leer`}
+                            >
+                              {mensajesNuevos[r.codigo]} sin leer
+                            </span>
+                          ) : null}
                         </button>
                       </div>
                     </td>
@@ -593,11 +617,13 @@ export function PaginaAdminReservas() {
               <HiloMensajes
                 titulo="Conversación con el huésped"
                 ladoPropio="HOTEL"
-                cargar={(antesDe) =>
-                  api.get<Hilo>(
+                cargar={async (antesDe) => {
+                  const hilo = await api.get<Hilo>(
                     `/api/admin/reservas/${detalle.reserva.codigo}/mensajes${antesDe ? `?antes_de=${antesDe}` : ''}`,
-                  )
-                }
+                  );
+                  if (!antesDe) await actualizarMensajesNuevos();
+                  return hilo;
+                }}
                 enviar={(texto) =>
                   api.post(`/api/admin/reservas/${detalle.reserva.codigo}/mensajes`, { texto }).then(() => undefined)
                 }

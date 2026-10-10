@@ -785,13 +785,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 | Misión | Impacto | Esfuerzo | Estado |
 |---|---:|---:|---|
-| Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | **Cerrada en R192 y R195**: separa estadías vigentes e historial y resume saldos pendientes por moneda |
-| Opciones de consulta de reservas por cuenta o código | Alto | Bajo | **Cerrada en R190** |
-| Validación del correo antes de buscar una reserva | Medio | Bajo | **Cerrada en R191** |
-| Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | **Cerrada en R188** |
-| Selector de moneda compartido entre hotel e inventario | Medio | Bajo | **Cerrada en R187** |
-| Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Curaduría del mapa cerrada en R193/R194/R196 (marcadores, encuadre y orden por cercanía). **Sigue pendiente**: categorías de sitio (qué comer, qué visitar, dónde alojarse) y que la lista pública permita filtrar por esa categoría |
-| Conversación huésped-hotel con estados y notificaciones | Alto | Alto | Requiere diseño de un subsistema nuevo |
+| Categorías y filtro para lugares turísticos | Alto | Medio | Siguiente: guardar «qué comer», «qué visitar» o «dónde alojarse» en el panel y filtrar la lista pública |
+| Calendario del panel con arrastre para bloquear noches | Alto | Alto | Pendiente; validar conflictos con reservas y bloqueos actuales |
+| Recordatorio de llegada por correo el día antes | Alto | Medio | Bloqueado por el refresh token de Gmail del hotel |
+| Tema claro/oscuro público | Medio | Alto | Pendiente; requiere pasar los tokens de SCSS a propiedades de tema |
+| Conversación huésped-hotel con estados y notificaciones | Alto | Alto | R197 cerró el conteo por reserva; siguen abiertos los estados y avisos adicionales |
 
 - [x] **Ronda 193 — El mapa marca los sitios, no solo el hotel.** La sección "Encuéntranos
    y explora" pintaba un único marcador (el del hotel) y los sitios solo aparecían en la
@@ -821,14 +819,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   movía el encuadre y guardaba su centro; la verificación visual mostró que el visor trae
   arrastre propio y se desincronizaba de lo que se guardaba, así que se invirtió el modelo.
   148/148 frontend, sin errores de tipos. Evidencia: `docs/evidence/round-180/evidencia.md`.
-- [ ] **Siguiente: qué queda abierto.** Congelar las condiciones ya está hecho (R180). La
-   curaduría del mapa quedó cerrada con la R196 (orden por cercanía y una sola medida de
-   distancia); de sitios turísticos queda solo la **categoría** —qué comer, qué visitar, dónde
-   alojarse— para que el huésped pueda filtrar en vez de leer una lista plana, y su alta en el
-   panel. Lint frontend exige tocar `package-lock.json` y choca con la instalación en
-   paralelo. Modo claro/oscuro lo midió el plan como no cerrable en ronda chica. Recepción
-   lo lleva otra agente. Los ítems externos (dominio, credenciales OTA, copia externa)
-   siguen bloqueados.
+- [ ] **Siguiente: categorías y filtro para lugares turísticos.** La curaduría del mapa quedó
+   cerrada con la R196; la lista pública aún no distingue qué comer, qué visitar y dónde
+   alojarse, y el panel no permite asignar esas categorías. El correo de llegada sigue
+   bloqueado por la credencial Gmail; recepción y el calendario requieren rondas separadas.
 
 - [x] **Ronda 195 — Saldo pendiente visible y estados claros.** «Mis reservas» resume los saldos
   de estadías próximas y en curso por separado para cada moneda, excluye canceladas, rechazadas y
@@ -845,6 +839,13 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   alfabético porque no hay con qué ordenar. 458 backend / 158 frontend, y verificado contra
   los contenedores: 33 m, 912 m y 2 km, en ese orden, con nombres puestos al revés a
   propósito. Evidencia: `docs/evidence/round-196/verificacion.md`.
+- [x] **Ronda 197 — Recepción ve los mensajes pendientes en cada reserva.** La cifra global
+  del panel no indicaba a qué huésped responder. La API ahora entrega el total y el conteo
+  agrupado por código; la lista pone una insignia accesible junto a cada reserva y la quita
+  después de abrir su conversación. Suite API 459 pruebas (0 fallidas, 1 omitida), frontend
+  159/159, typecheck y build Vite aprobados. Chrome con datos sintéticos en escritorio y móvil
+  (390 px): sin desbordamiento ni errores de consola. Capturas y detalle:
+  `docs/evidence/round-197/verificacion.md`.
 
 
 ## Criterios de aceptación, verificados con ejecución real

@@ -9,6 +9,7 @@ import { PaginaAdminReservas } from './PaginaAdminReservas';
  */
 const estado = vi.hoisted(() => ({
   postes: [] as { url: string; cuerpo: unknown }[],
+  mensajesNuevos: {} as Record<string, number>,
   fila: 'PENDIENTE' as 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'NO_PRESENTADA',
   detalle: 'PENDIENTE' as 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'NO_PRESENTADA',
 }));
@@ -37,6 +38,10 @@ vi.mock('../api/cliente', () => ({
   api: {
     get: (url: string) => {
       if (url.startsWith('/api/admin/reservas?')) return Promise.resolve([reservaFila(estado.fila)]);
+      if (url === '/api/admin/mensajes/nuevos') {
+        const nuevos = Object.values(estado.mensajesNuevos).reduce((total, cantidad) => total + cantidad, 0);
+        return Promise.resolve({ nuevos, porReserva: { ...estado.mensajesNuevos } });
+      }
       if (url === '/api/admin/habitaciones') {
         return Promise.resolve([{ id: 7, codigo: '101', nombre: 'Habitación 101' }]);
       }
@@ -61,7 +66,11 @@ vi.mock('../api/cliente', () => ({
           movimientos: [],
         });
       }
-      if (url.includes('/mensajes')) return Promise.resolve({ mensajes: [] });
+      if (url.includes('/mensajes')) {
+        const codigo = url.split('/')[4];
+        if (codigo) delete estado.mensajesNuevos[codigo];
+        return Promise.resolve({ mensajes: [] });
+      }
       throw new Error('get no esperado: ' + url);
     },
     post: (url: string, cuerpo: unknown) => {
@@ -86,6 +95,7 @@ function sesionConectada() {
 afterEach(() => {
   cleanup();
   estado.postes.length = 0;
+  estado.mensajesNuevos = {};
   estado.fila = 'PENDIENTE';
   estado.detalle = 'PENDIENTE';
   vi.unstubAllGlobals();
@@ -103,6 +113,20 @@ async function montar() {
     expect(screen.getByText('Reservas')).toBeTruthy();
   });
 }
+
+describe('mensajes nuevos en la lista de reservas', () => {
+  it('muestra el conteo de una reserva y lo quita cuando recepción abre su conversación', async () => {
+    estado.mensajesNuevos = { 'H-PANEL1': 2 };
+    await montar();
+
+    expect(await screen.findByText('2 sin leer')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Ver detalle/ }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('2 sin leer')).toBeNull();
+    });
+  });
+});
 
 describe('nueva reserva manual', () => {
   it('crea con los datos del formulario y muestra el código', async () => {

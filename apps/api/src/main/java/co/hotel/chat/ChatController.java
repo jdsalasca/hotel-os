@@ -131,6 +131,8 @@ public class ChatController {
 
   @GetMapping("/api/admin/mensajes/nuevos")
   public Map<String, Object> nuevosHotel() {
-    return Map.of("nuevos", chat.nuevosParaHotel());
+    var porReserva = chat.nuevosPorReservaParaHotel();
+    int nuevos = porReserva.values().stream().mapToInt(Integer::intValue).sum();
+    return Map.of("nuevos", nuevos, "porReserva", porReserva);
   }
 }

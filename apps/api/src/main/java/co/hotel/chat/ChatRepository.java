@@ -86,10 +86,13 @@ public class ChatRepository {
     return mapa;
   }
 
-  public int nuevosParaHotel() {
-    Integer n = jdbc.queryForObject(
-      "SELECT COUNT(*) FROM mensajes WHERE autor='HUESPED' AND visto=0", Integer.class);
-    return n == null ? 0 : n;
+  public Map<String, Integer> nuevosPorReservaParaHotel() {
+    var mapa = new java.util.LinkedHashMap<String, Integer>();
+    jdbc.query("SELECT r.codigo, COUNT(*) AS n FROM mensajes m "
+      + "JOIN reservations r ON r.id=m.reservation_id "
+      + "WHERE m.autor='HUESPED' AND m.visto=0 GROUP BY r.codigo ORDER BY r.codigo",
+      rs -> { mapa.put(rs.getString("codigo"), rs.getInt("n")); });
+    return mapa;
   }
 
   /** Mensajes de la última hora en esa reserva, de ambos lados: el tope antispam. */
