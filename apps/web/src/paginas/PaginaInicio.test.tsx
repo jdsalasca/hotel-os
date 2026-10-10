@@ -194,6 +194,45 @@ describe('distancias de sitios', () => {
       .toBeNull();
   });
 
+  it('el mapa marca el hotel y los sitios, no solo el hotel', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'Plaza principal',
+        descripcion: '',
+        latitud: 4.01,
+        longitud: -74.02,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    const marco = await screen.findByTitle(/Mapa de/);
+    const url = marco.getAttribute('src') ?? '';
+    // Un solo marcador no basta: los sitios tienen que verse en el mapa, no solo en la lista.
+    // La URL llega con %2C entre latitud y longitud, y %3B entre marcadores.
+    expect(url).toContain('marker=4%2C-74%3B4.01%2C-74.02');
+  });
+
+  it('el mapa no duplica el marcador si un sitio cae en el hotel', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'En el hotel',
+        descripcion: '',
+        latitud: 4,
+        longitud: -74,
+      }],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    const marco = await screen.findByTitle(/Mapa de/);
+    const url = decodeURIComponent(marco.getAttribute('src') ?? '');
+    const marcadores = url.split('marker=').length - 1;
+    expect(marcadores).toBe(1);
+  });
+
   it('muestra metros para los sitios cercanos', async () => {
     estado.lugaresPublicos = {
       hotel: { ubicado: true, latitud: 4, longitud: -74 },

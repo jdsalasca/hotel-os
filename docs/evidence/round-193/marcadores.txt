@@ -1,0 +1,8 @@
+﻿marcadores en el mapa = 3
+  - 5.6672,-74.0477
+  - 5.665,-74.049
+  - 5.67,-74.047
+marco bbox={"x":168,"y":432.671875,"width":652.796875,"height":352}
+desborde horizontal=false
+erroresJS=0
+movil listo

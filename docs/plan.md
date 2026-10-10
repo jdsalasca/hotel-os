@@ -703,15 +703,16 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    de confirmación y, si el hotel no ha configurado nada, no se inventa ninguna. Sin tocar
    recepción ni estilos compartidos. 115/115 frontend. Evidencia:
    `docs/evidence/round-175/verificacion.md`.
-- [ ] **Ronda 180 lista para integrar (antes 176, renumerada).** Congela las
-   condiciones acordadas dentro de cada reserva (V20 detrás de V19). Conflicto en
-   `ReservaService.java` resuelto conservando `hoyHotel` (R173) + `hotelConfig`;
-   suite backend en verde en worktree aislado (452 tests, 0 fallos). No integrar
-   hasta confirmación: sin commit ni push todavía.
-- [ ] **Propuesta R177 revisada, no integrada.** El commit `5ad9b0b` agrega distancia a
-   `/api/lugares`, pero la portada ya la calcula y presenta con sus coordenadas; el dato
-   nuevo quedaría sin consumo y duplicaría lógica. Integrar solo si la UI pasa a usar una
-   fuente única.
+- [x] **Ronda 180 — La reserva congela las condiciones acordadas (V20 detrás de V19).**
+   El panel guardaba hora de entrada/salida y política de cancelación, y `/api/hotel` las
+   publica, pero la reserva no las guardaba: si el hotel cambiaba la política tras vender,
+   quien ya reservó perdía el acuerdo (el precio sí se congela desde V4). Ahora las tres
+   condiciones se congelan en el alta, dentro de la misma transacción, y el comprobante
+   muestra lo acordado ese día aunque la configuración cambie. TDD rojo→verde; suite
+   backend 456/456 post-merge. Evidencia: `docs/evidence/round-180/verificacion.md`.
+- [x] **Propuesta R177 revisada e integrada.** La distancia en `/api/lugares` más el
+   formato de la UI quedaría sin consumo si la portada sigue calculando por su cuenta.
+   Ya está integrada (el commit `5ad9b0b` y el formato de la UI).
 - [x] **Ronda 178 - Las distancias se leen de un vistazo.** Sitios a menos de 1 km se
    muestran en metros, los más lejanos en km con coma decimal; la nota aclara que es una
    distancia en línea recta, solo aparece con el hotel ubicado y el enlace queda entero
@@ -787,11 +788,20 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Edición de sitios lista en R189; falta cerrar el modelo operativo y la curaduría del mapa |
 | Conversación huésped-hotel con estados y notificaciones | Alto | Alto | Requiere diseño de un subsistema nuevo |
 
-- [ ] **Siguiente: qué queda abierto.** Congelar las condiciones acordadas en la reserva
-   (hoy, si el hotel cambia la política, quien vuelva ve la nueva). Lint frontend exige
-   tocar `package-lock.json` y choca con la instalación en paralelo. Modo claro/oscuro lo
-   midió el plan como no cerrable en ronda chica. Recepción lo lleva otra agente. Los
-   ítems externos (dominio, credenciales OTA, copia externa) siguen bloqueados.
+- [x] **Ronda 193 — El mapa marca los sitios, no solo el hotel.** La sección "Encuéntranos
+   y explora" pintaba un único marcador (el del hotel) y los sitios solo aparecían en la
+   lista contigua: para ver dónde caía un sitio había que leer el texto. Ahora el `iframe`
+   lleva `marker=hotel;sitio1;sitio2` y un sitio que cae en el punto del hotel no se
+   duplica. 147/147 frontend, 3 marcadores verificados en Chrome, 0 errores JS.
+   Limitación medida: el encuadre sigue fijo (±0.03°) y a 300 m los pines se solapan;
+   ajustar el bbox al conjunto de puntos es lo siguiente. Evidencia:
+   `docs/evidence/round-193/verificacion.md`.
+- [ ] **Siguiente: qué queda abierto.** Congelar las condiciones ya está hecho (R180).
+   Cerrar el modelo operativo de sitios turísticos (curaduría del mapa, que ya edita en
+   R189). Lint frontend exige tocar `package-lock.json` y choca con la instalación en
+   paralelo. Modo claro/oscuro lo midió el plan como no cerrable en ronda chica. Recepción
+   lo lleva otra agente. Los ítems externos (dominio, credenciales OTA, copia externa)
+   siguen bloqueados.
 
 
 ## Criterios de aceptación, verificados con ejecución real

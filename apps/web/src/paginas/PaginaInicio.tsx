@@ -351,6 +351,23 @@ function formatearDistancia(metros: number): string {
   return `${(metros / 1000).toLocaleString('es-CO', { maximumFractionDigits: 1 })} km`;
 }
 
+/**
+ * Marcadores del mapa: el hotel primero y los sitios detrás, separados por `;` como espera
+ * OpenStreetMap. Un sitio que cae exactamente en el punto del hotel no se repite: dos
+ * marcadores idénticos se ven como uno y solo confunden.
+ */
+function marcadoresDelMapa(
+  hotel: { latitud: number; longitud: number },
+  lugares: { latitud: number; longitud: number }[],
+): string {
+  const puntos = [`${hotel.latitud},${hotel.longitud}`];
+  for (const lugar of lugares) {
+    const punto = `${lugar.latitud},${lugar.longitud}`;
+    if (!puntos.includes(punto)) puntos.push(punto);
+  }
+  return puntos.join(';');
+}
+
   /** Parámetros de la búsqueda en pantalla: el detalle y el resumen pertenecen a lo
    * buscado, no al formulario que se pudo editar después sin volver a buscar. */
   const baseBusqueda = busqueda ?? { llegada, salida, huespedes };
@@ -952,7 +969,10 @@ function formatearDistancia(metros: number): string {
                     mapa.hotel.longitud - 0.03
                   }%2C${mapa.hotel.latitud - 0.02}%2C${mapa.hotel.longitud + 0.03}%2C${
                     mapa.hotel.latitud + 0.02
-                  }&layer=mapnik&marker=${mapa.hotel.latitud}%2C${mapa.hotel.longitud}`}
+                  }&layer=mapnik&marker=${encodeURIComponent(marcadoresDelMapa(
+                    { latitud: mapa.hotel.latitud, longitud: mapa.hotel.longitud },
+                    mapa.lugares,
+                  ))}`}
                 />
                 <ul className="mapa__lugares">
                   {mapa.lugares.map((lugar) => (
