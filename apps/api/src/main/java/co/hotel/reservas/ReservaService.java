@@ -30,30 +30,41 @@ public class ReservaService {
   private final InventarioService inventario;
   private final ReservaServiceHuesped huespedes;
   private final Supplier<LocalDate> hoyHotel;
+  /** Condiciones del hotel (horas y cancelación) que se congelan en cada venta (V20). */
+  private final HotelConfigService hotelConfig;
+
+  /** Un valor vacío no es una condición: se guarda como NULL, no como cadena en blanco. */
+  private static String vacioANull(String valor) {
+    if (valor == null) return null;
+    String limpio = valor.trim();
+    return limpio.isEmpty() ? null : limpio;
+  }
 
   @org.springframework.beans.factory.annotation.Autowired
   public ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
                         InventarioService inventario, ReservaServiceHuesped huespedes,
                         HotelConfigService configuracion, HotelProperties propiedades) {
-    this(repo, tx, auditoria, inventario, huespedes,
+    this(repo, tx, auditoria, inventario, huespedes, configuracion,
       () -> LocalDate.now(configuracion.zonaHoraria(propiedades.zonaHoraria())));
   }
 
   /** Constructor directo para pruebas de servicio que no levantan el contexto Spring. */
   public ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
-                        InventarioService inventario, ReservaServiceHuesped huespedes) {
-    this(repo, tx, auditoria, inventario, huespedes,
+                        InventarioService inventario, ReservaServiceHuesped huespedes,
+                        HotelConfigService configuracion) {
+    this(repo, tx, auditoria, inventario, huespedes, configuracion,
       () -> LocalDate.now(java.time.ZoneId.of("America/Bogota")));
   }
 
   private ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
                         InventarioService inventario, ReservaServiceHuesped huespedes,
-                        Supplier<LocalDate> hoyHotel) {
+                        HotelConfigService hotelConfig, Supplier<LocalDate> hoyHotel) {
     this.repo = repo;
     this.tx = tx;
     this.auditoria = auditoria;
     this.inventario = inventario;
     this.huespedes = huespedes;
+    this.hotelConfig = hotelConfig;
     this.hoyHotel = hoyHotel;
   }
 
@@ -159,8 +170,14 @@ public class ReservaService {
         }
       }
       String codigo = generarCodigo();
+      // Las condiciones se leen dentro de la misma transacción que el alta: si se leyeran
+      // antes, un cambio del hotel entre la lectura y el INSERT dejaría la reserva con
+      // condiciones que nadie llegó a ver.
+      var cond = hotelConfig.publicos();
       long id = repo.insertar(codigo, datos, clave,
-        acordado.totalCents(), acordado.moneda(), acordado.ratePlanId());
+        acordado.totalCents(), acordado.moneda(), acordado.ratePlanId(),
+        vacioANull(cond.get("hora_entrada")), vacioANull(cond.get("hora_salida")),
+        vacioANull(cond.get("politica_cancelacion")));
       repo.insertarLinea(id, datos.roomId(), datos.llegada(), datos.salida());
       auditoria.cambioEstado(id, null, EstadoReserva.PENDIENTE.name(), datos.origen().name());
       if (usuarioId != null) huespedes.vincular(codigo, usuarioId);

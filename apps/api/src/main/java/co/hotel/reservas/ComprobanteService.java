@@ -63,6 +63,12 @@ public class ComprobanteService {
     reserva.put("totalCents", r.totalCents());
     reserva.put("moneda", r.moneda());
     reserva.put("plan", planNombre);
+    // Condiciones congeladas en el alta (V20): el comprobante muestra lo que se acordó ese
+    // día, no lo que el hotel tenga ahora. Si no se congeló (reserva antigua), no sale.
+    var cond = repo.condicionesDe(r.codigo());
+    reserva.put("horaEntrada", cond.get("hora_entrada"));
+    reserva.put("horaSalida", cond.get("hora_salida"));
+    reserva.put("politicaCancelacion", cond.get("politica_cancelacion"));
     // Sin total acordado no hay saldo que calcular: el pendiente no puede salir de la nada.
     if (r.totalCents() == null) {
       reserva.put("abonadoCents", null);

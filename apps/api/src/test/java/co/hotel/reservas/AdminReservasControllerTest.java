@@ -256,6 +256,44 @@ class AdminReservasControllerTest {
   }
 
   @Test
+  @DisplayName("el comprobante muestra las condiciones acordadas, no las vigentes del hotel")
+  void comprobanteCongelaLasCondicionesAcordadas() throws Exception {
+    fijarConfiguracion(Map.of(
+      "hora_entrada", "15:00",
+      "hora_salida", "11:00",
+      "politica_cancelacion", "Gratis hasta 48 horas antes"));
+    try {
+      var escenario = habitacionTarifada("K" + System.nanoTime() % 100000);
+      String codigo = crearReservaEn("vale@example.com", "2026-11-01", "2026-11-03",
+        escenario.room());
+
+      // El hotel cambia sus condiciones DESPUÉS de vender: el comprobante no se mueve.
+      fijarConfiguracion(Map.of("politica_cancelacion", "Sin cancelación"));
+
+      mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "vale@example.com"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.reserva.politicaCancelacion").value("Gratis hasta 48 horas antes"))
+        .andExpect(jsonPath("$.reserva.horaEntrada").value("15:00"))
+        .andExpect(jsonPath("$.reserva.horaSalida").value("11:00"));
+      mvc.perform(get("/api/admin/reservas/" + codigo + "/comprobante").with(ADMIN))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.reserva.politicaCancelacion").value("Gratis hasta 48 horas antes"));
+    } finally {
+      fijarConfiguracion(Map.of(
+        "hora_entrada", "",
+        "hora_salida", "",
+        "politica_cancelacion", ""));
+    }
+  }
+
+  /** Condiciones del hotel por el endpoint real, no por SQL: lo que el panel guardaría. */
+  private void fijarConfiguracion(Map<String, String> valores) throws Exception {
+    mvc.perform(post("/api/admin/hotel-config").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json(valores)))
+      .andExpect(status().isOk());
+  }
+
+  @Test
   @DisplayName("el panel ve el comprobante sin necesidad del correo")
   void comprobanteAdminSinCorreo() throws Exception {
     var escenario = habitacionTarifada("D" + System.nanoTime() % 100000);

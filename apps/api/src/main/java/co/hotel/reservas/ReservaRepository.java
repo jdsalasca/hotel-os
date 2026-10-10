@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -41,11 +42,24 @@ public class ReservaRepository {
 
   public long insertar(String codigo, CrearReserva datos, String claveIdempotencia,
       Long totalCents, String moneda, Long ratePlanId) {
+    return insertar(codigo, datos, claveIdempotencia, totalCents, moneda, ratePlanId,
+      null, null, null);
+  }
+
+  /**
+   * Alta con las condiciones acordadas congeladas (V20). Se guardan junto al precio, en la misma
+   * escritura: si el hotel cambia su política después de vender, la reserva conserva lo que el
+   * huésped aceptó. NULL si el hotel no tiene nada configurado: antes no había nada que acordar.
+   */
+  public long insertar(String codigo, CrearReserva datos, String claveIdempotencia,
+      Long totalCents, String moneda, Long ratePlanId,
+      String horaEntrada, String horaSalida, String politicaCancelacion) {
     jdbc.update("INSERT INTO reservations(codigo,email,nombre,llegada,salida,huespedes,estado,origen,"
-        + "idempotencia,creado_en,total_cents,moneda,rate_plan_id) VALUES(?,?,?,?,?,?,?,?,?,datetime('now'),?,?,?)",
+        + "idempotencia,creado_en,total_cents,moneda,rate_plan_id,hora_entrada,hora_salida,"
+        + "politica_cancelacion) VALUES(?,?,?,?,?,?,?,?,?,datetime('now'),?,?,?,?,?,?)",
       codigo, datos.email(), datos.nombre(), datos.llegada().toString(), datos.salida().toString(),
       datos.huespedes(), EstadoReserva.PENDIENTE.name(), datos.origen().name(), claveIdempotencia,
-      totalCents, moneda, ratePlanId);
+      totalCents, moneda, ratePlanId, horaEntrada, horaSalida, politicaCancelacion);
     return jdbc.queryForObject("SELECT id FROM reservations WHERE codigo=?", Long.class, codigo);
   }
 
@@ -236,6 +250,23 @@ public class ReservaRepository {
   /** Cambia el número de huéspedes de la reserva (solo el contador de cabecera). */
   public void actualizarHuespedes(long reservaId, int huespedes) {
     jdbc.update("UPDATE reservations SET huespedes=? WHERE id=?", huespedes, reservaId);
+  }
+
+  /**
+ * Condiciones congeladas en el alta (V20). Se leen de la reserva y no de `hotel_config`:
+ * el comprobante tiene que decir lo que el huésped aceptó, no lo que el hotel escribe hoy.
+ */
+public Map<String, Object> condicionesDe(String codigo) {
+    Map<String, Object> vacio = new java.util.LinkedHashMap<>();
+    vacio.put("hora_entrada", null);
+    vacio.put("hora_salida", null);
+    vacio.put("politica_cancelacion", null);
+    try {
+      return jdbc.queryForMap(
+        "SELECT hora_entrada, hora_salida, politica_cancelacion FROM reservations WHERE codigo=?", codigo);
+    } catch (Exception e) {
+      return vacio;
+    }
   }
 
   /** El precio se recalcula con la habitación nueva: la reserva no hereda importes ajenos. */
