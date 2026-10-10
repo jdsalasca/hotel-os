@@ -31,6 +31,12 @@ function diaSiguienteIso(iso: string): string {
   return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
 }
 
+function tonoEstado(estado: string): 'exito' | 'error' | 'aviso' {
+  if (estado === 'CONFIRMADA') return 'exito';
+  if (estado === 'CANCELADA' || estado === 'RECHAZADA' || estado === 'NO_PRESENTADA') return 'error';
+  return 'aviso';
+}
+
 /**
  * Las reservas del huésped que entró con Google. El backend las filtra por su usuario, así que
  * aquí no hay código ni correo: la sesión ya dice de quién son.
@@ -61,6 +67,23 @@ export function PaginaMisReservas() {
   const anterioresOCanceladas = (reservas ?? [])
     .filter((r) => !reservaVigente(r.estado) || r.salida < fechaActual)
     .sort((a, b) => b.llegada.localeCompare(a.llegada));
+  const saldosPendientes = new Map<string, number>();
+  let reservasSinResumen = 0;
+  for (const reserva of proximasYEnCurso) {
+    const pendiente = reserva.pendiente_cents ?? (
+      reserva.total_cents !== null && reserva.abonado_cents !== null
+        ? reserva.total_cents - reserva.abonado_cents
+        : null
+    );
+    if (pendiente !== null && pendiente <= 0) continue;
+
+    const moneda = reserva.moneda?.trim().toUpperCase();
+    if (!moneda || pendiente === null || !Number.isFinite(pendiente)) {
+      reservasSinResumen += 1;
+      continue;
+    }
+    saldosPendientes.set(moneda, (saldosPendientes.get(moneda) ?? 0) + pendiente);
+  }
   const gruposReservas = [
     ...(proximasYEnCurso.length > 0
       ? [{ titulo: 'Próximas y en curso', reservas: proximasYEnCurso }]
@@ -222,6 +245,35 @@ export function PaginaMisReservas() {
           />
         ) : null}
 
+        {reservas && (saldosPendientes.size > 0 || reservasSinResumen > 0) ? (
+          <section className="tarjeta mis-reservas-pagos" aria-labelledby="mis-reservas-pagos-titulo">
+            <div className="mis-reservas-pagos__encabezado">
+              <h2 className="mis-reservas-pagos__titulo" id="mis-reservas-pagos-titulo">
+                Pagos por completar
+              </h2>
+              <p className="mis-reservas-pagos__descripcion">
+                Saldos de estadías próximas y en curso, separados por moneda.
+              </p>
+            </div>
+            {saldosPendientes.size > 0 ? (
+              <dl className="mis-reservas-pagos__montos">
+                {Array.from(saldosPendientes, ([moneda, cents]) => (
+                  <div className="mis-reservas-pagos__importe" key={moneda}>
+                    <dt>Saldo pendiente · {moneda}</dt>
+                    <dd className="cifra">{montoCompartido(cents, moneda)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+            {reservasSinResumen > 0 ? (
+              <p className="campo__ayuda" role="status">
+                {reservasSinResumen} {reservasSinResumen === 1 ? 'estadía no está disponible' : 'estadías no están disponibles'}
+                {' '}para este resumen porque falta información de pago o moneda.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         {reservas && reservas.length > 0 ? (
           <table className="tabla">
             <caption>Reservas de {sesion.email}</caption>
@@ -263,7 +315,7 @@ export function PaginaMisReservas() {
                       )}
                     </td>
                     <td data-label="Estado">
-                      <Etiqueta tono={r.estado === 'CONFIRMADA' ? 'exito' : r.estado === 'CANCELADA' ? 'error' : 'aviso'}>
+                      <Etiqueta tono={tonoEstado(r.estado)}>
                         {r.estado}
                       </Etiqueta>
                     </td>

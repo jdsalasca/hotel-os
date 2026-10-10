@@ -785,7 +785,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 | Misión | Impacto | Esfuerzo | Estado |
 |---|---:|---:|---|
-| Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | Parcial en R192: agrupa estadías e historial; falta resumir pagos |
+| Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | **Cerrada en R192 y R195**: separa estadías vigentes e historial y resume saldos pendientes por moneda |
 | Opciones de consulta de reservas por cuenta o código | Alto | Bajo | **Cerrada en R190** |
 | Validación del correo antes de buscar una reserva | Medio | Bajo | **Cerrada en R191** |
 | Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | **Cerrada en R188** |
@@ -813,6 +813,14 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    paralelo. Modo claro/oscuro lo midió el plan como no cerrable en ronda chica. Recepción
    lo lleva otra agente. Los ítems externos (dominio, credenciales OTA, copia externa)
    siguen bloqueados.
+
+- [x] **Ronda 195 — Saldo pendiente visible y estados claros.** «Mis reservas» resume los saldos
+  de estadías próximas y en curso por separado para cada moneda, excluye canceladas, rechazadas y
+  anteriores, y avisa si faltan datos para calcular alguna. Los estados rechazados y no presentados
+  usan el tono de cierre junto con las cancelaciones. Sin cambios en la API. 156/156 pruebas,
+  chequeo de tipos de pruebas, build y revisión visual con datos sintéticos en escritorio (1440 px)
+  y móvil (390 px) aprobados; sin desbordamiento horizontal. Evidencia:
+  `docs/evidence/round-195/verificacion.md`.
 
 
 ## Criterios de aceptación, verificados con ejecución real
