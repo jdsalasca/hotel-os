@@ -273,6 +273,14 @@
   .tabla__fecha { white-space: nowrap; }
 }
 
+.mis-reservas__grupo th {
+  color: $tinta;
+  font-size: $texto-sm;
+  letter-spacing: normal;
+  text-transform: none;
+  border-bottom: 1px solid $borde-fuerte;
+}
+
 // La envoltura solo existe para el desplazamiento en pantallas grandes.
 .tabla-envoltura {
   width: 100%;
@@ -320,6 +328,18 @@
 
   .tabla tbody tr:hover {
     background: #fff;
+  }
+
+  .tabla tbody tr.mis-reservas__grupo {
+    border: 0;
+    border-radius: 0;
+    margin: $e-4 0 $e-1;
+    padding: 0;
+    background: transparent;
+  }
+
+  .tabla tbody tr.mis-reservas__grupo th {
+    padding: $e-2 $e-3;
   }
 
   .tabla td {

@@ -775,12 +775,17 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   marcado, enfocado y asociado al mensaje; al corregirlo el aviso desaparece. Suite de 144
   pruebas, chequeo de tipos y build Vite aprobados. Capturas de escritorio y móvil en
   `docs/evidence/round-191/verificacion.md`.
+- [x] **Ronda 192 - Separar estadías vigentes del historial.** En «Mis reservas», las estadías
+  en curso y próximas aparecen primero y en orden de llegada; las anteriores y las reservas no
+  vigentes (incluidas las rechazadas) quedan en un grupo de historial. La API y las acciones
+  existentes se conservan. Suite de frontend, typecheck, build Vite y revisión visual de escritorio
+  y móvil aprobados. Evidencia: `docs/evidence/round-192/verificacion.md`.
 
 ### Próximas mejoras de usabilidad
 
 | Misión | Impacto | Esfuerzo | Estado |
 |---|---:|---:|---|
-| Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | Coordinar cuando se cierre el trabajo activo en reservas |
+| Resumen de reservas y pagos para huéspedes, con navegación clara | Muy alto | Medio | Parcial en R192: agrupa estadías e historial; falta resumir pagos |
 | Opciones de consulta de reservas por cuenta o código | Alto | Bajo | **Cerrada en R190** |
 | Validación del correo antes de buscar una reserva | Medio | Bajo | **Cerrada en R191** |
 | Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | **Cerrada en R188** |

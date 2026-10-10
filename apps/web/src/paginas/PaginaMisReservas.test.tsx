@@ -90,6 +90,12 @@ function filaInicial(): Fila {
   };
 }
 
+function fechaRelativa(dias: number): string {
+  const fecha = new Date(`${hoyIso()}T12:00:00`);
+  fecha.setDate(fecha.getDate() + dias);
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+}
+
 afterEach(() => {
   cleanup();
   estado.postes.length = 0;
@@ -128,6 +134,48 @@ describe('resumen de mis reservas', () => {
 
     const fila = screen.getByText('H-MIA1').closest('tr');
     expect(fila?.textContent).toContain(montoCompartido(300000, 'COP'));
+  });
+
+  it('pone primero las estadías próximas y en curso, y separa el historial', async () => {
+    estado.lista.push(
+      { ...filaInicial(), codigo: 'H-MIA1', llegada: fechaRelativa(20), salida: fechaRelativa(22) },
+      { ...filaInicial(), codigo: 'H-CERCANA', llegada: fechaRelativa(5), salida: fechaRelativa(7) },
+      { ...filaInicial(), codigo: 'H-ACTUAL', llegada: fechaRelativa(-1), salida: fechaRelativa(1) },
+      { ...filaInicial(), codigo: 'H-ANTERIOR', llegada: fechaRelativa(-10), salida: fechaRelativa(-8) },
+      {
+        ...filaInicial(),
+        codigo: 'H-CANCELADA',
+        estado: 'CANCELADA',
+        llegada: fechaRelativa(2),
+        salida: fechaRelativa(4),
+      },
+      {
+        ...filaInicial(),
+        codigo: 'H-RECHAZADA',
+        estado: 'RECHAZADA',
+        llegada: fechaRelativa(3),
+        salida: fechaRelativa(5),
+      },
+    );
+    await montar();
+
+    const grupos = Array.from(
+      screen.getByRole('table', { name: 'Reservas de yo@hotel.test' }).querySelectorAll('tbody'),
+    ).map((cuerpo) => ({
+      titulo: cuerpo.querySelector('th[scope="rowgroup"]')?.textContent?.trim(),
+      codigos: Array.from(cuerpo.querySelectorAll('code')).map((codigo) => codigo.textContent),
+    }));
+
+    expect(grupos).toEqual([
+      {
+        titulo: 'Próximas y en curso',
+        codigos: ['H-ACTUAL', 'H-CERCANA', 'H-MIA1'],
+      },
+      {
+        titulo: 'Historial y no vigentes',
+        codigos: ['H-RECHAZADA', 'H-CANCELADA', 'H-ANTERIOR'],
+      },
+    ]);
   });
 });
 

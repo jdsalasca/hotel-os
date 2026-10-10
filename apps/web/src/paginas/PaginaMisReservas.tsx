@@ -49,6 +49,26 @@ export function PaginaMisReservas() {
   const [nuevos, setNuevos] = useState<Record<string, number>>({});
   /** Reserva cuyo formulario de huéspedes está abierto, con el valor tecleado. */
   const [abriendoGrupo, setAbriendoGrupo] = useState<{ codigo: string; valor: string } | null>(null);
+  const fechaActual = hoyIso();
+  const reservaVigente = (estado: string) => estado === 'CONFIRMADA' || estado === 'PENDIENTE';
+  const proximasYEnCurso = (reservas ?? [])
+    .filter((r) => reservaVigente(r.estado) && r.salida >= fechaActual)
+    .sort((a, b) => {
+      const llegadaA = a.llegada < fechaActual ? fechaActual : a.llegada;
+      const llegadaB = b.llegada < fechaActual ? fechaActual : b.llegada;
+      return llegadaA.localeCompare(llegadaB) || a.salida.localeCompare(b.salida);
+    });
+  const anterioresOCanceladas = (reservas ?? [])
+    .filter((r) => !reservaVigente(r.estado) || r.salida < fechaActual)
+    .sort((a, b) => b.llegada.localeCompare(a.llegada));
+  const gruposReservas = [
+    ...(proximasYEnCurso.length > 0
+      ? [{ titulo: 'Próximas y en curso', reservas: proximasYEnCurso }]
+      : []),
+    ...(anterioresOCanceladas.length > 0
+      ? [{ titulo: 'Historial y no vigentes', reservas: anterioresOCanceladas }]
+      : []),
+  ];
 
   /** Cancelar en dos pasos por fila: el primero avisa, el segundo ejecuta con el correo de la sesión. */
   async function cancelar(codigo: string) {
@@ -218,98 +238,103 @@ export function PaginaMisReservas() {
                 <th scope="col">Acciones</th>
               </tr>
             </thead>
-            <tbody>
-              {reservas.map((r) => (
-                <tr key={r.codigo}>
-                  <td data-label="Código">
-                    <code>{r.codigo}</code>
-                  </td>
-                  <td className="cifra tabla__fecha" data-label="Llegada">{fechaCorta(r.llegada)}</td>
-                  <td className="cifra tabla__fecha" data-label="Salida">{fechaCorta(r.salida)}</td>
-                  <td className="cifra" data-label="Huéspedes">{r.huespedes}</td>
-                  <td className="cifra" data-label="Total">{monto(r.total_cents, r.moneda) ?? 'Sin precio'}</td>
-                  <td className="cifra" data-label="Abonado">{monto(r.abonado_cents ?? 0, r.moneda) ?? '—'}</td>
-                  <td data-label="Pendiente">
-                    {r.total_cents === null || r.moneda === null ? (
-                      <span className="campo__ayuda">Sin precio</span>
-                    ) : (r.pendiente_cents ?? r.total_cents) <= 0 ? (
-                      <Etiqueta tono="exito">PAGADA</Etiqueta>
-                    ) : (
-                      <span className="cifra">{monto(r.pendiente_cents, r.moneda)}</span>
-                    )}
-                  </td>
-                  <td data-label="Estado">
-                    <Etiqueta tono={r.estado === 'CONFIRMADA' ? 'exito' : r.estado === 'CANCELADA' ? 'error' : 'aviso'}>
-                      {r.estado}
-                    </Etiqueta>
-                  </td>
-                  <td data-label="Acciones">
-                    <button
-                      className="boton boton--fantasma boton--chico"
-                      type="button"
-                      onClick={() => setHiloAbierto((abierto) => (abierto === r.codigo ? null : r.codigo))}
-                      aria-expanded={hiloAbierto === r.codigo}
-                    >
-                      Mensajes{(nuevos[r.codigo] ?? 0) > 0 ? ` (${nuevos[r.codigo]})` : ''}
-                    </button>{' '}
-                    <button
-                      className="boton boton--fantasma boton--chico"
-                      type="button"
-                      onClick={() =>
-                        setComprobanteAbierto((abierto) => (abierto === r.codigo ? null : r.codigo))
-                      }
-                      aria-expanded={comprobanteAbierto === r.codigo}
-                    >
-                      Comprobante
-                    </button>{' '}{(r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') ? (
-                      <>
-                        <button
-                          className="boton boton--fantasma boton--chico"
-                          type="button"
-                          onClick={() => {
-                            if (moviendo === r.codigo) {
-                              setMoviendo(null);
-                              setNuevas({ llegada: '', salida: '' });
-                            } else {
-                              setMoviendo(r.codigo);
-                              setNuevas({ llegada: r.llegada, salida: r.salida });
-                            }
-                          }}
-                          aria-expanded={moviendo === r.codigo}
-                        >
-                          Cambiar fechas
-                        </button>{' '}
-                        <button
-                          className="boton boton--fantasma boton--chico"
-                          type="button"
-                          onClick={() =>
-                            setAbriendoGrupo(
-                              abriendoGrupo?.codigo === r.codigo
-                                ? null
-                                : { codigo: r.codigo, valor: String(r.huespedes) },
-                            )
-                          }
-                          aria-expanded={abriendoGrupo?.codigo === r.codigo}
-                        >
-                          Cambiar huéspedes
-                        </button>{' '}
-                        <button
-                          className={`boton boton--chico ${confirmando === r.codigo ? 'boton--peligro' : 'boton--fantasma'}`}
-                          type="button"
-                          onClick={() => void cancelar(r.codigo)}
-                          disabled={cancelando !== null}
-                          aria-label={confirmando === r.codigo ? `Confirma cancelar la reserva ${r.codigo}` : `Cancelar la reserva ${r.codigo}`}
-                        >
-                          {cancelando === r.codigo ? 'Cancelando…' : confirmando === r.codigo ? 'Sí, cancelar' : 'Cancelar'}
-                        </button>
-                      </>
-                    ) : (
-                      <span className="campo__ayuda">Sin acciones</span>
-                    )}
-                  </td>
+            {gruposReservas.map((grupo) => (
+              <tbody key={grupo.titulo}>
+                <tr className="mis-reservas__grupo">
+                  <th scope="rowgroup" colSpan={9}>{grupo.titulo}</th>
                 </tr>
-              ))}
-            </tbody>
+                {grupo.reservas.map((r) => (
+                  <tr key={r.codigo}>
+                    <td data-label="Código">
+                      <code>{r.codigo}</code>
+                    </td>
+                    <td className="cifra tabla__fecha" data-label="Llegada">{fechaCorta(r.llegada)}</td>
+                    <td className="cifra tabla__fecha" data-label="Salida">{fechaCorta(r.salida)}</td>
+                    <td className="cifra" data-label="Huéspedes">{r.huespedes}</td>
+                    <td className="cifra" data-label="Total">{monto(r.total_cents, r.moneda) ?? 'Sin precio'}</td>
+                    <td className="cifra" data-label="Abonado">{monto(r.abonado_cents ?? 0, r.moneda) ?? '—'}</td>
+                    <td data-label="Pendiente">
+                      {r.total_cents === null || r.moneda === null ? (
+                        <span className="campo__ayuda">Sin precio</span>
+                      ) : (r.pendiente_cents ?? r.total_cents) <= 0 ? (
+                        <Etiqueta tono="exito">PAGADA</Etiqueta>
+                      ) : (
+                        <span className="cifra">{monto(r.pendiente_cents, r.moneda)}</span>
+                      )}
+                    </td>
+                    <td data-label="Estado">
+                      <Etiqueta tono={r.estado === 'CONFIRMADA' ? 'exito' : r.estado === 'CANCELADA' ? 'error' : 'aviso'}>
+                        {r.estado}
+                      </Etiqueta>
+                    </td>
+                    <td data-label="Acciones">
+                      <button
+                        className="boton boton--fantasma boton--chico"
+                        type="button"
+                        onClick={() => setHiloAbierto((abierto) => (abierto === r.codigo ? null : r.codigo))}
+                        aria-expanded={hiloAbierto === r.codigo}
+                      >
+                        Mensajes{(nuevos[r.codigo] ?? 0) > 0 ? ` (${nuevos[r.codigo]})` : ''}
+                      </button>{' '}
+                      <button
+                        className="boton boton--fantasma boton--chico"
+                        type="button"
+                        onClick={() =>
+                          setComprobanteAbierto((abierto) => (abierto === r.codigo ? null : r.codigo))
+                        }
+                        aria-expanded={comprobanteAbierto === r.codigo}
+                      >
+                        Comprobante
+                      </button>{' '}{(r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') ? (
+                        <>
+                          <button
+                            className="boton boton--fantasma boton--chico"
+                            type="button"
+                            onClick={() => {
+                              if (moviendo === r.codigo) {
+                                setMoviendo(null);
+                                setNuevas({ llegada: '', salida: '' });
+                              } else {
+                                setMoviendo(r.codigo);
+                                setNuevas({ llegada: r.llegada, salida: r.salida });
+                              }
+                            }}
+                            aria-expanded={moviendo === r.codigo}
+                          >
+                            Cambiar fechas
+                          </button>{' '}
+                          <button
+                            className="boton boton--fantasma boton--chico"
+                            type="button"
+                            onClick={() =>
+                              setAbriendoGrupo(
+                                abriendoGrupo?.codigo === r.codigo
+                                  ? null
+                                  : { codigo: r.codigo, valor: String(r.huespedes) },
+                              )
+                            }
+                            aria-expanded={abriendoGrupo?.codigo === r.codigo}
+                          >
+                            Cambiar huéspedes
+                          </button>{' '}
+                          <button
+                            className={`boton boton--chico ${confirmando === r.codigo ? 'boton--peligro' : 'boton--fantasma'}`}
+                            type="button"
+                            onClick={() => void cancelar(r.codigo)}
+                            disabled={cancelando !== null}
+                            aria-label={confirmando === r.codigo ? `Confirma cancelar la reserva ${r.codigo}` : `Cancelar la reserva ${r.codigo}`}
+                          >
+                            {cancelando === r.codigo ? 'Cancelando…' : confirmando === r.codigo ? 'Sí, cancelar' : 'Cancelar'}
+                          </button>
+                        </>
+                      ) : (
+                        <span className="campo__ayuda">Sin acciones</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            ))}
           </table>
         ) : null}
 
