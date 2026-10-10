@@ -70,4 +70,4 @@
 - [x] Ejecutar suite backend, suite frontend, typecheck y build; guardar resultados y capturas en la evidencia.
 - [x] Revisión independiente detectó fechas anteriores reutilizadas al iniciar una selección y ancla retenida tras un conflicto; ambos casos añadidos como pruebas rojas y corregidos.
 - [x] Actualizar R199 como completada y mantener 3–5 misiones candidatas en `docs/plan.md`.
-- [ ] Revisar diff, commit atómico en la rama del worktree, cherry-pick a `develop`, repetir verificaciones, push, comprobar SHA remoto y limpiar el worktree y la rama propios.
+- [x] Diff revisado; commit del worktree `e917d36` integrado por cherry-pick en `develop` como `3c3abd9`. Tras integrar: API 465 pruebas (0 fallos, 0 errores, 1 omitida), frontend 169/169, typecheck y build aprobados. Push confirmado contra el SHA remoto `3c3abd9`; worktree y rama propios retirados.
