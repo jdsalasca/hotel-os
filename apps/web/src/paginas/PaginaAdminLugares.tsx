@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { CATEGORIAS_LUGAR, etiquetaCategoriaLugar, type CategoriaLugar } from '../api/lugares';
 import { useSesion } from '../api/useSesion';
-import { Cargando, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
+import { Aviso, Cargando, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 
 type Lugar = {
   id: number;
@@ -44,6 +44,8 @@ export function PaginaAdminLugares() {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const nombreRef = useRef<HTMLInputElement>(null);
+  /** El hotel sin GPS no publica el mapa: la pantalla lo dice en vez de quedarse callada. */
+  const [sinPunto, setSinPunto] = useState<boolean | null>(null);
 
   async function cargar() {
     try {
@@ -54,9 +56,25 @@ export function PaginaAdminLugares() {
     }
   }
 
+  /** La config del hotel viene aparte: si su lectura falla, el mapa no se declara apagado. */
+  async function cargarPuntoDelHotel() {
+    try {
+      const c = await api.get<{ latitud?: string; longitud?: string }>('/api/admin/hotel-config');
+      const lat = Number(c.latitud);
+      const lng = Number(c.longitud);
+      // `Number('')` es 0, que es un número válido: hay que mirar el texto, no el número.
+      const latOk = (c.latitud ?? '').trim().length > 0 && Number.isFinite(lat);
+      const lngOk = (c.longitud ?? '').trim().length > 0 && Number.isFinite(lng);
+      setSinPunto(!latOk || !lngOk);
+    } catch {
+      setSinPunto(null);
+    }
+  }
+
   useEffect(() => {
     if (sesion.haySesion === false) return;
     void cargar();
+    void cargarPuntoDelHotel();
   }, [sesion.haySesion]);
 
   useEffect(() => {
@@ -152,6 +170,15 @@ export function PaginaAdminLugares() {
         </p>
 
         {error ? <MensajeError texto={error} /> : null}
+
+        {/* Sin el punto del hotel no hay distancias que mostrar: el hotelero crea lugares con
+            entusiasmo, guarda, y la web sigue vacía sin que nadie le diga por qué. */}
+        {sinPunto ? (
+          <Aviso tono="aviso" titulo="El mapa no aparece todavía">
+            Falta el punto del hotel en el GPS, así que la web no muestra ningún sitio. Ponlo en
+            <Link to="/admin/hotel"> Datos del hotel</Link> y este mapa se publica solo.
+          </Aviso>
+        ) : null}
 
         <form className="tarjeta pila" onSubmit={(e) => void guardar(e)}>
           <h2 className="t-lg mb-0">

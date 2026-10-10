@@ -45,12 +45,16 @@ const estado = vi.hoisted(() => ({
     longitud: number;
     categoria: 'COMER' | 'VISITAR' | 'ALOJARSE';
   }[],
+  // Configuración del hotel tal cual la lee el panel: `latitud`/`longitud` vacíos es el caso
+  // real en producción, donde el mapa no se publica aunque haya lugares creados.
+  hotelConfig: { nombre: 'Hotel Eridu', latitud: '5.65', longitud: '-73.52' },
 }));
 
 vi.mock('../api/cliente', () => ({
   api: {
     get: async (ruta: string) => {
       if (ruta === '/api/admin/lugares') return { lugares: estado.lugares };
+      if (ruta === '/api/admin/hotel-config') return estado.hotelConfig;
       throw new Error(`ruta no esperada: ${ruta}`);
     },
     post: async (_ruta: string, cuerpo: (typeof estado.lugaresCreados)[number]) => {
@@ -109,6 +113,7 @@ afterEach(() => {
   estado.cambios.length = 0;
   estado.creaciones = 0;
   estado.lugaresCreados.length = 0;
+  estado.hotelConfig = { nombre: 'Hotel Eridu', latitud: '5.65', longitud: '-73.52' };
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -133,7 +138,32 @@ describe('edición de lugares del mapa', () => {
     }]);
   });
 
-it('el panel dice a qué distancia queda cada sitio del hotel', async () => {
+  it('avisa que el mapa no saldrá si el hotel no tiene su punto en el GPS', async () => {
+    // Situación real en producción: el hotel no está ubicado, pero el hotelero ya creó
+    // lugares. Sin este aviso guarda todo y la web sigue sin mostrar nada, sin explicación.
+    estado.hotelConfig = { nombre: 'Hotel Eridu', latitud: '', longitud: '' };
+    estado.lugares = [
+      {
+        id: 7,
+        nombre: 'Mirador',
+        descripcion: '',
+        latitud: 5.635,
+        longitud: -73.525,
+        categoria: 'VISITAR',
+        activo: true,
+      },
+    ];
+    conectarAdmin();
+    render(
+      <MemoryRouter>
+        <PaginaAdminLugares />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/el mapa no aparece/i)).toBeTruthy();
+  });
+
+  it('el panel dice a qué distancia queda cada sitio del hotel', async () => {
       estado.lugares = [
         { id: 7, nombre: 'Al lado', descripcion: '', latitud: 5.635, longitud: -73.525, categoria: 'VISITAR', activo: true, metros: 240 },
         { id: 8, nombre: 'Lejos', descripcion: '', latitud: -33.45, longitud: -70.67, categoria: 'ALOJARSE', activo: true, metros: 3450000 },
