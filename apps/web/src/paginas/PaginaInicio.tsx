@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, nuevaClaveIdempotencia } from '../api/cliente';
 import { fechaCorta, hoyIso, mananaIso, monto } from '../api/formato';
+import { CATEGORIAS_LUGAR, etiquetaCategoriaLugar, type CategoriaLugar } from '../api/lugares';
 import { Aviso, HuecoImagen, MensajeError } from '../componentes/Estado';
 
 type Oferta = {
@@ -113,6 +114,10 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
     hotel: { ubicado: boolean; latitud?: number; longitud?: number };
     lugares: LugarPublico[];
   } | null>(null);
+  const [categoriaLugar, setCategoriaLugar] = useState<CategoriaLugar | 'TODOS'>('TODOS');
+  const lugaresFiltrados = mapa?.lugares.filter((lugar) =>
+    categoriaLugar === 'TODOS' || (lugar.categoria ?? 'VISITAR') === categoriaLugar,
+  ) ?? [];
 
   /** Mapa y distancias: una sola lectura; si el hotel no se ubicó, la sección no se muestra. */
   useEffect(() => {
@@ -339,6 +344,7 @@ type LugarPublico = {
   id: number;
   nombre: string;
   descripcion: string;
+  categoria?: CategoriaLugar;
   latitud: number;
   longitud: number;
   metros?: number;
@@ -991,6 +997,25 @@ function marcadoresDelMapa(
             <h2 id="titulo-mapa" className="seccion__titulo">
               Encuéntranos y explora
             </h2>
+            <div className="campo mapa__filtro">
+              <label className="campo__etiqueta" htmlFor="filtro-lugares-categoria">
+                Filtrar lugares por categoría
+              </label>
+              <select
+                id="filtro-lugares-categoria"
+                aria-controls="lista-lugares"
+                value={categoriaLugar}
+                onChange={(e) => setCategoriaLugar(e.target.value as CategoriaLugar | 'TODOS')}
+              >
+                <option value="TODOS">Todos los lugares</option>
+                {CATEGORIAS_LUGAR.map((categoria) => (
+                  <option key={categoria.valor} value={categoria.valor}>{categoria.etiqueta}</option>
+                ))}
+              </select>
+              <p className="campo__ayuda" role="status" aria-live="polite">
+                {lugaresFiltrados.length} {lugaresFiltrados.length === 1 ? 'lugar' : 'lugares'}
+              </p>
+            </div>
             {mapa.hotel.ubicado &&
             mapa.hotel.latitud !== undefined &&
             mapa.hotel.longitud !== undefined ? (
@@ -1005,19 +1030,21 @@ function marcadoresDelMapa(
                   src={`https://www.openstreetmap.org/export/embed.html?bbox=${(() => {
                     const b = encuadreDelMapa(
                       { latitud: mapa.hotel.latitud, longitud: mapa.hotel.longitud },
-                      mapa.lugares,
+                      lugaresFiltrados,
                     );
                     return `${b.oeste}%2C${b.sur}%2C${b.este}%2C${b.norte}`;
                   })()}&layer=mapnik&marker=${encodeURIComponent(marcadoresDelMapa(
                     { latitud: mapa.hotel.latitud, longitud: mapa.hotel.longitud },
-                    mapa.lugares,
+                    lugaresFiltrados,
                   ))}`}
                 />
-                <ul className="mapa__lugares">
-                  {mapa.lugares.map((lugar) => (
+                <ul id="lista-lugares" className="mapa__lugares" aria-label="Lugares turísticos">
+                  {lugaresFiltrados.map((lugar) => (
                     <li key={lugar.id} className="mapa__lugar">
                       <div>
                         <strong>{lugar.nombre}</strong>
+                        {' '}
+                        <span className="mapa__categoria">{etiquetaCategoriaLugar(lugar.categoria)}</span>
                         {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
                         {lugar.metros === undefined ? null : (
                           <span className="mapa__distancia">
@@ -1036,24 +1063,32 @@ function marcadoresDelMapa(
                       </a>
                     </li>
                   ))}
-                  {mapa.lugares.length === 0 ? (
-                    <li className="campo__ayuda">
-                      El hotel ya marcó su punto; los sitios cercanos aparecen aquí cuando los
-                      agregue.
+                  {lugaresFiltrados.length === 0 ? (
+                    <li className="campo__ayuda" role="status">
+                      {mapa.lugares.length === 0
+                        ? 'El hotel ya marcó su punto; los sitios cercanos aparecen aquí cuando los agregue.'
+                        : `No hay lugares en la categoría ${etiquetaCategoriaLugar(categoriaLugar === 'TODOS' ? undefined : categoriaLugar)}.`}
                     </li>
                   ) : null}
                 </ul>
               </div>
             ) : (
-              <ul className="mapa__lugares">
-                {mapa.lugares.map((lugar) => (
+              <ul id="lista-lugares" className="mapa__lugares" aria-label="Lugares turísticos">
+                {lugaresFiltrados.map((lugar) => (
                   <li key={lugar.id} className="mapa__lugar">
                     <div>
                       <strong>{lugar.nombre}</strong>
+                      {' '}
+                      <span className="mapa__categoria">{etiquetaCategoriaLugar(lugar.categoria)}</span>
                       {lugar.descripcion ? <span> — {lugar.descripcion}</span> : null}
                     </div>
                   </li>
                 ))}
+                {lugaresFiltrados.length === 0 ? (
+                  <li className="campo__ayuda" role="status">
+                    No hay lugares en esta categoría.
+                  </li>
+                ) : null}
               </ul>
             )}
           </section>

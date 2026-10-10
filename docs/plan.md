@@ -785,8 +785,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 | Misión | Impacto | Esfuerzo | Estado |
 |---|---:|---:|---|
-| Categorías y filtro para lugares turísticos | Alto | Medio | Siguiente: guardar «qué comer», «qué visitar» o «dónde alojarse» en el panel y filtrar la lista pública |
-| Calendario del panel con arrastre para bloquear noches | Alto | Alto | Pendiente; validar conflictos con reservas y bloqueos actuales |
+| Categorías y filtro para lugares turísticos | Alto | Medio | Completado en R198: categorías editables y filtro coordinado con el mapa |
+| Calendario del panel con arrastre para bloquear noches | Alto | Alto | Siguiente: validar conflictos con reservas y bloqueos actuales |
 | Recordatorio de llegada por correo el día antes | Alto | Medio | Bloqueado por el refresh token de Gmail del hotel |
 | Tema claro/oscuro público | Medio | Alto | Pendiente; requiere pasar los tokens de SCSS a propiedades de tema |
 | Conversación huésped-hotel con estados y notificaciones | Alto | Alto | R197 cerró el conteo por reserva; siguen abiertos los estados y avisos adicionales |
@@ -819,10 +819,10 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   movía el encuadre y guardaba su centro; la verificación visual mostró que el visor trae
   arrastre propio y se desincronizaba de lo que se guardaba, así que se invirtió el modelo.
   148/148 frontend, sin errores de tipos. Evidencia: `docs/evidence/round-180/evidencia.md`.
-- [ ] **Siguiente: categorías y filtro para lugares turísticos.** La curaduría del mapa quedó
-   cerrada con la R196; la lista pública aún no distingue qué comer, qué visitar y dónde
-   alojarse, y el panel no permite asignar esas categorías. El correo de llegada sigue
-   bloqueado por la credencial Gmail; recepción y el calendario requieren rondas separadas.
+- [ ] **Siguiente: bloquear noches desde el calendario del panel.** Diseñar la selección de
+   fechas y revisar conflictos con reservas, bloqueos existentes y la zona horaria antes de
+   guardar. El correo de llegada sigue bloqueado por la credencial Gmail; las mejoras de
+   conversación requieren una ronda separada.
 
 - [x] **Ronda 195 — Saldo pendiente visible y estados claros.** «Mis reservas» resume los saldos
   de estadías próximas y en curso por separado para cada moneda, excluye canceladas, rechazadas y
@@ -846,6 +846,13 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   159/159, typecheck y build Vite aprobados. Chrome con datos sintéticos en escritorio y móvil
   (390 px): sin desbordamiento ni errores de consola. Capturas y detalle:
   `docs/evidence/round-197/verificacion.md`.
+- [x] **Ronda 198 — Categorías para los lugares turísticos.** El panel asigna «Qué comer»,
+  «Qué visitar» o «Dónde alojarse» y la portada filtra la lista y los marcadores del mapa por
+  categoría. Los lugares existentes reciben «Qué visitar» con la migración V21; la API rechaza
+  categorías desconocidas. Suite API 460 pruebas (0 fallidas, 0 errores, 1 omitida), frontend
+  161/161, typecheck y build Vite aprobados. Chrome con datos sintéticos en escritorio y móvil
+  (390 px): sin desbordamiento ni errores de consola. Capturas y detalle:
+  `docs/evidence/round-198/verificacion.md`.
 
 
 ## Criterios de aceptación, verificados con ejecución real

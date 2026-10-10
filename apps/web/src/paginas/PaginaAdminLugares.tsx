@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
+import { CATEGORIAS_LUGAR, etiquetaCategoriaLugar, type CategoriaLugar } from '../api/lugares';
 import { useSesion } from '../api/useSesion';
 import { Cargando, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 
@@ -8,6 +9,7 @@ type Lugar = {
   id: number;
   nombre: string;
   descripcion: string;
+  categoria?: CategoriaLugar;
   latitud: number;
   longitud: number;
   activo: boolean;
@@ -25,7 +27,13 @@ function formatearDistancia(metros: number): string {
   return `${km} km`;
 }
 
-const VACIO = { nombre: '', descripcion: '', latitud: '', longitud: '' };
+const VACIO = {
+  nombre: '',
+  descripcion: '',
+  categoria: 'VISITAR' as CategoriaLugar,
+  latitud: '',
+  longitud: '',
+};
 
 /** Sitios y experiencias del mapa: la web pública solo muestra los activos. */
 export function PaginaAdminLugares() {
@@ -63,6 +71,7 @@ export function PaginaAdminLugares() {
       const valores = {
         nombre: nuevo.nombre,
         descripcion: nuevo.descripcion,
+        categoria: nuevo.categoria,
         latitud: Number(nuevo.latitud),
         longitud: Number(nuevo.longitud),
       };
@@ -89,6 +98,7 @@ export function PaginaAdminLugares() {
     setNuevo({
       nombre: lugar.nombre,
       descripcion: lugar.descripcion,
+      categoria: lugar.categoria ?? 'VISITAR',
       latitud: String(lugar.latitud),
       longitud: String(lugar.longitud),
     });
@@ -106,6 +116,7 @@ export function PaginaAdminLugares() {
       await api.put(`/api/admin/lugares/${lugar.id}`, {
         nombre: lugar.nombre,
         descripcion: lugar.descripcion,
+        categoria: lugar.categoria ?? 'VISITAR',
         latitud: lugar.latitud,
         longitud: lugar.longitud,
         activo: !lugar.activo,
@@ -169,6 +180,19 @@ export function PaginaAdminLugares() {
               onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })}
             />
           </div>
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="lugar-categoria">Categoría</label>
+            <select
+              id="lugar-categoria"
+              required
+              value={nuevo.categoria}
+              onChange={(e) => setNuevo({ ...nuevo, categoria: e.target.value as CategoriaLugar })}
+            >
+              {CATEGORIAS_LUGAR.map((categoria) => (
+                <option key={categoria.valor} value={categoria.valor}>{categoria.etiqueta}</option>
+              ))}
+            </select>
+          </div>
           <div className="campos">
             <div className="campo">
               <label className="campo__etiqueta" htmlFor="lugar-lat">Latitud</label>
@@ -225,6 +249,7 @@ export function PaginaAdminLugares() {
             <thead>
               <tr>
                 <th scope="col">Nombre</th>
+                <th scope="col">Categoría</th>
                 <th scope="col">Punto</th>
                 <th scope="col">Distancia</th>
                 <th scope="col">Visible</th>
@@ -235,6 +260,7 @@ export function PaginaAdminLugares() {
               {lugares.map((lugar) => (
                 <tr key={lugar.id}>
                   <td data-label="Nombre">{lugar.nombre}</td>
+                  <td data-label="Categoría">{etiquetaCategoriaLugar(lugar.categoria)}</td>
                   <td className="cifra" data-label="Punto">
                     {lugar.latitud}, {lugar.longitud}
                   </td>

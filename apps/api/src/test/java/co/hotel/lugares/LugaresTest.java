@@ -103,7 +103,43 @@ class LugaresTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.hotel.ubicado").value(true))
       .andExpect(jsonPath("$.hotel.latitud").value(5.65))
-      .andExpect(jsonPath("$.lugares.length()").value(1));
+      .andExpect(jsonPath("$.lugares.length()").value(1))
+      .andExpect(jsonPath("$.lugares[0].categoria").value("VISITAR"));
+  }
+
+  @Test
+  @DisplayName("el panel asigna categorías y la API conserva los cambios")
+  void categoriasSeGuardanYValidan() throws Exception {
+    var admin = user("admin@hotel.test").roles("ADMIN");
+    String creado = mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "Café local", "latitud", 5.63,
+          "longitud", -73.52, "categoria", "COMER"))))
+      .andExpect(status().isCreated())
+      .andReturn().getResponse().getContentAsString();
+    long id = JSON.readTree(creado).get("id").asLong();
+
+    mvc.perform(get("/api/lugares"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.lugares[0].categoria").value("COMER"));
+    mvc.perform(get("/api/admin/lugares").with(admin))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.lugares[0].categoria").value("COMER"));
+
+    mvc.perform(put("/api/admin/lugares/" + id).with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "Café local", "latitud", 5.63,
+          "longitud", -73.52, "categoria", "ALOJARSE", "activo", true))))
+      .andExpect(status().isOk());
+    mvc.perform(get("/api/lugares"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.lugares[0].categoria").value("ALOJARSE"));
+
+    mvc.perform(post("/api/admin/lugares").with(admin).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo(Map.of("nombre", "Lugar inválido", "latitud", 5.63,
+          "longitud", -73.52, "categoria", "FANTASIA"))))
+      .andExpect(status().isBadRequest());
   }
 
   @Test

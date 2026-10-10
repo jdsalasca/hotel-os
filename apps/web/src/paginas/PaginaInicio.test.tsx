@@ -34,6 +34,7 @@ const estado = vi.hoisted(() => ({
       descripcion: string;
       latitud: number;
       longitud: number;
+      categoria?: 'COMER' | 'VISITAR' | 'ALOJARSE';
       metros?: number;
     }>;
   },
@@ -158,6 +159,33 @@ async function buscar() {
 }
 
 describe('distancias de sitios', () => {
+  it('filtra lugares por categoría y alinea la lista con los marcadores del mapa', async () => {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [
+        { id: 1, nombre: 'Café de la plaza', descripcion: '', latitud: 4.01, longitud: -74.02, categoria: 'COMER' },
+        { id: 2, nombre: 'Museo del pueblo', descripcion: '', latitud: 4.02, longitud: -74.03, categoria: 'VISITAR' },
+        { id: 3, nombre: 'Posada del río', descripcion: '', latitud: 4.03, longitud: -74.04, categoria: 'ALOJARSE' },
+      ],
+    };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByText('Museo del pueblo')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Filtrar lugares por categoría'), {
+      target: { value: 'COMER' },
+    });
+
+    expect(screen.getByText('Café de la plaza')).toBeTruthy();
+    expect(screen.queryByText('Museo del pueblo')).toBeNull();
+    expect(screen.queryByText('Posada del río')).toBeNull();
+    expect(within(screen.getByRole('list', { name: 'Lugares turísticos' }))
+      .getByText('Qué comer')).toBeTruthy();
+    const url = decodeURIComponent((await screen.findByTitle(/Mapa de/)).getAttribute('src') ?? '');
+    expect(url).toContain('marker=4,-74;4.01,-74.02');
+    expect(url).not.toContain('4.02,-74.03');
+    expect(url).not.toContain('4.03,-74.04');
+  });
+
   it('explica la distancia en línea recta y conserva el acceso a la ruta real', async () => {
     estado.lugaresPublicos = {
       hotel: { ubicado: true, latitud: 4, longitud: -74 },

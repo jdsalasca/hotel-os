@@ -9,6 +9,7 @@ type LugarFixture = {
   descripcion: string;
   latitud: number;
   longitud: number;
+  categoria: 'COMER' | 'VISITAR' | 'ALOJARSE';
   activo: boolean;
   metros?: number;
 };
@@ -21,6 +22,7 @@ const estado = vi.hoisted(() => ({
       descripcion: 'Vista sobre el valle',
       latitud: 5.635,
       longitud: -73.525,
+      categoria: 'VISITAR',
       activo: true,
     },
   ] as LugarFixture[],
@@ -31,10 +33,18 @@ const estado = vi.hoisted(() => ({
       descripcion: string;
       latitud: number;
       longitud: number;
+      categoria: 'COMER' | 'VISITAR' | 'ALOJARSE';
       activo: boolean;
     };
   }[],
   creaciones: 0,
+  lugaresCreados: [] as {
+    nombre: string;
+    descripcion: string;
+    latitud: number;
+    longitud: number;
+    categoria: 'COMER' | 'VISITAR' | 'ALOJARSE';
+  }[],
 }));
 
 vi.mock('../api/cliente', () => ({
@@ -43,8 +53,10 @@ vi.mock('../api/cliente', () => ({
       if (ruta === '/api/admin/lugares') return { lugares: estado.lugares };
       throw new Error(`ruta no esperada: ${ruta}`);
     },
-    post: async () => {
+    post: async (_ruta: string, cuerpo: (typeof estado.lugaresCreados)[number]) => {
       estado.creaciones++;
+      estado.lugaresCreados.push(cuerpo);
+      estado.lugares = [...estado.lugares, { id: 8, ...cuerpo, activo: true }];
       return {};
     },
     put: async (ruta: string, cuerpo: (typeof estado.cambios)[number]['cuerpo']) => {
@@ -90,20 +102,41 @@ afterEach(() => {
       descripcion: 'Vista sobre el valle',
       latitud: 5.635,
       longitud: -73.525,
+      categoria: 'VISITAR',
       activo: true,
     },
   ];
   estado.cambios.length = 0;
   estado.creaciones = 0;
+  estado.lugaresCreados.length = 0;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
 describe('edición de lugares del mapa', () => {
+  it('permite clasificar y guardar un lugar nuevo', async () => {
+    await montar();
+    fireEvent.change(screen.getByLabelText('Categoría'), { target: { value: 'COMER' } });
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Café del pueblo' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Café local' } });
+    fireEvent.change(screen.getByLabelText('Latitud'), { target: { value: '5.63' } });
+    fireEvent.change(screen.getByLabelText('Longitud'), { target: { value: '-73.52' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar lugar' }));
+
+    expect(await screen.findByRole('row', { name: /Café del pueblo.*Qué comer/ })).toBeTruthy();
+    expect(estado.lugaresCreados).toEqual([{
+      nombre: 'Café del pueblo',
+      descripcion: 'Café local',
+      latitud: 5.63,
+      longitud: -73.52,
+      categoria: 'COMER',
+    }]);
+  });
+
 it('el panel dice a qué distancia queda cada sitio del hotel', async () => {
       estado.lugares = [
-        { id: 7, nombre: 'Al lado', descripcion: '', latitud: 5.635, longitud: -73.525, activo: true, metros: 240 },
-        { id: 8, nombre: 'Lejos', descripcion: '', latitud: -33.45, longitud: -70.67, activo: true, metros: 3450000 },
+        { id: 7, nombre: 'Al lado', descripcion: '', latitud: 5.635, longitud: -73.525, categoria: 'VISITAR', activo: true, metros: 240 },
+        { id: 8, nombre: 'Lejos', descripcion: '', latitud: -33.45, longitud: -70.67, categoria: 'ALOJARSE', activo: true, metros: 3450000 },
       ];
       conectarAdmin();
       render(
@@ -117,7 +150,7 @@ it('el panel dice a qué distancia queda cada sitio del hotel', async () => {
     expect(await screen.findByText('3.450 km')).toBeTruthy();
 
     estado.lugares = [
-      { id: 7, nombre: 'Mirador del valle', descripcion: 'Vista sobre el valle', latitud: 5.635, longitud: -73.525, activo: true },
+      { id: 7, nombre: 'Mirador del valle', descripcion: 'Vista sobre el valle', latitud: 5.635, longitud: -73.525, categoria: 'VISITAR', activo: true },
     ];
   });
 
@@ -127,6 +160,8 @@ it('el panel dice a qué distancia queda cada sitio del hotel', async () => {
 
     fireEvent.click(within(fila).getByRole('button', { name: 'Editar Mirador del valle' }));
     expect(document.activeElement).toBe(screen.getByLabelText('Nombre'));
+    expect((screen.getByLabelText('Categoría') as HTMLSelectElement).value).toBe('VISITAR');
+    fireEvent.change(screen.getByLabelText('Categoría'), { target: { value: 'ALOJARSE' } });
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Mirador del valle alto' } });
     fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Vista desde arriba' } });
     fireEvent.change(screen.getByLabelText('Latitud'), { target: { value: '5.64' } });
@@ -141,6 +176,7 @@ it('el panel dice a qué distancia queda cada sitio del hotel', async () => {
         descripcion: 'Vista desde arriba',
         latitud: 5.64,
         longitud: -73.53,
+        categoria: 'ALOJARSE',
         activo: true,
       },
     });

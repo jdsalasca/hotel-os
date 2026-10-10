@@ -81,6 +81,7 @@ public class LugaresController {
     fila.put("id", l.id());
     fila.put("nombre", l.nombre());
     fila.put("descripcion", l.descripcion());
+    fila.put("categoria", l.categoria());
     fila.put("latitud", l.latitud());
     fila.put("longitud", l.longitud());
     fila.put("activo", l.activo());
@@ -90,8 +91,8 @@ public class LugaresController {
     return fila;
   }
 
-  public record LugarReq(String nombre, String descripcion, Double latitud, Double longitud,
-                         Boolean activo) {}
+  public record LugarReq(String nombre, String descripcion, String categoria, Double latitud,
+                         Double longitud, Boolean activo) {}
 
   @GetMapping("/api/admin/lugares")
   public Map<String, Object> todos() {
@@ -105,13 +106,13 @@ public class LugaresController {
   public ResponseEntity<?> crear(@RequestBody LugarReq req) {
     return ResponseEntity.status(HttpStatus.CREATED)
       .body(Map.of("id", repo.crear(exigirNombre(req), texto(req.descripcion()),
-        exigirLat(req), exigirLng(req))));
+        exigirCategoria(req), exigirLat(req), exigirLng(req))));
   }
 
   @PutMapping("/api/admin/lugares/{id}")
   public ResponseEntity<?> actualizar(@PathVariable long id, @RequestBody LugarReq req) {
-    int filas = repo.actualizar(id, exigirNombre(req), texto(req.descripcion()), exigirLat(req),
-      exigirLng(req), req.activo() == null || req.activo());
+    int filas = repo.actualizar(id, exigirNombre(req), texto(req.descripcion()), exigirCategoria(req),
+      exigirLat(req), exigirLng(req), req.activo() == null || req.activo());
     if (filas == 0)
       return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "lugar no existe"));
     return ResponseEntity.ok(Map.of("estado", "lugar actualizado"));
@@ -135,6 +136,16 @@ public class LugaresController {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
         "el nombre necesita entre 2 y 120 caracteres");
     return nombre;
+  }
+
+  private static String exigirCategoria(LugarReq req) {
+    String categoria = texto(req.categoria());
+    return switch (categoria) {
+      case "", "VISITAR" -> "VISITAR";
+      case "COMER", "ALOJARSE" -> categoria;
+      default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+        "la categoría debe ser COMER, VISITAR o ALOJARSE");
+    };
   }
 
   private static double exigirLat(LugarReq req) {
