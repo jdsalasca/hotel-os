@@ -42,7 +42,11 @@ class ReservaServiceTest {
         huespedes INTEGER NOT NULL, estado TEXT NOT NULL, origen TEXT NOT NULL,
         idempotencia TEXT NOT NULL, creado_en TEXT NOT NULL DEFAULT '',
         total_cents INTEGER, moneda TEXT, rate_plan_id INTEGER,
+        hora_entrada TEXT, hora_salida TEXT, politica_cancelacion TEXT,
         UNIQUE(idempotencia, email));
+      CREATE TABLE hotel_config(
+        clave TEXT PRIMARY KEY, valor TEXT NOT NULL,
+        actualizado_en TEXT NOT NULL DEFAULT '');
       CREATE TABLE rate_plans(
         id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL,
         nombre TEXT NOT NULL, moneda TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1,
@@ -95,7 +99,9 @@ class ReservaServiceTest {
     var inventario = new InventarioService(new InventarioRepository(jdbc), new TarifaRepository(jdbc),
       new SqliteTransactionExecutor(dataSource));
     this.svc = new ReservaService(new ReservaRepository(jdbc), new SqliteTransactionExecutor(dataSource),
-      auditoria, inventario, new ReservaServiceHuesped(jdbc, new UsuariosHuespedRepository(jdbc)));
+      auditoria, inventario, new ReservaServiceHuesped(jdbc, new UsuariosHuespedRepository(jdbc)),
+      new co.hotel.hotel.HotelConfigService(
+        new co.hotel.hotel.HotelConfigRepository(jdbc), new SqliteTransactionExecutor(dataSource)));
   }
 
   private String crear(String email, String llegada, String salida, long roomId) {

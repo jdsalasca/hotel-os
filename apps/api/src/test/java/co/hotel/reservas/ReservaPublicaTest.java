@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -88,6 +89,38 @@ class ReservaPublicaTest {
       .andExpect(status().isCreated())
       .andReturn().getResponse().getContentAsString();
     return JSON.readTree(respuesta).get("codigo").asText();
+  }
+
+  @Test
+  @DisplayName("la reserva congela las condiciones que el hotel tenía al vender")
+  void laReservaCongelaLasCondiciones() throws Exception {
+    // queryForObject revienta si la clave no existe todavia; esta base arranca sin hotel-config.
+    List<String> previas = jdbc.queryForList(
+      "SELECT valor FROM hotel_config WHERE clave='politica_cancelacion'", String.class);
+    String original = previas.isEmpty() ? null : previas.get(0);
+    jdbc.update("INSERT OR REPLACE INTO hotel_config(clave,valor) VALUES('politica_cancelacion',?)",
+      "Gratis hasta 48 horas antes");
+
+// 28→30 de noviembre: los tests comparten la habitación 1, ya ocupan hasta el 26 y la
+    // tarifa sembrada acaba el 30. Fuera de ese borde el alta falla con 409 por precio.
+    String codigo = reservar(cuerpo("congelada@example.com", "2026-11-28", "2026-11-30", 2, null));
+
+    var fila = jdbc.queryForMap("SELECT politica_cancelacion FROM reservations WHERE codigo=?", codigo);
+    assertEquals("Gratis hasta 48 horas antes", fila.get("politica_cancelacion"),
+      "la reserva guarda el texto del hotel en el momento de la venta");
+
+    // El hotel cambia después: una reserva ya vendida conserva lo que se acordó.
+    jdbc.update("UPDATE hotel_config SET valor=? WHERE clave='politica_cancelacion'",
+      "Sin cancelacion");
+    var despues = jdbc.queryForMap("SELECT politica_cancelacion FROM reservations WHERE codigo=?", codigo);
+    assertEquals("Gratis hasta 48 horas antes", despues.get("politica_cancelacion"),
+      "cambiar la configuración del hotel no puede reescribir una reserva ya hecha");
+
+    if (original == null) {
+      jdbc.update("DELETE FROM hotel_config WHERE clave='politica_cancelacion'");
+    } else {
+      jdbc.update("UPDATE hotel_config SET valor=? WHERE clave='politica_cancelacion'", original);
+    }
   }
 
   @Test

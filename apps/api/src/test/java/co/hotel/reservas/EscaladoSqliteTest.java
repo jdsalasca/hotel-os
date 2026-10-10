@@ -49,7 +49,11 @@ class EscaladoSqliteTest {
         email TEXT NOT NULL, nombre TEXT NOT NULL DEFAULT '', llegada TEXT NOT NULL, salida TEXT NOT NULL,
         huespedes INTEGER NOT NULL, estado TEXT NOT NULL, origen TEXT NOT NULL,
         idempotencia TEXT UNIQUE NOT NULL, creado_en TEXT NOT NULL DEFAULT '',
-        total_cents INTEGER, moneda TEXT, rate_plan_id INTEGER);
+        total_cents INTEGER, moneda TEXT, rate_plan_id INTEGER,
+        hora_entrada TEXT, hora_salida TEXT, politica_cancelacion TEXT);
+      CREATE TABLE hotel_config(
+        clave TEXT PRIMARY KEY, valor TEXT NOT NULL,
+        actualizado_en TEXT NOT NULL DEFAULT '');
       CREATE TABLE rate_plans(id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE NOT NULL,
         nombre TEXT NOT NULL, moneda TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1,
         descuento_pct INTEGER NOT NULL DEFAULT 0);
@@ -88,7 +92,8 @@ class EscaladoSqliteTest {
     return new ReservaService(new ReservaRepository(jdbc), tx,
       new AuditoriaService(new AuditoriaRepository(jdbc)), inventario,
       new co.hotel.huespedes.ReservaServiceHuesped(jdbc,
-        new co.hotel.huespedes.UsuariosHuespedRepository(jdbc)));
+        new co.hotel.huespedes.UsuariosHuespedRepository(jdbc)),
+      new co.hotel.hotel.HotelConfigService(new co.hotel.hotel.HotelConfigRepository(jdbc), tx));
   }
 
   @Test

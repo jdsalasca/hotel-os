@@ -703,9 +703,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    de confirmación y, si el hotel no ha configurado nada, no se inventa ninguna. Sin tocar
    recepción ni estilos compartidos. 115/115 frontend. Evidencia:
    `docs/evidence/round-175/verificacion.md`.
-- [ ] **Ronda 176 en curso con otro agente.** Congelar las condiciones acordadas dentro
-   de cada reserva. Su worktree tiene un conflicto abierto en `ReservaService.java`; no
-   integrar hasta que el agente confirme la resolución y la suite pase.
+- [ ] **Ronda 180 lista para integrar (antes 176, renumerada).** Congela las
+   condiciones acordadas dentro de cada reserva (V20 detrás de V19). Conflicto en
+   `ReservaService.java` resuelto conservando `hoyHotel` (R173) + `hotelConfig`;
+   suite backend en verde en worktree aislado (452 tests, 0 fallos). No integrar
+   hasta confirmación: sin commit ni push todavía.
 - [ ] **Propuesta R177 revisada, no integrada.** El commit `5ad9b0b` agrega distancia a
    `/api/lugares`, pero la portada ya la calcula y presenta con sus coordenadas; el dato
    nuevo quedaría sin consumo y duplicaría lógica. Integrar solo si la UI pasa a usar una
