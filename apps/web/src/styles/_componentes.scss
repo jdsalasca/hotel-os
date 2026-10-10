@@ -480,6 +480,19 @@
       font-weight: $peso-medio;
     }
   }
+
+  // El dueño también reserva como visitante: una línea separa "sitio público" del panel para
+  // que "Reservar" y "Reservas" no se confundan.
+  &__corte {
+    width: 1px;
+    align-self: stretch;
+    margin: $e-1 0;
+    background: $borde;
+
+    @media (max-width: 39.99rem) {
+      display: none;
+    }
+  }
 }
 
 .cabecera__menu {

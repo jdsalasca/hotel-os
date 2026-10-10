@@ -192,6 +192,10 @@ describe('App', () => {
     await waitFor(() => expect(nav?.querySelector('a[href="/admin/inventario"]')).not.toBeNull());
     expect(nav?.querySelector('a[href="/admin/reservas"]')).not.toBeNull();
     expect(nav?.querySelector('a[href="/admin/entrar"]')).toBeNull();
+    // El dueño también es visitante: sin salida al sitio público no puede reservar ni
+    // consultar sus reservas desde el panel.
+    expect(nav?.querySelector('a[href="/"]')?.textContent).toContain('Reservar');
+    expect(nav?.querySelector('a[href="/mis-reservas"]')).not.toBeNull();
   });
 
   it('el pie esconde los accesos del panel sin sesión de personal', async () => {

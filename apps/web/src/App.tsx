@@ -182,6 +182,14 @@ export function App() {
             {enPanel ? (
               sesionPanel.haySesion === true ? (
                 <>
+                  <NavLink to="/" end>Reservar</NavLink>
+                  <Link
+                    to="/mis-reservas"
+                    aria-current={ruta === '/consulta' || ruta === '/mis-reservas' ? 'page' : undefined}
+                  >
+                    Mis reservas <BadgeMensajes />
+                  </Link>
+                  <span className="nav__corte" aria-hidden="true" />
                   <NavLink to="/admin" end>Panel</NavLink>
                   <NavLink to="/admin/hoy">Hoy</NavLink>
                   <NavLink to="/admin/reservas">Reservas</NavLink>
