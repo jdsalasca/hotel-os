@@ -52,6 +52,12 @@
   margin-top: $e-1;
 }
 
+.hilo__lectura {
+  display: block;
+  font-weight: $peso-fuerte;
+  margin-top: $e-1;
+}
+
 .hilo__envio {
   display: flex;
   gap: $e-2;

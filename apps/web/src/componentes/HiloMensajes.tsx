@@ -1,8 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { Aviso } from './Estado';
 
 export type Mensaje = { id: number; autor: string; texto: string; en: string; visto: boolean };
 export type Hilo = { mensajes: Mensaje[]; total?: number; hay_mas?: boolean };
+
+const TOLERANCIA_FINAL_SCROLL = 24;
 
 /**
  * Hilo de conversación de una reserva, igual en la web del huésped y en el panel. Quien
@@ -27,11 +29,19 @@ export function HiloMensajes({
   const [texto, setTexto] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const listaRef = useRef<HTMLUListElement>(null);
+  const irAlFinalRef = useRef(false);
+  const anclaScrollRef = useRef<{ altura: number; scrollTop: number } | null>(null);
 
-  async function releer() {
+  async function releer(forzarFinal = false) {
+    const lista = listaRef.current;
+    const estabaAlFinal = lista === null ||
+      lista.scrollHeight - lista.clientHeight - lista.scrollTop <= TOLERANCIA_FINAL_SCROLL;
     try {
       const datos = await cargar();
-      setMensajes(datos.mensajes);
+      anclaScrollRef.current = null;
+      irAlFinalRef.current = forzarFinal || estabaAlFinal;
+      setMensajes([...datos.mensajes]);
       setTotal(datos.total ?? datos.mensajes.length);
       setHayMas(datos.hay_mas ?? false);
     } catch (e) {
@@ -46,9 +56,15 @@ export function HiloMensajes({
     setCargandoMas(true);
     try {
       const datos = await cargar(primero.id);
+      const lista = listaRef.current;
+      anclaScrollRef.current = lista
+        ? { altura: lista.scrollHeight, scrollTop: lista.scrollTop }
+        : null;
+      irAlFinalRef.current = false;
       setMensajes([...datos.mensajes, ...(mensajes ?? [])]);
       setHayMas(datos.hay_mas ?? false);
     } catch (e) {
+      anclaScrollRef.current = null;
       setError(e instanceof Error ? e.message : 'No se pudo leer la conversación');
     } finally {
       setCargandoMas(false);
@@ -61,6 +77,23 @@ export function HiloMensajes({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useLayoutEffect(() => {
+    const lista = listaRef.current;
+    if (!lista || mensajes === null) return;
+
+    if (anclaScrollRef.current) {
+      const { altura, scrollTop } = anclaScrollRef.current;
+      lista.scrollTop = scrollTop + lista.scrollHeight - altura;
+      anclaScrollRef.current = null;
+      return;
+    }
+
+    if (irAlFinalRef.current) {
+      lista.scrollTop = Math.max(0, lista.scrollHeight - lista.clientHeight);
+      irAlFinalRef.current = false;
+    }
+  }, [mensajes]);
+
   async function mandar(evento: FormEvent) {
     evento.preventDefault();
     const limpio = texto.trim();
@@ -70,7 +103,7 @@ export function HiloMensajes({
     try {
       await enviar(limpio);
       setTexto('');
-      await releer();
+      await releer(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo enviar el mensaje');
     } finally {
@@ -109,7 +142,7 @@ export function HiloMensajes({
         </button>
       ) : null}
       {mensajes !== null && mensajes.length > 0 ? (
-        <ul className="hilo__lista" aria-live="polite">
+        <ul ref={listaRef} className="hilo__lista" aria-live="polite">
           {mensajes.map((m) => (
             <li
               key={m.id}
@@ -119,6 +152,13 @@ export function HiloMensajes({
               <span className="hilo__meta">
                 {m.autor === ladoPropio ? 'Tú' : m.autor === 'HOTEL' ? 'Hotel' : 'Huésped'} ·{' '}
                 {m.en.slice(0, 16).replace('T', ' ')}
+                {m.autor === ladoPropio ? (
+                  <span className="hilo__lectura">
+                    {m.visto
+                      ? `Visto por ${ladoPropio === 'HOTEL' ? 'el huésped' : 'el hotel'}`
+                      : 'Enviado · pendiente de lectura'}
+                  </span>
+                ) : null}
               </span>
             </li>
           ))}

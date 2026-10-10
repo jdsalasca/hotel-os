@@ -789,7 +789,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | Calendario del panel con arrastre para bloquear noches | Alto | Alto | Completado en R199: selección por dos toques/teclado o arrastre y rechazo de conflictos |
 | Recordatorio de llegada por correo el día antes | Alto | Medio | Bloqueado por el refresh token de Gmail del hotel |
 | Tema claro/oscuro público | Medio | Alto | Pendiente; requiere pasar los tokens de SCSS a propiedades de tema |
-| Conversación huésped-hotel con estados y notificaciones | Alto | Alto | Siguiente candidata: R197 cerró el conteo por reserva; faltan estados y avisos adicionales |
+| Conversación huésped-hotel con estados y notificaciones | Alto | Alto | R200: recibos de lectura y continuidad del hilo; quedan avisos proactivos y actualización automática |
 
 - [x] **Ronda 193 — El mapa marca los sitios, no solo el hotel.** La sección "Encuéntranos
    y explora" pintaba un único marcador (el del hotel) y los sitios solo aparecían en la
@@ -856,6 +856,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   frontend 169/169, typecheck y build aprobados. Chrome local con datos sintéticos en escritorio
   y móvil (390 px), cero desbordamiento del documento y cero errores de consola. Evidencia:
   `docs/evidence/round-199/verificacion.md`.
+
+- [x] **Ronda 200 — El chat indica quién ya leyó cada mensaje.** Los mensajes propios muestran «Visto por el hotel/huésped» o «Enviado · pendiente de lectura», según el `visto` ya devuelto por la API. El hilo abre y baja hasta lo recién enviado; actualizar conserva la posición si se consulta el historial y cargar mensajes anteriores mantiene el ancla visual. Sin cambios de API ni base de datos. Frontend 173/173, chequeo de tipos, build Vite y `git diff --check` aprobados. Chrome local con datos sintéticos: escritorio 1440 px y móvil 390 px sin desbordamiento horizontal; envío de prueba visible y cero errores/advertencias de consola. Evidencia: `docs/evidence/round-200/verificacion.md`.
 
 
 ## Criterios de aceptación, verificados con ejecución real

@@ -1,0 +1,7 @@
+Chrome DevTools contra el fixture local `http://127.0.0.1:4173/visual-chat.html` (datos sintéticos).
+
+Escritorio: viewport 1440×766; ancho del documento y del body 1440 px. Tras enviar «Perfecto, gracias.», el último mensaje muestra «Enviado · pendiente de lectura». Consola: 0 errores, 0 advertencias.
+
+Móvil: viewport emulado 390×844; ancho del documento y del body 390 px; lista 308 px de ancho visible y 308 px de ancho desplazable; 4 mensajes después del envío, con el estado del último visible. Consola: 0 errores, 0 advertencias.
+
+La conversación es sintética; no se usaron datos reales ni se hizo una escritura al servidor del hotel.
