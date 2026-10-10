@@ -790,7 +790,7 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 | Validación del correo antes de buscar una reserva | Medio | Bajo | **Cerrada en R191** |
 | Opciones de amenidades más claras para búsquedas y habitaciones | Alto | Medio | **Cerrada en R188** |
 | Selector de moneda compartido entre hotel e inventario | Medio | Bajo | **Cerrada en R187** |
-| Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Edición de sitios lista en R189; falta cerrar el modelo operativo y la curaduría del mapa |
+| Gestión de sitios turísticos desde administración y mapa | Alto | Alto | Curaduría del mapa cerrada en R193/R194/R196 (marcadores, encuadre y orden por cercanía). **Sigue pendiente**: categorías de sitio (qué comer, qué visitar, dónde alojarse) y que la lista pública permita filtrar por esa categoría |
 | Conversación huésped-hotel con estados y notificaciones | Alto | Alto | Requiere diseño de un subsistema nuevo |
 
 - [x] **Ronda 193 — El mapa marca los sitios, no solo el hotel.** La sección "Encuéntranos
@@ -821,9 +821,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
   movía el encuadre y guardaba su centro; la verificación visual mostró que el visor trae
   arrastre propio y se desincronizaba de lo que se guardaba, así que se invirtió el modelo.
   148/148 frontend, sin errores de tipos. Evidencia: `docs/evidence/round-180/evidencia.md`.
-- [ ] **Siguiente: qué queda abierto.** Congelar las condiciones ya está hecho (R180) y la
+- [ ] **Siguiente: qué queda abierto.** Congelar las condiciones ya está hecho (R180). La
    curaduría del mapa quedó cerrada con la R196 (orden por cercanía y una sola medida de
-   distancia). Lint frontend exige tocar `package-lock.json` y choca con la instalación en
+   distancia); de sitios turísticos queda solo la **categoría** —qué comer, qué visitar, dónde
+   alojarse— para que el huésped pueda filtrar en vez de leer una lista plana, y su alta en el
+   panel. Lint frontend exige tocar `package-lock.json` y choca con la instalación en
    paralelo. Modo claro/oscuro lo midió el plan como no cerrable en ronda chica. Recepción
    lo lleva otra agente. Los ítems externos (dominio, credenciales OTA, copia externa)
    siguen bloqueados.
