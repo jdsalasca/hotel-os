@@ -807,6 +807,14 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
    aire del 35% de la dispersión, acotado entre 0.0025° y 0.06°. Verificado: el mapa bajó
    de ~6 km a ~1 km de lado y se ven las calles del pueblo. 150/150 frontend. Evidencia:
    `docs/evidence/round-194/verificacion.md`.
+- [x] **Ronda 180 — el hotelero ubica el hotel en el mapa sin teclear coordenadas.** El hotel
+  no tenía coordenadas en producción (`/api/lugares` → `{"hotel":{"ubicado":false}}`), así que
+  el mapa público y las distancias de R177-R179 nunca se veían. En `PaginaAdminHotel` el botón
+  "Ubicar en el mapa" abre un visor de OpenStreetMap: el punto verde es la fuente de verdad y
+  los botones Sur/Norte/Oeste/Este/Acercar lo mueven, actualizando los campos. La primera versión
+  movía el encuadre y guardaba su centro; la verificación visual mostró que el visor trae
+  arrastre propio y se desincronizaba de lo que se guardaba, así que se invirtió el modelo.
+  148/148 frontend, sin errores de tipos. Evidencia: `docs/evidence/round-180/evidencia.md`.
 - [ ] **Siguiente: qué queda abierto.** Congelar las condiciones ya está hecho (R180).
    Cerrar el modelo operativo de sitios turísticos (curaduría del mapa, que ya edita en
    R189). Lint frontend exige tocar `package-lock.json` y choca con la instalación en
