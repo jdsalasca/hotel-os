@@ -5,7 +5,7 @@ import { fechaCorta, hoyIso, monto as montoCompartido } from '../api/formato';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
 import { ComprobantePropio, type ComprobantePropioDatos } from '../componentes/ComprobantePropio';
-import { Aviso, Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
+import { Cargando, Etiqueta, MensajeError, Vacio } from '../componentes/Estado';
 
 type Reserva = {
   codigo: string;
@@ -126,21 +126,35 @@ export function PaginaMisReservas() {
   if (sesion.haySesion === false) {
     return (
       <main id="contenido" className="centrado">
-        <section className="seccion ancho-acceso">
+        <section className="seccion ancho-acceso mis-reservas-acceso">
           <h1 className="seccion__titulo">Mis reservas</h1>
-          <Aviso tono="aviso" titulo="Entra con Google">
-            Con tu cuenta puedes ver tus reservas sin acordarte del código. También puedes
-            consultar cualquier reserva con el código y el correo con el que la hiciste.
-          </Aviso>
-          <a
-            className="boton boton--primario boton--bloque mt-e3"
-            href={urlApi('/oauth2/authorization/google-huesped')}
-          >
-            Entrar con Google
-          </a>
-          <p className="mt-e3">
-            <Link to="/consulta">Consultar una reserva sin entrar</Link>
-          </p>
+          <p className="seccion__intro">Elige cómo consultar tus reservas.</p>
+          <div className="mis-reservas-opciones">
+            <article className="mis-reservas-opcion">
+              <h2 className="mis-reservas-opcion__titulo">Con tu cuenta de Google</h2>
+              <p className="mis-reservas-opcion__texto">
+                Ve las reservas vinculadas a tu cuenta sin usar un código.
+              </p>
+              <a
+                className="boton boton--primario boton--bloque mis-reservas-opcion__accion"
+                href={urlApi('/oauth2/authorization/google-huesped')}
+              >
+                Entrar con Google
+              </a>
+            </article>
+            <article className="mis-reservas-opcion">
+              <h2 className="mis-reservas-opcion__titulo">Con código y correo</h2>
+              <p className="mis-reservas-opcion__texto">
+                Si reservaste sin iniciar sesión, consulta con el código y el correo que usaste.
+              </p>
+              <Link
+                className="boton boton--secundario boton--bloque mis-reservas-opcion__accion"
+                to="/consulta"
+              >
+                Consultar una reserva
+              </Link>
+            </article>
+          </div>
         </section>
       </main>
     );

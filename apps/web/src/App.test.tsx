@@ -65,7 +65,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Mis reservas' }));
     await screen.findByRole('heading', { name: 'Mis reservas' });
     expect(await screen.findByRole('link', { name: 'Entrar con Google' })).toBeTruthy();
-    expect(await screen.findByRole('link', { name: 'Consultar una reserva sin entrar' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Consultar una reserva' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Abrir menú principal' }).getAttribute('aria-expanded')).toBe('false');
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú principal' }));
@@ -133,7 +133,7 @@ describe('App', () => {
     fireEvent.click(enlacesHuesped![0]!);
     expect(await screen.findByRole('heading', { name: 'Mis reservas' })).toBeTruthy();
     expect(await screen.findByRole('link', { name: 'Entrar con Google' })).toBeTruthy();
-    expect(await screen.findByRole('link', { name: 'Consultar una reserva sin entrar' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Consultar una reserva' })).toBeTruthy();
 
     cleanup();
     render(

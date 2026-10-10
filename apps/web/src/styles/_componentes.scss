@@ -12,6 +12,41 @@
   padding: $e-5;
 }
 
+// Las dos rutas de consulta para huéspedes sin sesión deben tener el mismo peso visual.
+.seccion.mis-reservas-acceso { max-width: $ancho-lectura; }
+
+.mis-reservas-opciones {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $e-4;
+}
+
+.mis-reservas-opcion {
+  @include tarjeta;
+  @include pila($e-3);
+  padding: $e-5;
+
+  &__titulo {
+    margin: 0;
+    font-family: $fuente-titulo;
+    font-size: $texto-lg;
+    line-height: 1.25;
+  }
+
+  &__texto {
+    margin: 0;
+    color: $tinta-suave;
+  }
+
+  &__accion { margin-top: auto; }
+}
+
+@media (min-width: 48rem) {
+  .mis-reservas-opciones {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 // --- Botones ---
 .boton {
   @include boton-base;

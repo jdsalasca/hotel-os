@@ -169,3 +169,22 @@ describe('origen del comprobante', () => {
     expect(screen.queryByText('Estado')).toBeNull();
   });
 });
+
+describe('validación del correo en la consulta', () => {
+  it('no busca con un correo inválido y explica el error junto al campo', async () => {
+    sesion({});
+    await montar();
+
+    const campoCorreo = screen.getByLabelText('Correo electrónico') as HTMLInputElement;
+    fireEvent.change(screen.getByLabelText('Código de reserva'), {
+      target: { value: 'H-ABC123' },
+    });
+    fireEvent.change(campoCorreo, { target: { value: 'no-es-correo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar reserva' }));
+
+    expect(estado.llamadas).toHaveLength(0);
+    expect(campoCorreo.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText('Escribe un correo electrónico válido.')).toBeTruthy();
+    expect(document.activeElement).toBe(campoCorreo);
+  });
+});
