@@ -1,0 +1,5 @@
+﻿alertas visibles: 1
+botones: ["Recargar la p├ígina"]
+muestra aviso de error: true
+pagina en blanco: false
+errores JS capturados: 0
