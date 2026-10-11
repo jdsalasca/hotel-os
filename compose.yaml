@@ -52,7 +52,9 @@ services:
   # de lectura (.backup); con solo lectura falla con "unable to open database file". La API de
   # respaldo solo lee; no escribe en la base.
   respaldo:
-    build: ./tools/operacion
+    build:
+      context: .
+      dockerfile: tools/operacion/Dockerfile
     command: ["/usr/local/bin/programar.sh"]
     environment:
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}

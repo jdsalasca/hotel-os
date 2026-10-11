@@ -100,7 +100,9 @@ services:
   # de lectura. El destino externo (copia fuera de la VM) sigue pendiente de decidir con el
   # hotel: ver docs/operations/despliegue-respaldos.md.
   respaldo:
-    build: ./tools/operacion
+    build:
+      context: .
+      dockerfile: tools/operacion/Dockerfile
     command: ["/usr/local/bin/programar.sh"]
     environment:
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}

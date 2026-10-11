@@ -108,7 +108,9 @@ services:
   # volumen de datos va sin :ro a propósito: SQLite necesita sus archivos de bloqueo hasta
   # para la copia de lectura.
   respaldo:
-    build: ./tools/operacion
+    build:
+      context: .
+      dockerfile: tools/operacion/Dockerfile
     command: ["/usr/local/bin/programar.sh"]
     environment:
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
@@ -148,7 +150,9 @@ services:
   # respaldo más reciente. Lee /backups en solo lectura (la copia vive en /tmp) y
   # grita al log si algo no cuadra. Arranca corriendo una vez al desplegar.
   simulacro:
-    build: ./tools/operacion
+    build:
+      context: .
+      dockerfile: tools/operacion/Dockerfile
     command: ["/usr/local/bin/programar-simulacro.sh"]
     environment:
       SIMULACRO_INTERVAL_SECONDS: ${SIMULACRO_INTERVAL_SECONDS:-604800}
