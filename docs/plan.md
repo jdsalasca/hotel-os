@@ -872,6 +872,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 - [x] **Ronda 220 — La consulta distingue una reserva no encontrada de un fallo temporal.** Un 404 conserva el mensaje que no revela si el código o el correo coinciden; errores de conexión muestran la causa recuperable y otros fallos muestran un aviso temporal seguro, sin exponer detalles internos. Código y correo permanecen en el formulario para reintentar. Prueba primero escrita y observada fallar; frontend 207/207, chequeo de tipos de pruebas, typecheck de producción y build Vite aprobados. Chrome: fallo de red simulado en escritorio (1440 × 1000) y móvil (390 × 844); aviso accesible, datos conservados, ancho del documento igual al viewport y sin excepciones de JavaScript. Evidencia: `docs/evidence/round-220/verificacion.md`.
 
+- [x] **Ronda 221 — El panel no confunde un fallo del checklist con un hotel listo.** Si `/api/admin/preparacion` falla, el panel conserva una alerta accesible con explicación y botón «Reintentar»; una respuesta exitosa vuelve a mostrar los pasos pendientes, y un resultado exitoso sin pendientes continúa ocultando la lista. Prueba de regresión escrita y observada fallar antes del cambio; frontend 208/208, chequeo de tipos de pruebas, typecheck de producción, build Vite y `git diff --check` aprobados. Chrome con respuestas sintéticas 503 y luego 200: aviso y recuperación comprobados; escritorio 1440 × 1000 y móvil 390 × 844, sin desbordamiento horizontal ni errores/advertencias de consola. Evidencia: `docs/evidence/round-221/verificacion.md`.
+
 
 ## Criterios de aceptación, verificados con ejecución real
 

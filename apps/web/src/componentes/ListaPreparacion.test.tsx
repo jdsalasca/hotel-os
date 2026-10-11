@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, vi } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ListaPreparacion } from './ListaPreparacion';
 
@@ -60,5 +60,36 @@ describe('ListaPreparacion', () => {
     await waitFor(() => {
       expect(screen.getByText('Mapa')).toBeTruthy();
     });
+  });
+
+  it('muestra el fallo de carga y permite reintentar', async () => {
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [{ clave: 'a', titulo: 'Mapa', hecho: false, url: '/m' }],
+          }),
+          { status: 200 },
+        ),
+      );
+    globalThis.fetch = fetch as unknown as typeof globalThis.fetch;
+
+    render(
+      <MemoryRouter>
+        <ListaPreparacion />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByText(/no pudimos comprobar si quedan pasos pendientes/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Mapa')).toBeTruthy();
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
