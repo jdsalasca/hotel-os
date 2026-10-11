@@ -33,13 +33,25 @@ type RespuestaReserva = {
   estado: string;
   origen: string;
   mensaje: string;
+  noches?: number;
+  habitacion?: string;
+  recuperada?: boolean;
 };
+
+type LocalizadorComprobante = { codigo: string; email: string };
+
+const CLAVE_COMPROBANTE = 'reserva-comprobante';
 
 /** Pasos 2 a 5 del flujo público: datos mínimos, envío y resultado con su estado real. */
 export function PaginaReserva() {
   // Se lee UNA vez al montar. Si se relejera en cada render, al borrar la selección tras el
   // éxito volvería a ser null y la pantalla de confirmación no se llegaría a pintar.
   const [enCurso] = useState<EnCurso | null>(() => leerEnCurso());
+  // Una selección vigente tiene prioridad sobre el comprobante anterior.
+  const [localizador, setLocalizador] = useState<LocalizadorComprobante | null>(() =>
+    enCurso ? null : leerLocalizadorComprobante());
+  const [recuperando, setRecuperando] = useState(() => !enCurso && Boolean(localizador));
+  const [errorRecuperacion, setErrorRecuperacion] = useState<string | null>(null);
   const sesion = useSesionHuesped();
   const panel = useSesion();
 
@@ -89,13 +101,72 @@ export function PaginaReserva() {
     entrada?: string; salida?: string; cancelacion?: string;
   } | null>(null);
 
+  async function recuperarComprobante(actual: LocalizadorComprobante) {
+    setRecuperando(true);
+    setErrorRecuperacion(null);
+    try {
+      const consulta = new URLSearchParams({ email: actual.email });
+      const datos = await api.get<{
+        reserva: Pick<RespuestaReserva,
+          'codigo' | 'email' | 'nombre' | 'llegada' | 'salida' | 'huespedes' | 'estado' | 'origen'> & { noches: number };
+        habitacion: { codigo: string; nombre: string; tipo: string } | null;
+      }>(`/api/reservas/${encodeURIComponent(actual.codigo)}/comprobante?${consulta}`);
+      const habitacion = datos.habitacion
+        ? [datos.habitacion.codigo, datos.habitacion.tipo || datos.habitacion.nombre].filter(Boolean).join(' · ')
+        : undefined;
+      setReserva({
+        ...datos.reserva,
+        mensaje: 'Este es el estado vigente de tu reserva.',
+        noches: datos.reserva.noches,
+        habitacion,
+        recuperada: true,
+      });
+    } catch (e) {
+      if (e instanceof ErrorApi && e.estado === 404) {
+        sessionStorage.removeItem(CLAVE_COMPROBANTE);
+        setLocalizador(null);
+      } else {
+        setErrorRecuperacion('No pudimos recuperar tu reserva ahora. Inténtalo de nuevo.');
+      }
+    } finally {
+      setRecuperando(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!enCurso && localizador) void recuperarComprobante(localizador);
+    // El localizador se lee una vez al entrar; los reintentos son explícitos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (sesion.haySesion !== true) return;
     setEmail((actual) => actual || sesion.email);
     setNombre((actual) => actual || sesion.nombre);
   }, [sesion.haySesion, sesion.email, sesion.nombre]);
 
+  if (reserva) return <VistaReserva reserva={reserva} eleccion={enCurso} conCuenta={conCuenta} />;
+
   if (!enCurso) {
+    if (localizador) {
+      return (
+        <main id="contenido" className="centrado">
+          <section className="seccion">
+            <h1 className="seccion__titulo">Recuperar comprobante</h1>
+            {errorRecuperacion ? <MensajeError texto={errorRecuperacion} /> : null}
+            {recuperando ? <p role="status" aria-live="polite">Consultando el estado actual…</p> : null}
+            <button
+              className="boton boton--primario"
+              type="button"
+              onClick={() => void recuperarComprobante(localizador)}
+              disabled={recuperando}
+            >
+              {recuperando ? 'Consultando…' : 'Reintentar'}
+            </button>
+          </section>
+        </main>
+      );
+    }
     return (
       <main id="contenido" className="centrado">
         <section className="seccion">
@@ -111,9 +182,7 @@ export function PaginaReserva() {
     );
   }
 
-  // Tras el guard, TypeScript no puede estrechar `enCurso` dentro de `enviar` (es un closure y
-  // podría ejecutarse antes de que el estado cambie). Se fija aquí y se usa `eleccion` en todas
-  // partes: además evita leer un estado que React ya pudo limpiar.
+  // Tras el guard, se fija el dato para que TypeScript lo conserve dentro de `enviar`.
   const eleccion = enCurso;
   // Lo que el huésped acepta pagar: lo visto en la búsqueda, o lo vigente tras un cambio que
   // ya se le mostró. Nunca se envía un importe ni un plan que no haya visto.
@@ -162,6 +231,15 @@ export function PaginaReserva() {
         ratePlanIdEsperado: esperado.ratePlanId,
       });
       setReserva(r);
+      // Guarda solo los dos datos necesarios para volver a consultar el comprobante.
+      try {
+        sessionStorage.setItem(CLAVE_COMPROBANTE, JSON.stringify({
+          codigo: r.codigo,
+          email: emailLimpio,
+        }));
+      } catch {
+        // La confirmación actual sigue disponible aunque el navegador bloquee el almacenamiento.
+      }
       sessionStorage.removeItem('reserva-en-curso');
     } catch (e) {
       const cambio = cambioDePrecio(e);
@@ -189,70 +267,6 @@ export function PaginaReserva() {
     } finally {
       setEnviando(false);
     }
-  }
-
-  if (reserva) {
-    return (
-      <main id="contenido" className="centrado">
-        <section className="seccion">
-          <h1 className="seccion__titulo">Reserva registrada</h1>
-
-          <BotonWhatsApp codigo={reserva.codigo} />
-
-          <CodigoReserva codigo={reserva.codigo} />
-
-          <Aviso tono="exito" titulo="Solicitud recibida">
-            <p>{reserva.mensaje}</p>
-          </Aviso>
-
-          <div className="tarjeta pila mt-e5">
-            <dl className="pila">
-              <div>
-                <dt className="campo__etiqueta">Habitación</dt>
-                <dd>{eleccion.tipo.nombre}</dd>
-              </div>
-              <div>
-                <dt className="campo__etiqueta">Fechas</dt>
-                <dd className="cifra">
-                  {fechaCorta(reserva.llegada)} → {fechaCorta(reserva.salida)} ({eleccion.noches}{' '}
-                  {eleccion.noches === 1 ? 'noche' : 'noches'})
-                </dd>
-              </div>
-              <div>
-                <dt className="campo__etiqueta">Huéspedes</dt>
-                <dd className="cifra">{reserva.huespedes}</dd>
-              </div>
-              <div>
-                <dt className="campo__etiqueta">Estado</dt>
-                <dd>{reserva.estado === 'PENDIENTE' ? 'Pendiente de confirmación' : reserva.estado}</dd>
-              </div>
-            </dl>
-          </div>
-
-          <p className="mt-e5">
-            {conCuenta ? (
-              <>Esta reserva ya está en tu cuenta: puedes verla sin el código.</>
-            ) : (
-              <>Guarda el código: con él y tu correo puedes consultar la reserva cuando quieras.</>
-            )}
-          </p>
-          <p className="pila gap-e2">
-            <Link className="boton boton--secundario" to="/">
-              Volver al inicio
-            </Link>
-            {conCuenta ? (
-              <Link className="boton boton--primario" to="/mis-reservas">
-                Ver mis reservas
-              </Link>
-            ) : (
-              <Link className="boton boton--secundario" to="/consulta">
-                Consultar una reserva
-              </Link>
-            )}
-          </p>
-        </section>
-      </main>
-    );
   }
 
   return (
@@ -400,6 +414,83 @@ export function PaginaReserva() {
   );
 }
 
+function VistaReserva({
+  reserva,
+  eleccion,
+  conCuenta,
+}: {
+  reserva: RespuestaReserva;
+  eleccion: EnCurso | null;
+  conCuenta: boolean;
+}) {
+  const noches = reserva.noches ?? eleccion?.noches;
+  const habitacion = reserva.habitacion ?? eleccion?.tipo.nombre ?? 'Pendiente de asignación';
+
+  return (
+    <main id="contenido" className="centrado">
+      <section className="seccion">
+        <h1 className="seccion__titulo">{reserva.recuperada ? 'Tu reserva' : 'Reserva registrada'}</h1>
+        <BotonWhatsApp codigo={reserva.codigo} />
+        <CodigoReserva codigo={reserva.codigo} />
+
+        <Aviso
+          tono={reserva.recuperada ? 'info' : 'exito'}
+          titulo={reserva.recuperada ? 'Comprobante actualizado' : 'Solicitud recibida'}
+        >
+          <p>{reserva.mensaje}</p>
+        </Aviso>
+
+        <div className="tarjeta pila mt-e5">
+          <dl className="pila">
+            <div>
+              <dt className="campo__etiqueta">Habitación</dt>
+              <dd>{habitacion}</dd>
+            </div>
+            <div>
+              <dt className="campo__etiqueta">Fechas</dt>
+              <dd className="cifra">
+                {fechaCorta(reserva.llegada)} → {fechaCorta(reserva.salida)}{noches ? (
+                  <> ({noches} {noches === 1 ? 'noche' : 'noches'})</>
+                ) : null}
+              </dd>
+            </div>
+            <div>
+              <dt className="campo__etiqueta">Huéspedes</dt>
+              <dd className="cifra">{reserva.huespedes}</dd>
+            </div>
+            <div>
+              <dt className="campo__etiqueta">Estado</dt>
+              <dd>{reserva.estado === 'PENDIENTE' ? 'Pendiente de confirmación' : reserva.estado}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <p className="mt-e5">
+          {conCuenta ? (
+            <>Esta reserva ya está en tu cuenta: puedes verla sin el código.</>
+          ) : (
+            <>Guarda el código: con él y tu correo puedes consultar la reserva cuando quieras.</>
+          )}
+        </p>
+        <p className="pila gap-e2">
+          <Link className="boton boton--secundario" to="/">
+            Volver al inicio
+          </Link>
+          {conCuenta ? (
+            <Link className="boton boton--primario" to="/mis-reservas">
+              Ver mis reservas
+            </Link>
+          ) : (
+            <Link className="boton boton--secundario" to="/consulta">
+              Consultar una reserva
+            </Link>
+          )}
+        </p>
+      </section>
+    </main>
+  );
+}
+
 /** Extrae el importe y plan vigentes de un 409 por cambio de precio; null para otro error. */
 function cambioDePrecio(e: unknown): { totalCents: number; moneda: string; ratePlanId: number } | null {
   if (!(e instanceof ErrorApi) || e.estado !== 409) return null;
@@ -407,6 +498,21 @@ function cambioDePrecio(e: unknown): { totalCents: number; moneda: string; rateP
   if (!d || typeof d.nuevoTotalCents !== 'number' || typeof d.nuevaMoneda !== 'string'
     || typeof d.nuevoRatePlanId !== 'number') return null;
   return { totalCents: d.nuevoTotalCents, moneda: d.nuevaMoneda, ratePlanId: d.nuevoRatePlanId };
+}
+
+function leerLocalizadorComprobante(): LocalizadorComprobante | null {
+  const bruto = sessionStorage.getItem(CLAVE_COMPROBANTE);
+  if (!bruto) return null;
+  try {
+    const datos: unknown = JSON.parse(bruto);
+    if (!datos || typeof datos !== 'object') return null;
+    const o = datos as Record<string, unknown>;
+    if (typeof o.codigo !== 'string' || !o.codigo.trim()
+      || typeof o.email !== 'string' || !o.email.trim()) return null;
+    return { codigo: o.codigo.trim(), email: o.email.trim() };
+  } catch {
+    return null;
+  }
 }
 
 function leerEnCurso(): EnCurso | null {

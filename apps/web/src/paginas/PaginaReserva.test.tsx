@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+import { ErrorApi } from '../api/cliente';
 import { PaginaReserva } from './PaginaReserva';
 
 const api = vi.hoisted(() => ({
@@ -16,7 +17,9 @@ const sesionHuesped = vi.hoisted(() => ({
 
 vi.mock('../api/cliente', () => ({
   api,
-  ErrorApi: class ErrorApi extends Error {},
+  ErrorApi: class ErrorApi extends Error {
+    constructor(readonly estado: number, mensaje: string) { super(mensaje); }
+  },
 }));
 
 vi.mock('../api/useSesionHuesped', () => ({
@@ -202,5 +205,174 @@ describe('PaginaReserva', () => {
     expect(nombre.getAttribute('aria-invalid')).toBe('true');
     expect(document.activeElement).toBe(nombre);
     expect(api.post).not.toHaveBeenCalled();
+  });
+});
+
+describe('comprobante después de recargar', () => {
+  const comprobante = {
+    reserva: {
+      codigo: 'H-A1B2C3',
+      email: 'ana@hotel.test',
+      nombre: 'Ana',
+      llegada: '2030-06-10',
+      salida: '2030-06-12',
+      noches: 2,
+      huespedes: 2,
+      estado: 'CONFIRMADA',
+      origen: 'WEB',
+      totalCents: 300000,
+      moneda: 'COP',
+      plan: null,
+      abonadoCents: 0,
+      pendienteCents: 300000,
+      horaEntrada: null,
+      horaSalida: null,
+      politicaCancelacion: null,
+    },
+    habitacion: { codigo: '101', nombre: 'Habitación 101', tipo: 'Doble' },
+    hotel: { nombre: 'Hotel de prueba' },
+    historial: [{
+      estado_ant: null,
+      estado_nuevo: 'PENDIENTE',
+      actor: 'WEB',
+      en: '2030-01-01T12:00:00',
+    }],
+  };
+
+  const reservaCreada = {
+    codigo: 'H-A1B2C3',
+    email: 'ana@hotel.test',
+    nombre: 'Ana',
+    llegada: '2030-06-10',
+    salida: '2030-06-12',
+    huespedes: 2,
+    estado: 'PENDIENTE',
+    origen: 'WEB',
+    mensaje: 'Queda pendiente de confirmación.',
+  };
+
+  beforeEach(() => {
+    cleanup();
+    sessionStorage.clear();
+    prepararReserva();
+    sesionHuesped.haySesion = false;
+    sesionHuesped.email = '';
+    sesionHuesped.nombre = '';
+    api.get.mockImplementation((ruta: string) =>
+      Promise.resolve(ruta.includes('/comprobante') ? comprobante : {}));
+    api.post.mockResolvedValue(reservaCreada);
+  });
+
+  afterEach(() => {
+    cleanup();
+    sessionStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  function enviarReserva(email = 'ana@hotel.test', nombre = 'Ana') {
+    fireEvent.change(screen.getByLabelText('Correo electrónico *'), { target: { value: email } });
+    fireEvent.change(screen.getByLabelText('Nombre *'), { target: { value: nombre } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar solicitud de reserva' }));
+  }
+
+  it('tras recargar vuelve a consultar y muestra la habitación y el estado actuales', async () => {
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+    enviarReserva();
+
+    expect(await screen.findByText('H-A1B2C3')).toBeTruthy();
+    expect(JSON.parse(sessionStorage.getItem('reserva-comprobante') ?? '{}')).toEqual({
+      codigo: 'H-A1B2C3',
+      email: 'ana@hotel.test',
+    });
+
+    cleanup();
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    expect(await screen.findByText('H-A1B2C3')).toBeTruthy();
+    expect(screen.getByText('101 · Doble')).toBeTruthy();
+    expect(screen.getByText('CONFIRMADA')).toBeTruthy();
+    expect(api.get).toHaveBeenCalledWith(
+      '/api/reservas/H-A1B2C3/comprobante?email=ana%40hotel.test',
+    );
+  });
+
+  it('no guarda el comprobante completo con datos personales en sessionStorage', async () => {
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+    enviarReserva();
+
+    await screen.findByText('H-A1B2C3');
+
+    const localizador = sessionStorage.getItem('reserva-comprobante') ?? '';
+    expect(JSON.parse(localizador)).toEqual({
+      codigo: 'H-A1B2C3',
+      email: 'ana@hotel.test',
+    });
+    expect(localizador).not.toContain('Ana');
+    expect(localizador).not.toContain('PENDIENTE');
+    expect(localizador).not.toContain('2030-06-10');
+  });
+
+  it('prioriza una nueva selección sobre un comprobante guardado anteriormente', async () => {
+    sessionStorage.setItem('reserva-comprobante', JSON.stringify({
+      codigo: 'H-ANTERIOR',
+      email: 'anterior@hotel.test',
+    }));
+    api.post.mockResolvedValue({ ...reservaCreada, codigo: 'H-NUEVA1', email: 'nueva@hotel.test' });
+
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    expect(await screen.findByRole('heading', { name: 'Tu selección' })).toBeTruthy();
+    expect(api.get.mock.calls.some(([ruta]) => String(ruta).includes('/comprobante'))).toBe(false);
+
+    enviarReserva('nueva@hotel.test', 'Nueva huésped');
+
+    expect(await screen.findByText('H-NUEVA1')).toBeTruthy();
+    expect(JSON.parse(sessionStorage.getItem('reserva-comprobante') ?? '{}')).toEqual({
+      codigo: 'H-NUEVA1',
+      email: 'nueva@hotel.test',
+    });
+  });
+
+  it('borra el localizador si el servidor confirma que la reserva no existe', async () => {
+    sessionStorage.removeItem('reserva-en-curso');
+    sessionStorage.setItem('reserva-comprobante', JSON.stringify({
+      codigo: 'H-NOEXISTE',
+      email: 'ana@hotel.test',
+    }));
+    api.get.mockImplementation((ruta: string) => ruta.includes('/comprobante')
+      ? Promise.reject(new ErrorApi(404, 'reserva no encontrada'))
+      : Promise.resolve({}));
+
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    expect(await screen.findByText('No hay una reserva en curso')).toBeTruthy();
+    await waitFor(() => expect(sessionStorage.getItem('reserva-comprobante')).toBeNull());
+    expect(screen.queryByText('H-NOEXISTE')).toBeNull();
+  });
+
+  it('conserva el localizador ante un fallo temporal y deja reintentar', async () => {
+    sessionStorage.removeItem('reserva-en-curso');
+    sessionStorage.setItem('reserva-comprobante', JSON.stringify({
+      codigo: 'H-A1B2C3',
+      email: 'ana@hotel.test',
+    }));
+    let consultas = 0;
+    api.get.mockImplementation((ruta: string) => {
+      if (!ruta.includes('/comprobante')) return Promise.resolve({});
+      consultas += 1;
+      return consultas === 1
+        ? Promise.reject(new ErrorApi(500, 'error interno'))
+        : Promise.resolve(comprobante);
+    });
+
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    expect(await screen.findByText(/No pudimos recuperar tu reserva ahora/)).toBeTruthy();
+    expect(sessionStorage.getItem('reserva-comprobante')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByText('H-A1B2C3')).toBeTruthy();
+    expect(consultas).toBe(2);
   });
 });

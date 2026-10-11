@@ -1,0 +1,39 @@
+
+> hotel-web@0.1.0 test
+> vitest run --no-file-parallelism --reporter=dot
+
+
+ RUN  v5.0.3 C:/Users/jdsal/AppData/Local/Temp/opencode/hotel-r213/apps/web
+
+Not implemented: Window's scrollTo() method
+stderr | src/componentes/Estado.test.tsx > MuroAntipanico > una página rota ofrece salidas, no la pantalla en blanco
+Error: pum
+    at Explota (C:/Users/jdsal/AppData/Local/Temp/opencode/hotel-r213/apps/web/src/componentes/Estado.test.tsx:25:9)
+    at Object.react_stack_bottom_frame (C:\Users\jdsal\Documents\Programming-personal\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:23863:20)
+    at renderWithHooks (C:\Users\jdsal\Documents\Programming-personal\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:5529:22)
+    at updateFunctionComponent (C:\Users\jdsal\Documents\Programming-personal\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:8897:19)
+    at beginWork (C:\Users\jdsal\Documents\Programming-personal\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:10522:18)
+    at runWithFiberInDEV (C:\Users\jdsal\Documents\Programming-personal\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:1522:13)
+    at performUnitOfWork (C:\Users\jdsal\Documents\Programming-personal\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:15140:22)
+    at workLoopSync (C:\Users\jdsal\Documents\Programming-personal\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:14956:41)
+    at renderRootSync (C:\Users\jdsal\Documents\Programming-personal\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:14936:11)
+    at performWorkOnRoot (C:\Users\jdsal\Documents\Programming-personal\hotel-os\apps\web\node_modules\react-dom\cjs\react-dom-client.development.js:14462:44) {
+  [stack]: [Getter/Setter],
+  [message]: 'pum'
+}
+
+The above error occurred in the <Explota> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, MuroAntipanico.
+
+
+·······································································································································································································
+
+ Test Files  31 passed (31)
+      Tests  199 passed (199)
+   Start at  12:02:31
+   Duration  40.32s (environment 53%, tests 32%, import 12%, transform 3%)
+
+Environment  jsdom was created 31 times · 19.58s total, 53% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
