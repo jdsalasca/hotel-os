@@ -69,8 +69,30 @@ server {
   }
 
   # React Router necesita este fallback: sin él, /admin/reservas da 404 al recargar.
+  #
+  # Pero servir /index.html para *cualquier* ruta hace que una URL inventada (/no-existe,
+  # /admin/hotelaria) responda 200 con el documento completo: un buscador la indexa como
+  # si fuera una pagina real y el title no dice nada. Por eso el fallback se concede solo a
+  # las rutas que la SPA declara de verdad; el resto recibe un 404 de verdad.
+  #
+  # La lista debe seguir a las <Route> de App.tsx. Si se añade una ruta allí y no aquí,
+  # recargar en ella da 404: es el fallo visible que avisa, mejor que un 200 mentiroso.
+  location ~ ^/(reserva|consulta|mis-reservas|privacidad|terminos)$ {
+    try_files $uri /index.html;
+  }
+
+  # El panel: las rutas que declara App.tsx, una por una. `^/admin(/|$)` a secas era
+  # demasiado ancho: /admin/hotelaria no existe y aun asi recibia el documento con 200.
+  location ~ ^/admin$ {
+    try_files $uri /index.html;
+  }
+
+  location ~ ^/admin/(entrar|reservas|hoy|inventario|hotel|integraciones|indicadores|auditoria|lugares)$ {
+    try_files $uri /index.html;
+  }
+
   location / {
-    try_files $uri $uri/ /index.html;
+    try_files $uri $uri/ =404;
   }
 
   # Cabeceras de seguridad. La CSP no lleva 'unsafe-inline' ni 'unsafe-eval' porque el build de

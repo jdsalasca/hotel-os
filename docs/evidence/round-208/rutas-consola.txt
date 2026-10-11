@@ -1,0 +1,21 @@
+﻿--- rutas reales (deben servir la SPA) ---
+OK   /                        200
+OK   /reserva                 200
+OK   /consulta                200
+OK   /mis-reservas            200
+OK   /privacidad              200
+OK   /terminos                200
+OK   /admin                   200
+OK   /admin/reservas          200
+OK   /admin/hotel             200
+OK   /admin/lugares           200
+OK   /admin/inventario        200
+--- rutas inventadas (deben ser 404) ---
+OK   /no-existe               404
+OK   /admin/hotelaria         404
+OK   /consultaXYZ             404
+OK   /adminx                  404
+OK   /admin/inventario/1      404
+SPA arranca en /admin/reservas: true
+fallos: 0
+errores JS: 0
