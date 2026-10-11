@@ -85,7 +85,7 @@ cp .env.example .env && nano .env      # DOMAIN, ACME_EMAIL, ADMIN_INIT_TOKEN
 docker compose -f compose.production.yaml build api
 
 # 2. Respaldo ANTES de actualizar. Ver tools/operacion/respaldar.sh
-docker build -t hotel-ops tools/operacion
+docker build -f tools/operacion/Dockerfile -t hotel-ops .
 docker run --rm -e BACKUP_RETENTION_DAYS=30 \
   -v hotel-os_hotel-data:/data -v hotel-os_hotel-backups:/backups \
   hotel-ops /usr/local/bin/respaldar.sh /data/hotel.sqlite3 /backups
@@ -213,11 +213,24 @@ principal aún no tiene. Además el script **verifica la integridad del respaldo
 si no la pasa, y aplica la retención configurada.
 
 `restaurar.sh` valida el contenido antes de acercarse al destino: además de `integrity_check`, exige
-el historial estándar de Flyway (incluido `checksum`), migraciones SQL exitosas y sin filas fallidas.
+el historial estándar de Flyway (incluido `checksum`), migraciones SQL exitosas y un registro continuo
+de cada versión aplicada, sin huecos ni duplicados. La API tiene `baseline-on-migrate` activo, así que
+también acepta un marcador `BASELINE` válido y las migraciones SQL pendientes que vienen después.
+Compara los checksums aplicados con un manifiesto generado desde las migraciones incluidas en la misma
+imagen de operaciones.
 Comprueba tablas y columnas según la versión máxima aplicada: un respaldo válido de una versión
 anterior se puede restaurar y Flyway completa las migraciones cuando arranca la API. Un historial
-parcial, una versión no numérica, una fila fallida, una versión posterior a la que soporta la imagen
-o un esquema incompleto para su versión se rechazan antes de tocar el destino.
+parcial, una migración ausente o duplicada, un checksum incorrecto, una versión no numérica, una fila
+fallida, una versión posterior a la que soporta la imagen o un esquema incompleto para su versión se
+rechazan antes de tocar el destino. También exige las restricciones, claves e índices críticos de
+reservas, habitación, pagos y mensajes según la versión del respaldo.
+
+Al arrancar, Flyway usa una conexión SQLite separada con claves foráneas desactivadas durante las
+migraciones que reconstruyen `reservations`; así las cascadas intermedias no borran habitaciones,
+historial, pagos ni mensajes. La conexión normal de la API conserva `foreign_keys=ON`. Cuando Flyway
+termina, la API ejecuta `PRAGMA foreign_key_check` con esa conexión y aborta el arranque si encuentra
+una relación huérfana. Este control conserva los checksums publicados de las migraciones anteriores:
+no las modifica para corregir la reconstrucción.
 
 Antes de preparar el reemplazo, comprueba que el usuario `hotel` de la API pueda crear archivos en
 el directorio destino; SQLite necesita allí sus archivos WAL/SHM. Si restauras en `/data`, el
@@ -235,15 +248,19 @@ validación falla, el comando termina con error y no anuncia la restauración. R
 API detenida, y reiníciala solo después de que el script confirme el resultado.
 
 La regresión aislada usa bases sintéticas temporales. Comprueba propietario y escritura de la API,
-rechazo previo si el directorio no permite WAL/SHM, checksum Flyway ausente, historial/esquema
-incompletos y filas fallidas, 12 columnas ausentes en esquemas v21, una base vacía con destino y
-sidecars intactos, aceptación de un respaldo v20 sin la columna añadida en v21, recuperación ante
-fallos de consulta y limpieza parcial, rollback al recibir `TERM` durante la sustitución y el ciclo
-completo de respaldo/restauración.
+rechazo previo si el directorio no permite WAL/SHM, checksum Flyway ausente o incorrecto y manifiesto
+con checksum malformado, metadatos incompatibles o incompletos del historial, aceptación de un
+baseline v1 válido, rechazo de migraciones ausentes/duplicadas, restricciones CHECK omitidas o
+demasiado restrictivas, unicidad, PK simples/compuestas, columnas `NOT NULL` según su versión,
+índices y claves foráneas críticos con el destino intacto, historial/esquema incompletos y filas
+fallidas, columnas ausentes en esquemas v21, una base vacía con destino y sidecars intactos,
+aceptación de respaldos v1/v15/v20 en su esquema histórico, recuperación ante fallos posteriores,
+limpieza parcial, rollback al recibir `TERM` durante la sustitución y el ciclo completo de
+respaldo/restauración.
 Se ejecuta con:
 
 ```bash
-docker build -t hotel-ops tools/operacion
+docker build -f tools/operacion/Dockerfile -t hotel-ops .
 docker run --rm hotel-ops /usr/local/bin/probar-restaurar-segura.sh
 ```
 
@@ -274,7 +291,7 @@ Para automatizar la prueba del ciclo:
 
 ```bash
 docker compose -f compose.production.yaml stop
-docker build -t hotel-ops tools/operacion
+docker build -f tools/operacion/Dockerfile -t hotel-ops .
 docker run --rm -v hotel-os_hotel-data:/data -v hotel-os_hotel-backups:/backups hotel-ops
 ```
 

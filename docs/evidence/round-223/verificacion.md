@@ -28,10 +28,14 @@ su rechazo.
 ## Cambio
 
 - Comprueba integridad, columnas estándar del historial Flyway (incluido `checksum`), que no existan
-  migraciones fallidas o sin checksum y que haya una migración SQL exitosa con versión numérica.
+  migraciones fallidas o sin checksum y que el historial SQL no tenga huecos ni versiones duplicadas.
+  Compara cada checksum con el CRC32 de las migraciones de la misma versión empaquetadas en la imagen.
+  Conserva bases válidas con un marcador `BASELINE` v1, permitido por `baseline-on-migrate` en la API.
 - Exige las tablas y columnas incorporadas hasta la versión declarada por el historial Flyway; así
   un respaldo válido v20 conserva su esquema histórico y Flyway puede completarlo al arrancar.
   Rechaza versiones posteriores a v21, que esta imagen no conoce.
+- Comprueba las reglas de reserva por versión, índices de ocupación y consulta, claves primarias y
+  foráneas y restricciones de pago/chat introducidas por V19; `foreign_key_check` rechaza filas huérfanas.
 - Verifica antes de modificar la base que `hotel` pueda crear archivos en el directorio destino;
   evita instalar una base si SQLite no podrá crear WAL/SHM.
 - Las imágenes de API y operaciones fijan explícitamente el usuario `hotel` en UID/GID `100:101`,
@@ -50,23 +54,23 @@ su rechazo.
 Comandos ejecutados desde el worktree aislado:
 
 ```text
-docker build -t hotel-ops-r223 tools/operacion
+docker build -f tools/operacion/Dockerfile -t hotel-ops-r223 .
 exit code: 0
 
 docker run --rm hotel-ops-r223 /usr/local/bin/probar-restaurar-segura.sh
 exit code: 0
 ```
 
-La salida final comprobó doce bloques, 23 escenarios puntuales: restauración válida con escritura WAL como `hotel`; rechazo
-de directorio sin permiso para el usuario API sin cambiar la base previa; rechazo de esquema e
-historial parciales; rechazo de migración fallida; rechazo de base vacía conservando archivo, WAL y
-SHM; recuperación ante fallo de consulta posterior; recuperación tras falla parcial de limpieza de
-sidecars; ciclo completo de respaldo/destrucción/restauración; rechazo del historial sin checksum;
-restauración de v20 sin inventar la columna de v21; rechazo de 12 respaldos v21, cada uno sin una
-columna introducida por V9, V10, V11, V16 o V19, conservando el destino; e interrupción `TERM`
-después de instalar la candidata con recuperación de la reserva previa. El ciclo acabó con integridad
-`ok`, 25 tablas y una reserva sintética. La nueva regresión falló primero al aceptar una base sin
-`rate_plans.descuento_pct`; tras completar la matriz de columnas por versión, los 12 casos pasaron.
+La última ejecución completa pasó los 25 bloques del arnés (`exit code: 0`, línea final
+`PRUEBA DE RESTAURACION SEGURA VERIFICADA`). Cubrió la restauración válida con escritura WAL como
+`hotel`; permisos del directorio y conservación del destino ante fallos; ciclo completo de
+respaldo/destrucción/restauración; checksums, nombres, tipos, versiones y estructura del historial
+Flyway; baseline v1, continuidad de migraciones y rechazo de versiones o metadatos inválidos; CHECK
+ausentes o demasiado restrictivos; unicidad, PK simples y compuestas, `NOT NULL` según versión,
+claves foráneas, índices y `AUTOINCREMENT`; compatibilidad de esquemas v1, v15 y v20; columnas
+históricas ausentes; y recuperación de la base previa ante consulta fallida, limpieza parcial y
+`SIGTERM` posterior a la sustitución. En los rechazos, el destino sintético permaneció intacto. El
+ciclo acabó con integridad `ok`, 26 tablas y una reserva de prueba.
 
 La revisión independiente detectó que exigir siempre el esquema v21 rechazaría respaldos anteriores
 válidos; la regresión v20 se observó fallar antes de aplicar la compatibilidad por versión y pasó después.
@@ -122,14 +126,23 @@ exit code: 0
 Se reconstruyó `hotel-api-r223` con los UID/GID fijados; `id hotel` devolvió `100:101` tanto en
 `hotel-api-r223` como en `hotel-ops-r223`.
 
-La suite completa del backend se ejecutó en un volumen Docker escribible, como UID 1000 para
-reproducir el usuario no root esperado por sus pruebas de permisos:
+En una ejecución final, la API arrancó sobre un volumen temporal nuevo y respondió
+`{"estado":"ok","tablas":"4","base":"accesible"}`. Tras detenerla, la consulta de solo lectura
+confirmó versión Flyway `21` y `0` filas en `PRAGMA foreign_key_check`; se retiraron el contenedor y
+el volumen de esta prueba.
+
+La base v21 creada por la API coincidió con el manifiesto CRC32 de la imagen de operaciones en sus
+21 migraciones SQL: cada par `aplicado/esperado` fue igual y el rango fue `1..21`.
+
+La suite completa del backend se ejecutó como UID 1000 sobre una copia Linux temporal escribible;
+la caché de Maven usó un volumen Docker. Así las pruebas de permisos se ejecutaron como usuario sin
+privilegios sin intentar reescribir `target/` sobre el montaje de Windows:
 
 ```text
 mvn -B -Dmaven.repo.local=/home/ubuntu/.m2/repository test
-Tests run: 474, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 477, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
-Total time: 07:27 min
+Total time: 14:34 min
 exit code: 0
 ```
 
@@ -138,4 +151,4 @@ exit code: 0
 Las pruebas ejercitan SQLite real, las migraciones actuales, el ciclo de respaldo/restauración,
 permisos de UID/GID y el reinicio de la API tras restaurar un v20. No prueban una instalación en
 producción; la guía continúa exigiendo detener la API, restaurar y comprobar `/api/health` al
-reiniciar. La integración a `develop` y el push quedan pendientes de revisión y verificación final.
+reiniciar. La integración a `develop` requiere repetir la verificación sobre esa rama.
