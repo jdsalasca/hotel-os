@@ -451,6 +451,7 @@ Cada tarea tomada del plan debe dejar en su descripción o PR lo siguiente:
 7. **Revisión:** verificar no se tocó `.env`, secreto, respaldo ni trabajo de otro agente; buscar copy/assets/datos ficticios que puedan filtrarse al bundle.
 8. **Cierre:** commit imperativo y atómico, integrar a `develop` después del gate, volver a correr verificación sobre el commit integrado, push autorizado de `develop`, eliminar solo el worktree y rama propia, `git worktree prune`, `git status` limpio en el área propia. No borrar ni limpiar el checkout de otro agente.
 9. **Actualización del plan:** marcar solo aceptación demostrada; si hay dependencia externa, indicar quién aporta el dato y qué falta, sin convertir una espera de operador en “completado”.
+10. **Identidad GitHub:** ningún agente crea, solicita ni usa una cuenta nueva, alterna o de bot. Todas las operaciones se hacen con la cuenta existente `jdsalasca`; cada commit usa la identidad canónica verificada y, después de publicar, se confirma que GitHub resuelve el autor a `jdsalasca`. No se reescribe historia publicada ni se hace force-push sin autorización expresa. Aplicar también la política raíz de [`AGENTS.md`](../../AGENTS.md).
 
 Si el árbol compartido de `develop` está sucio por otra ronda, no se usa para implementar ni se limpian sus cambios. Se trabaja en worktree aislado y se integra cuando el dueño de esa ronda confirme la revisión y el HEAD remoto permita avanzar en fast-forward.
 
