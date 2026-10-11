@@ -670,8 +670,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 1. ~~Recibo descargable~~ — hecho en R129 (imprimir + no-imprimir).
 2. Recordatorio de llegada por correo el día antes (requiere refresh token Gmail) —
    alto/bloqueado por credencial externa.
-3. ~~Calendario del panel con arrastre para bloquear noches~~ — hecho en R199: selección accesible y bloqueo con conflictos validados.
-4. ~~`/consulta` sin email para logueados~~ — hecho en R122 (prefill) + R117.
+3. ~~Aviso de reserva al huésped~~ — **hecho en R209**: el huésped recibe código, fechas y
+   cómo consultar. No dependía de la credencial: el código ya existía y nadie lo llamaba.
+   Si el envío falla, la reserva se guarda igual y el motivo queda en el log. 473 backend.
+4. ~~Calendario del panel con arrastre para bloquear noches~~ — hecho en R199: selección accesible y bloqueo con conflictos validados.
+5. ~~`/consulta` sin email para logueados~~ — hecho en R122 (prefill) + R117.
 5. Modo claro/oscuro en la web pública — bajo/medio (requiere pasar tokens SCSS
    a custom properties; medido: no cabe en una ronda chica).
 6. ~~Abono en reserva cerrada~~ — hecho en R166 (400 en el servidor + el panel
