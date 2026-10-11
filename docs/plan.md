@@ -868,6 +868,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 - [x] **Ronda 216 — El acceso devuelve al administrador a la pantalla que pidió.** La puerta de sesión guarda ruta, parámetros y fragmento; al terminar el login con contraseña (incluido el cambio obligatorio de clave inicial) se vuelve a esa vista. Los destinos externos, fuera de `/admin` o de acceso a `/admin/entrar` se descartan; el login directo continúa en `/admin`. Sin cambios de API ni base de datos. Frontend 203/203, chequeo de tipos de pruebas y build Vite aprobados. Chrome: destino verificado como `/admin/integraciones?tab=correo#gmail`; escritorio 1440 × 1000 y móvil 390 × 844, ambos sin desbordamiento. La consola muestra dos 401 esperables en las consultas de sesión cuando se visita sin autenticar, sin excepciones de JavaScript. Evidencia: `docs/evidence/round-216/verificacion.md`.
 
+- [x] **Ronda 218 — La guía local explica el fallo y permite recuperarse.** Si falla la consulta de `/api/lugares`, la portada conserva visible la sección «Encuéntranos y explora», muestra un aviso accesible y permite reintentar. La petición ignora respuestas tardías después de desmontar o repetir la carga. El estado exitoso sin ubicación/lugares conserva su comportamiento anterior. Prueba primero escrita y observada fallar; frontend 204/204, chequeo de tipos de pruebas, chequeo de tipos de producción y build Vite aprobados. Chrome con falla y recuperación simuladas: escritorio 1440 × 1000 y móvil 390 × 844, sin desbordamiento horizontal ni errores/advertencias de consola. Evidencia: `docs/evidence/round-218/verificacion.md`.
+
 
 ## Criterios de aceptación, verificados con ejecución real
 

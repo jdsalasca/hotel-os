@@ -19,6 +19,8 @@ const estado = vi.hoisted(() => ({
   sinResultados: false,
   sinVenta: false,
   fallaVenta: false,
+  fallaLugares: false,
+  llamadasLugares: 0,
   llamadasCalendario: [] as string[],
   hotel: null as null | Record<string, string>,
   diasCalendario: [] as Array<{
@@ -104,6 +106,8 @@ vi.mock('../api/cliente', () => {
     }
     if (url.startsWith('/api/amenidades/por-tipo?')) return { porTipo: estado.amenidadesPorTipo };
     if (url === '/api/lugares') {
+      estado.llamadasLugares += 1;
+      if (estado.fallaLugares) throw new Error('guía local caída');
       return estado.lugaresPublicos ?? { hotel: { ubicado: false }, lugares: [] };
     }
     throw new Error('ruta no esperada: ' + url);
@@ -121,12 +125,41 @@ afterEach(() => {
   estado.sinResultados = false;
   estado.sinVenta = false;
   estado.fallaVenta = false;
+  estado.fallaLugares = false;
+  estado.llamadasLugares = 0;
   estado.llamadasCalendario.length = 0;
   estado.hotel = null;
   estado.diasCalendario.length = 0;
   estado.lugaresPublicos = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe('fallos de la guía local', () => {
+  it('informa el fallo y permite reintentar la carga de lugares', async () => {
+    estado.fallaLugares = true;
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    const aviso = await screen.findByRole('alert');
+    expect(aviso.textContent).toContain('No pudimos cargar la guía local');
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeTruthy();
+
+    estado.fallaLugares = false;
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 4, longitud: -74 },
+      lugares: [{
+        id: 1,
+        nombre: 'Café de la plaza',
+        descripcion: '',
+        latitud: 4.01,
+        longitud: -74.02,
+      }],
+    };
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByText('Café de la plaza')).toBeTruthy();
+    expect(estado.llamadasLugares).toBe(2);
+  });
 });
 
 describe('prioridad de la reserva en la portada', () => {

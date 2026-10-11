@@ -114,21 +114,40 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
     hotel: { ubicado: boolean; latitud?: number; longitud?: number };
     lugares: LugarPublico[];
   } | null>(null);
+  const [mapaError, setMapaError] = useState(false);
+  const [mapaCargando, setMapaCargando] = useState(true);
+  const [intentoMapa, setIntentoMapa] = useState(0);
   const [categoriaLugar, setCategoriaLugar] = useState<CategoriaLugar | 'TODOS'>('TODOS');
   const lugaresFiltrados = mapa?.lugares.filter((lugar) =>
     categoriaLugar === 'TODOS' || (lugar.categoria ?? 'VISITAR') === categoriaLugar,
   ) ?? [];
 
-  /** Mapa y distancias: una sola lectura; si el hotel no se ubicó, la sección no se muestra. */
+  /** Mapa y lugares: el error de red queda visible y el huésped puede repetir esta lectura. */
   useEffect(() => {
+    let vigente = true;
+    setMapaCargando(true);
     void api
       .get<{
         hotel: { ubicado: boolean; latitud?: number; longitud?: number };
         lugares: LugarPublico[];
       }>('/api/lugares')
-      .then((datos) => setMapa(datos))
-      .catch(() => setMapa(null));
-  }, []);
+      .then((datos) => {
+        if (!vigente) return;
+        setMapa(datos);
+        setMapaError(false);
+      })
+      .catch(() => {
+        if (!vigente) return;
+        setMapa(null);
+        setMapaError(true);
+      })
+      .finally(() => {
+        if (vigente) setMapaCargando(false);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [intentoMapa]);
   const [detalleCargando, setDetalleCargando] = useState<Record<string, boolean>>({});
   const [detalleAbierto, setDetalleAbierto] = useState<Record<string, boolean>>({});
   /** La búsqueda que produjo las ofertas en pantalla: elegir usa este snapshot, no el
@@ -989,6 +1008,27 @@ function marcadoresDelMapa(
         </section>
       </div>
       )}
+
+      {mapaError ? (
+        <div className="centrado">
+          <section className="seccion" aria-labelledby="titulo-mapa-error">
+            <h2 id="titulo-mapa-error" className="seccion__titulo">
+              Encuéntranos y explora
+            </h2>
+            <Aviso tono="error" titulo="No pudimos cargar la guía local">
+              <p>Comprueba tu conexión y vuelve a intentarlo.</p>
+              <button
+                type="button"
+                className="boton boton--primario"
+                disabled={mapaCargando}
+                onClick={() => setIntentoMapa((anterior) => anterior + 1)}
+              >
+                {mapaCargando ? 'Reintentando…' : 'Reintentar'}
+              </button>
+            </Aviso>
+          </section>
+        </div>
+      ) : null}
 
       {mapa !== null &&
       (mapa.hotel.ubicado || mapa.lugares.length > 0) ? (
