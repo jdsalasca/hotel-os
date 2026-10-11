@@ -880,6 +880,17 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 - [x] **Ronda 224 — El panel avisa que la web no puede vender.** `/api/admin/tipos` devuelve lista vacía en producción: la portada no muestra disponibilidad y nadie puede reservar, pero el panel no lo decía. La puerta del panel lee los tipos y avisa con enlace a crear el primero; `Array.isArray` antes de `.length` y una lectura fallida no afirma nada. Frente 214/214. Prod `4e88d6f`. Evidencia: `docs/evidence/round-224/`.
 - [x] **Ronda 218 — El panel avisa que los huéspedes no pueden contactar al hotel.** Sin correo ni teléfono la línea de contacto de la portada desaparecía entera: quien quería reservar y no podía se quedaba sin a quién escribir. La puerta del panel lee `/api/hotel` y avisa sólo cuando faltan los dos, con enlace directo; si la lectura falla no inventa el aviso. Prod `4a1c983`. Evidencia: `docs/evidence/round-218/`.
 - [ ] **Siguiente:** los tres bloqueos de datos siguen en manos del hotelero (punto GPS, tipos de habitación, contacto). El callejón sin salida del lado público —un visitante que no puede reservar y no tiene a quién escribir— sigue abierto y es candidato natural.
+### Plan de la ronda activa 223 — Rechazar respaldos ajenos antes de reemplazar la base
+
+1. **Reproducir sin datos reales — completado:** la regresión primero falló contra `1b31d92`: una base vacía pasó integridad y el restaurador anunció éxito con `0` tablas y reservas `?`.
+2. **Fijar la regresión primero — completado:** el caso válido conserva esquema y reservas; el inválido termina con error y no cambia el destino ni sus WAL/SHM; una falla posterior inyectada no informa éxito y recupera el destino previo; el ciclo completo usa ocho tablas y datos sintéticos.
+3. **Corregir el restaurador — completado:** valida historial Flyway y tablas mínimas, comprueba la candidata antes de reemplazar, conserva copia previa, instala mediante `mv` y verifica de nuevo; errores posteriores no anuncian éxito.
+4. **Verificar e integrar — en curso:** regresión y ciclo pasan en el contenedor de operaciones; sintaxis del restaurador y `git diff --check` pasan. ShellCheck no está instalado en el entorno. Falta revisión, integración y prueba final en `develop`.
+
+**Aceptación:** el caso inválido termina con código distinto de cero antes de modificar el archivo principal ni sus archivos WAL/SHM; el caso válido deja esquema íntegro y el conteo esperado; ninguna consulta posterior fallida puede imprimirse como restauración completada. No se ejecutan scripts contra `/data`, respaldos reales o una instalación en producción.
+
+
+## Criterios de aceptación, verificados con ejecución real
 
 | # | Criterio | Verificación | Resultado |
 |---|---|---|---|

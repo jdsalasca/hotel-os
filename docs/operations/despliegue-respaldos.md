@@ -211,6 +211,24 @@ con una escritura en curso produce un archivo inconsistente: el WAL contiene cam
 principal aún no tiene. Además el script **verifica la integridad del respaldo** y borra el archivo
 si no la pasa, y aplica la retención configurada.
 
+`restaurar.sh` también valida el contenido antes de acercarse al destino: exige el historial de
+Flyway y las tablas `users`, `reservations`, `rooms`, `room_types` y `rates`. Prepara y vuelve a
+validar una copia candidata junto a la base, guarda el estado actual con `.backup`, limpia los
+WAL/SHM antiguos y reemplaza el archivo mediante un cambio atómico. Después valida de nuevo el
+esquema y las reservas. Una base SQLite vacía puede ser íntegra; por eso `integrity_check` por sí
+solo no basta. Si la validación falla, el comando termina con error y no anuncia la restauración.
+Si falla la comprobación posterior, intenta recuperar la copia anterior y conserva su ruta para
+recuperación manual.
+
+La regresión aislada usa exclusivamente bases sintéticas temporales. Comprueba la restauración
+válida, el rechazo de una base sin esquema sin alterar el destino ni sus WAL/SHM, la recuperación
+del destino previo ante una falla posterior y el ciclo completo. Se ejecuta con:
+
+```bash
+docker build -t hotel-ops tools/operacion
+docker run --rm hotel-ops /usr/local/bin/probar-restaurar-segura.sh
+```
+
 **Ciclo probado de verdad** (destrucción y recuperación, salida real):
 
 ```
