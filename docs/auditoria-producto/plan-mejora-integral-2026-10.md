@@ -113,8 +113,8 @@ desborde a 1440 px y 390 px. Antes del cambio, esa misma pantalla era completame
 El código deriva `false` del catálogo, pero la UI habla de “pausadas” y promete consultar más adelante. El hotel puede estar pausado intencionalmente, aunque el endpoint actual no lo distingue. La UI hace una inferencia que los datos no respaldan y no orienta al visitante sobre el paso disponible.
 
 - Evidencia: [PaginaInicio.tsx](../../apps/web/src/paginas/PaginaInicio.tsx#L493-L529) y [HotelConfigRepository.java](../../apps/api/src/main/java/co/hotel/hotel/HotelConfigRepository.java#L41-L47).
-- Acción: mostrar un estado neutro y verdadero como “La reserva en línea no está disponible por ahora” y una alternativa solo si hay contacto real configurado. Si hace falta una pausa comercial manual, diseñar una señal explícita, permisos, auditoría administrativa y semántica antes de usar esa palabra.
-- Aceptación: el estado no inventa causa ni fecha de reapertura, no promete contacto vacío y deja clara la siguiente opción del visitante.
+- Acción aplicada en R206: mostrar “Reserva en línea no disponible” y explicar que el sitio no puede confirmar nuevas reservas. Se conservan teléfono/correo solo cuando existen y el acceso para gestionar reservas anteriores. No se infiere una pausa ni se promete reapertura futura.
+- Aceptación verificada: mensaje factual; sin formulario/calendario en el estado no vendible; el enlace a reservas existentes sigue visible; contacto ausente no genera un dato ficticio. La política de pausa comercial manual queda fuera de alcance hasta definir su señal y responsable.
 
 ### P1 — faltan datos públicos necesarios para confianza y visita
 
@@ -437,7 +437,7 @@ Si el árbol compartido de `develop` está sucio por otra ronda, no se usa para 
 
 **Entregable mínimo:** pruebas que demuestran positivos válidos y negativos inválidos según contrato, consulta relacional corregida, copy neutro con alternativa configurada si existe, verificación del recorrido público en estados vendible/no vendible sintéticos, capturas y reporte breve de la etapa.
 
-**Estado por subalcance (10 de octubre de 2026):** API completada y verificada en la ronda 205. Los dos negativos nuevos fallaban antes del cambio (5 pruebas, 2 fallas) y pasaron después (5/5). La suite backend completa pasó con 467 pruebas, 0 fallas, 0 errores y 1 omitida. Quedan pendientes el copy neutro de la portada y acordar si la señal debe incluir vigencia de fechas; no se cambiaron datos productivos.
+**Estado por subalcance (10 de octubre de 2026):** API completada en R205; el indicador ahora requiere una habitación activa, su mismo tipo, una tarifa relacionada y un plan activo. Los dos negativos nuevos fallaban antes del cambio (5 pruebas, 2 fallas) y pasaron después (5/5); la suite backend pasó con 467 pruebas, 0 fallas, 0 errores y 1 omitida. El copy y el flujo público del estado no vendible se cerraron en R206, con datos API sintéticos y capturas en escritorio/móvil. Queda decidir si la señal de venta necesita una vigencia por fechas; no se modificaron datos productivos.
 
 ## 9. Registro de resultados de la línea base
 
@@ -474,6 +474,18 @@ Las [capturas de Mis reservas en escritorio](../evidence/round-203/01-mis-reserv
 | `./mvnw.cmd -q -Dtest=HotelVentaTest test` | 5/5; incluye tipo de habitación no relacionado y plan tarifario inactivo. |
 | `./mvnw.cmd -q test` | 467 pruebas, 0 fallas, 0 errores y 1 omitida, en 62 reportes Surefire. |
 | Migraciones / configuración de producción | Sin cambios; pruebas sobre SQLite temporal y producción sin escrituras. |
+
+### Verificación de la ronda 206 — copy de venta no disponible
+
+| Comprobación | Resultado |
+|---|---|
+| `npm test -- --no-file-parallelism --reporter=dot src/paginas/PaginaInicio.test.tsx` | 33/33 pruebas focalizadas, sobre la rama rebasada en el `develop` que ya contiene R204. |
+| `npm test -- --no-file-parallelism --reporter=dot` | 183/183 pruebas web en 29 archivos; ejecución serial para evitar los timeouts ya observados bajo carga. |
+| `npm run test:typecheck` / `npm run build` | Pasaron; incluye `tsc --noEmit` y build Vite. |
+| Navegador real con APIs simuladas | En 1440 px y 390 × 844 px se ve el mensaje neutral; no aparecen búsqueda ni calendario; se conserva la acción de gestionar reservas existentes. Contacto de prueba usa `example.test`. |
+| Overflow y consola | Móvil: 390 px de contenido para viewport de 390 px, sin desborde horizontal. Sin errores de consola. |
+
+Las [capturas de escritorio](../evidence/round-206/01-disponibilidad-escritorio.png) y [móvil](../evidence/round-206/02-disponibilidad-movil.png), además de la [nota de verificación](../evidence/round-206/verificacion.md), documentan el estado sintético. No se contactó ni escribió a producción.
 
 ## 10. Fuentes internas clave
 

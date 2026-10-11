@@ -420,8 +420,8 @@ describe('distancias de sitios', () => {
   });
 });
 
-describe('reservas en línea pausadas', () => {
-  it('explica la pausa y retira todos los controles de búsqueda que no pueden funcionar', async () => {
+describe('reserva en línea no disponible', () => {
+  it('explica la indisponibilidad sin atribuir una pausa y retira los controles de búsqueda', async () => {
     estado.sinVenta = true;
     render(
       <MemoryRouter>
@@ -429,7 +429,15 @@ describe('reservas en línea pausadas', () => {
       </MemoryRouter>,
     );
 
-    const aviso = await screen.findByRole('heading', { name: 'Reservas en línea pausadas' });
+    const aviso = await screen.findByRole('heading', { name: 'Reserva en línea no disponible' });
+    expect(screen.getAllByRole('status').map((status) => status.textContent)).toContain(
+      'Reserva en línea no disponible',
+    );
+    expect(
+      screen.getByText('La reserva en línea no está disponible', { selector: 'strong' }),
+    ).toBeTruthy();
+    expect(screen.getByText('Este sitio no puede confirmar nuevas reservas en este momento.')).toBeTruthy();
+    expect(screen.queryByText(/pausad|vuelve a consultar|más adelante/i)).toBeNull();
     const collage = document.querySelector('.collage');
     expect(aviso.closest('section')?.compareDocumentPosition(collage!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(screen.queryByRole('heading', { name: 'Reservar es así de simple' })).toBeNull();
@@ -483,11 +491,11 @@ describe('reservas en línea pausadas', () => {
         <PaginaInicio />
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Reservas en línea pausadas' });
+    await screen.findByRole('heading', { name: 'Reserva en línea no disponible' });
     expect(screen.queryByText(/hola@hotel\.test/)).toBeNull();
   });
 
-  it('la portada deja una sola acción visible para reservas existentes cuando la venta está pausada', async () => {
+  it('la portada deja una sola acción visible para gestionar reservas existentes', async () => {
     estado.sinVenta = true;
     render(
       <MemoryRouter>

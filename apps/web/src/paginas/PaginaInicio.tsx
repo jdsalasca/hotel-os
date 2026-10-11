@@ -493,13 +493,13 @@ function marcadoresDelMapa(
           <h1 className="portada__titulo">{nombreHotel}: reserva directa, sin intermediarios</h1>
           <p className="portada__texto">
             {venta === false
-              ? 'El hotel no está recibiendo nuevas reservas en línea por ahora. Si ya tienes una, puedes gestionarla con tu código o tu cuenta de Google.'
+              ? 'La reserva en línea no está disponible. Si ya tienes una, puedes gestionarla con tu código o tu cuenta de Google.'
               : 'Consulta la disponibilidad, reserva tus fechas y gestiona tu reserva con tu código o tu cuenta de Google. Sin comisiones ni apps de terceros: lo que ves es lo que el hotel configuró.'}
           </p>
           <p className="portada__acciones">
             {venta === false ? (
               <>
-                <span className="portada__estado" role="status">Reservas en línea pausadas</span>
+                <span className="portada__estado" role="status">Reserva en línea no disponible</span>
                 <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
                   Gestionar o consultar una reserva
                 </Link>
@@ -520,14 +520,14 @@ function marcadoresDelMapa(
 
       {venta === false ? (
         <div className="centrado">
-          <section className="seccion reserva-pausada" aria-labelledby="titulo-buscar">
+          <section className="seccion reserva-no-disponible" aria-labelledby="titulo-buscar">
             <h2 id="titulo-buscar" className="seccion__titulo">
-              Reservas en línea pausadas
+              Reserva en línea no disponible
             </h2>
-            <Aviso tono="aviso" titulo="No estamos tomando nuevas reservas en este momento">
-              <p>Vuelve a consultar más adelante; la búsqueda y el calendario no están disponibles mientras la venta esté pausada.</p>
+            <Aviso tono="aviso" titulo="La reserva en línea no está disponible">
+              <p>Este sitio no puede confirmar nuevas reservas en este momento.</p>
               {contacto && (contacto.email || contacto.telefono) ? (
-                <p className="reserva-pausada__contacto">
+                <p className="reserva-no-disponible__contacto">
                   {contacto.email ? (
                     <>
                       Escríbenos a{' '}
