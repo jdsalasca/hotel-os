@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Component } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 /** Estados compartidos: carga, error y vacío. Usarlos bien evita pantallas a medias. */
 
@@ -68,10 +68,13 @@ export function Etiqueta({
  * volvía un callejón sin salida distinto; esto lo deja en un solo lugar.
  */
 export function PuertaAdmin({ children }: { children: ReactNode }) {
+  const ruta = useLocation();
+  const volverA = `${ruta.pathname}${ruta.search}${ruta.hash}`;
+
   return (
     <Aviso tono="aviso" titulo="Sesión requerida">
       <p>{children}</p>
-      <Link className="boton boton--primario" to="/admin/entrar">
+      <Link className="boton boton--primario" to="/admin/entrar" state={{ volverA }}>
         Iniciar sesión
       </Link>
     </Aviso>

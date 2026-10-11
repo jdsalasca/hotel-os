@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useSesion } from '../api/useSesion';
 import { urlApi } from '../api/cliente';
 import { Aviso } from '../componentes/Estado';
@@ -10,7 +10,12 @@ import { Aviso } from '../componentes/Estado';
  */
 export function PaginaLoginAdmin() {
   const sesion = useSesion();
+  const location = useLocation();
   const [parametros] = useSearchParams();
+  const estadoRuta = location.state && typeof location.state === 'object'
+    ? (location.state as { volverA?: unknown }).volverA
+    : null;
+  const destinoTrasEntrar = destinoAdminSeguro(estadoRuta);
   const [email, setEmail] = useState('');
   const [clave, setClave] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +36,7 @@ export function PaginaLoginAdmin() {
       if (estado === 'cambio_requerido') setPideCambio(true);
       // Recarga completa a propósito: con solo navegar, la cabecera montada antes de
       // entrar se quedaba sin saludo ni salir hasta recargar a mano.
-      else window.location.assign('/admin');
+      else window.location.assign(destinoTrasEntrar);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo iniciar sesión');
     } finally {
@@ -56,7 +61,7 @@ export function PaginaLoginAdmin() {
       if (estado === 'cambio_requerido') setPideCambio(true);
       else {
         setClave(nueva);
-        window.location.assign('/admin');
+        window.location.assign(destinoTrasEntrar);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cambiar la contraseña');
@@ -169,4 +174,18 @@ export function PaginaLoginAdmin() {
       </section>
     </main>
   );
+}
+
+/** Solo acepta destinos de páginas del panel en este origen; cualquier otro vuelve al inicio. */
+function destinoAdminSeguro(valor: unknown): string {
+  if (typeof valor !== 'string') return '/admin';
+  const origenLocal = 'https://hotel.local';
+  try {
+    const destino = new URL(valor, origenLocal);
+    const enPanel = destino.pathname === '/admin' || destino.pathname.startsWith('/admin/');
+    if (destino.origin !== origenLocal || !enPanel || destino.pathname === '/admin/entrar') return '/admin';
+    return `${destino.pathname}${destino.search}${destino.hash}`;
+  } catch {
+    return '/admin';
+  }
 }

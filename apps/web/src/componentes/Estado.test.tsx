@@ -1,6 +1,6 @@
 import { describe, expect, it, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, cleanup } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { PuertaAdmin } from './Estado';
 import { MuroAntipanico } from './Estado';
 
@@ -18,6 +18,26 @@ describe('PuertaAdmin', () => {
     expect(screen.getByText('Sesión requerida')).toBeTruthy();
     const entrar = screen.getByRole('link', { name: 'Iniciar sesión' });
     expect(entrar.getAttribute('href')).toBe('/admin/entrar');
+  });
+
+  it('conserva la ruta protegida al entrar desde su puerta', () => {
+    function EstadoDeRuta() {
+      const location = useLocation();
+      return <output aria-label="Estado de ruta">{JSON.stringify(location.state)}</output>;
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/admin/integraciones?tab=correo#gmail']}>
+        <PuertaAdmin>Inicia sesión para ver las integraciones.</PuertaAdmin>
+        <EstadoDeRuta />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: 'Iniciar sesión' }));
+
+    expect(screen.getByLabelText('Estado de ruta').textContent).toBe(
+      '{"volverA":"/admin/integraciones?tab=correo#gmail"}',
+    );
   });
 });
 

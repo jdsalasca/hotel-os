@@ -866,6 +866,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 - [x] **Ronda 202 — El comprobante se recupera después de recargar.** Tras crear la reserva, la pestaña conserva solo el código y el correo necesarios para consultar el comprobante. Al volver sin una selección activa, consulta el endpoint existente y muestra la habitación y el estado vigentes; una selección nueva tiene prioridad sobre un comprobante anterior. Un 404 limpia el localizador y un fallo temporal conserva el acceso con opción para reintentar. Sin cambios en la API ni la base de datos. Frontend 199/199, chequeo de tipos de pruebas, build Vite y `git diff --check` aprobados. Chrome local con respuestas sintéticas: escritorio 1440 × 1000 y móvil 390 × 844, sin desbordamiento horizontal ni errores/advertencias de consola. Evidencia: `docs/evidence/round-202/verificacion.md`.
 
+- [x] **Ronda 216 — El acceso devuelve al administrador a la pantalla que pidió.** La puerta de sesión guarda ruta, parámetros y fragmento; al terminar el login con contraseña (incluido el cambio obligatorio de clave inicial) se vuelve a esa vista. Los destinos externos, fuera de `/admin` o de acceso a `/admin/entrar` se descartan; el login directo continúa en `/admin`. Sin cambios de API ni base de datos. Frontend 203/203, chequeo de tipos de pruebas y build Vite aprobados. Chrome: destino verificado como `/admin/integraciones?tab=correo#gmail`; escritorio 1440 × 1000 y móvil 390 × 844, ambos sin desbordamiento. La consola muestra dos 401 esperables en las consultas de sesión cuando se visita sin autenticar, sin excepciones de JavaScript. Evidencia: `docs/evidence/round-216/verificacion.md`.
+
 
 ## Criterios de aceptación, verificados con ejecución real
 
