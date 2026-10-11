@@ -1,6 +1,7 @@
 # Ronda 220 — La consulta distingue errores
 
-**Fecha:** 2026-10-11  
+**Fecha:** 2026-10-11
+
 **Base:** `develop` en `ae6e90f6e61c53e792a20712511fceebe64b48cb`
 
 ## Hallazgo
