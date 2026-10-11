@@ -72,11 +72,11 @@ Las prioridades indican orden de atención propuesto, no severidad de seguridad.
 
 ### P1 — riesgo de que “hay venta” no represente un catálogo relacionado
 
-La implementación cuenta habitaciones activas y tarifas en consultas independientes. El esquema relaciona cada habitación con un tipo de habitación y cada tarifa con un tipo y un plan tarifario; los planes tienen `activo`. La función actual puede devolver verdadero ante una tarifa huérfana respecto de habitaciones activas, un tipo no representado en el inventario o un plan desactivado. Esto es un **riesgo de falso positivo demostrado por la lógica**, no un fallo observado en la base real.
+La implementación inicial contaba habitaciones activas y tarifas en consultas independientes. El esquema relaciona cada habitación con un tipo de habitación y cada tarifa con un tipo y un plan tarifario; los planes tienen `activo`. En una base sintética, las pruebas de regresión reprodujeron dos falsos positivos del código anterior: una tarifa del tipo de habitación equivocado y una tarifa asociada únicamente a un plan inactivo. No afirmamos que esas combinaciones existieran en los datos de producción.
 
 - Evidencia: [HotelConfigRepository.java](../../apps/api/src/main/java/co/hotel/hotel/HotelConfigRepository.java#L41-L47), esquema base [V1](../../apps/api/src/main/resources/db/migration/V1__esquema_base.sql) y esquema de tarifas [V2](../../apps/api/src/main/resources/db/migration/V2__tarifas_y_canales.sql).
-- La prueba [HotelVentaTest.java](../../apps/api/src/test/java/co/hotel/hotel/HotelVentaTest.java) cubre base vacía, habitación activa con tarifa auxiliar y habitación sin tarifa, pero no relaciones inválidas, plan inactivo, tipo faltante o tarifa cerrada.
-- Acción: definir con el dueño del dominio qué significa “a la venta” para la web, escribir casos de aceptación primero y expresar la consulta como existencia de un camino válido desde habitación activa hasta tipo y plan con tarifa válida. No equiparar una fila de precio cualquiera con disponibilidad para cualquier fecha.
+- La prueba [HotelVentaTest.java](../../apps/api/src/test/java/co/hotel/hotel/HotelVentaTest.java) cubre ahora ambos negativos relacionados y un positivo válido. Las fechas disponibles se calculan por separado y no se infieren de este indicador.
+- Acción aplicada en la ronda 205: la consulta relaciona habitación activa → mismo tipo → tarifa → plan activo. No equipara una fila de precio cualquiera con disponibilidad para cualquier fecha.
 
 ### P1 — el texto público atribuye una pausa que no existe como dato
 
@@ -407,6 +407,8 @@ Si el árbol compartido de `develop` está sucio por otra ronda, no se usa para 
 
 **Entregable mínimo:** pruebas que demuestran positivos válidos y negativos inválidos según contrato, consulta relacional corregida, copy neutro con alternativa configurada si existe, verificación del recorrido público en estados vendible/no vendible sintéticos, capturas y reporte breve de la etapa.
 
+**Estado por subalcance (10 de octubre de 2026):** API completada y verificada en la ronda 205. Los dos negativos nuevos fallaban antes del cambio (5 pruebas, 2 fallas) y pasaron después (5/5). La suite backend completa pasó con 467 pruebas, 0 fallas, 0 errores y 1 omitida. Quedan pendientes el copy neutro de la portada y acordar si la señal debe incluir vigencia de fechas; no se cambiaron datos productivos.
+
 ## 9. Registro de resultados de la línea base
 
 Los comandos se ejecutaron contra la referencia `571e201`, en un worktree separado y con SQLite de prueba para el backend. La corrida web inicial compartió recursos de máquina con Maven; se repetirá en serie antes de afirmar su estado.
@@ -434,6 +436,14 @@ La revisión R203 quedó en `develop` como `2ed1e692`; el plan se rebasó sobre 
 | Estado de producción | Solo se realizaron consultas públicas de lectura; no hubo escrituras ni cambios de configuración. |
 
 Las [capturas de Mis reservas en escritorio](../evidence/round-203/01-mis-reservas-escritorio.png) y [móvil](../evidence/round-203/02-mis-reservas-movil.png), junto con la [nota de verificación R203](../evidence/round-203/verificacion.md), conservan la evidencia visual de esa mejora.
+
+### Verificación de la ronda 205 — elegibilidad del catálogo
+
+| Comprobación | Resultado |
+|---|---|
+| `./mvnw.cmd -q -Dtest=HotelVentaTest test` | 5/5; incluye tipo de habitación no relacionado y plan tarifario inactivo. |
+| `./mvnw.cmd -q test` | 467 pruebas, 0 fallas, 0 errores y 1 omitida, en 62 reportes Surefire. |
+| Migraciones / configuración de producción | Sin cambios; pruebas sobre SQLite temporal y producción sin escrituras. |
 
 ## 10. Fuentes internas clave
 

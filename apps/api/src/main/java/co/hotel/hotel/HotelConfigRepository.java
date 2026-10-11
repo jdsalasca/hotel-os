@@ -35,14 +35,18 @@ public class HotelConfigRepository {
   }
 
   /**
-   * Hay algo que vender: al menos una habitación activa y al menos una tarifa. Sin
-   * precio no hay venta aunque haya cuartos, y la web lo dice en vez de fingir lleno.
+   * Existe una configuración de habitación activa con tarifa del mismo tipo y plan activo.
+   * La disponibilidad para fechas concretas se calcula por separado.
    */
   public boolean hayVenta() {
-    Integer cuartos = jdbc.queryForObject("SELECT COUNT(*) FROM rooms WHERE estado='ACTIVA'",
-      Integer.class);
-    if (cuartos == null || cuartos == 0) return false;
-    Integer tarifas = jdbc.queryForObject("SELECT COUNT(*) FROM rates", Integer.class);
-    return tarifas != null && tarifas > 0;
+    Integer configuraciones = jdbc.queryForObject("""
+      SELECT COUNT(*)
+      FROM rooms habitacion
+      JOIN room_types tipo ON tipo.id=habitacion.room_type_id
+      JOIN rates tarifa ON tarifa.room_type_id=tipo.id
+      JOIN rate_plans plan ON plan.id=tarifa.rate_plan_id
+      WHERE habitacion.estado='ACTIVA' AND plan.activo=1
+      """, Integer.class);
+    return configuraciones != null && configuraciones > 0;
   }
 }

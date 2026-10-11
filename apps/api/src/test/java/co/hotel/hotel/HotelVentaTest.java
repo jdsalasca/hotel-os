@@ -83,4 +83,43 @@ class HotelVentaTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.a_la_venta").value(false));
   }
+
+  @Test
+  @DisplayName("una tarifa de otro tipo de habitación no habilita la venta")
+  void tarifaDeOtroTipoNoVende() throws Exception {
+    long tipo = crearTipo("TIPO-SIN-TARIFA");
+    jdbc.update(
+      "INSERT INTO rooms(codigo,room_type_id,estado,nombre) VALUES('103',?,'ACTIVA','103')", tipo);
+    // El ayudante crea una tarifa válida, pero para DOBLE-PRUEBA, no para el tipo del cuarto.
+    HotelDePrueba.tarifarTodo(jdbc, LocalDate.parse("2030-01-01"), LocalDate.parse("2030-01-02"));
+
+    mvc.perform(get("/api/hotel/venta"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.a_la_venta").value(false));
+  }
+
+  @Test
+  @DisplayName("un plan tarifario inactivo no habilita la venta")
+  void planInactivoNoVende() throws Exception {
+    long tipo = crearTipo("TIPO-PLAN-INACTIVO");
+    jdbc.update(
+      "INSERT INTO rooms(codigo,room_type_id,estado,nombre) VALUES('104',?,'ACTIVA','104')", tipo);
+    jdbc.update(
+      "INSERT INTO rate_plans(codigo,nombre,moneda,activo) VALUES(?,?,?,0)",
+      "PLAN-INACTIVO", "Plan inactivo", "COP");
+    Long plan = jdbc.queryForObject("SELECT id FROM rate_plans WHERE codigo='PLAN-INACTIVO'", Long.class);
+    jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents) VALUES(?,?,?,?)",
+      plan, tipo, "2030-01-01", 150000);
+
+    mvc.perform(get("/api/hotel/venta"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.a_la_venta").value(false));
+  }
+
+  private long crearTipo(String codigo) {
+    jdbc.update("INSERT INTO room_types(codigo,nombre,capacidad_max) VALUES(?,?,2)", codigo, codigo);
+    Long id = jdbc.queryForObject("SELECT id FROM room_types WHERE codigo=?", Long.class, codigo);
+    if (id == null) throw new IllegalStateException("no se pudo crear tipo de prueba " + codigo);
+    return id;
+  }
 }
