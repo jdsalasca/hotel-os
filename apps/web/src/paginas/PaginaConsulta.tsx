@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api/cliente';
+import { api, ErrorApi } from '../api/cliente';
 import { fechaCorta, monto } from '../api/formato';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { useSesion } from '../api/useSesion';
@@ -68,8 +68,14 @@ export function PaginaConsulta() {
       // El comprobante trae lo mismo que la consulta más habitación, total e historial.
       const r = await api.get<Comprobante>(`/api/reservas/${codigo.trim()}/comprobante?${consulta}`);
       setComprobante(r);
-    } catch {
-      setError('No encontramos una reserva con ese código y ese correo.');
+    } catch (e) {
+      if (e instanceof ErrorApi && e.estado === 404) {
+        setError('No encontramos una reserva con ese código y ese correo.');
+      } else if (e instanceof ErrorApi && e.estado === 0) {
+        setError(e.message);
+      } else {
+        setError('No pudimos consultar la reserva ahora. Inténtalo de nuevo en unos minutos.');
+      }
     } finally {
       setBuscando(false);
     }

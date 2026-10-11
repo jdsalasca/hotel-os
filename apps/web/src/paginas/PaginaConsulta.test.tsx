@@ -7,40 +7,57 @@ import { PaginaConsulta } from './PaginaConsulta';
  * Quien entró con su cuenta no teclea su correo: el formulario lo trae puesto
  * (editable, por si consulta la reserva de otra persona con sus datos).
  */
-const estado = vi.hoisted(() => ({ llamadas: [] as string[] }));
-
-vi.mock('../api/cliente', () => ({
-  api: {
-    get: (url: string) => {
-      estado.llamadas.push(url);
-      const codigo = url.split('/api/reservas/')[1]?.split('/')[0] ?? 'H-ABC123';
-      const email = new URLSearchParams(url.split('?')[1]).get('email') ?? '';
-      return Promise.resolve({
-        reserva: {
-          codigo,
-          email,
-          nombre: 'Nadie',
-          llegada: '2030-06-10',
-          salida: '2030-06-12',
-          noches: 2,
-          huespedes: 1,
-          estado: 'PENDIENTE',
-          origen: 'WEB',
-          totalCents: null,
-          moneda: null,
-          plan: null,
-          abonadoCents: null,
-          pendienteCents: null,
-        },
-        habitacion: null,
-        hotel: {},
-        historial: [],
-      });
-    },
-    post: () => Promise.resolve({}),
-  },
-  urlApi: (ruta: string) => ruta,
+const estado = vi.hoisted(() => ({
+  llamadas: [] as string[],
+  errorEstado: null as number | null,
+  errorMensaje: '',
 }));
+
+vi.mock('../api/cliente', () => {
+  class ErrorApi extends Error {
+    constructor(readonly estado: number, mensaje: string) {
+      super(mensaje);
+      this.name = 'ErrorApi';
+    }
+  }
+
+  return {
+    ErrorApi,
+    api: {
+      get: (url: string) => {
+        estado.llamadas.push(url);
+        if (estado.errorEstado !== null) {
+          return Promise.reject(new ErrorApi(estado.errorEstado, estado.errorMensaje));
+        }
+        const codigo = url.split('/api/reservas/')[1]?.split('/')[0] ?? 'H-ABC123';
+        const email = new URLSearchParams(url.split('?')[1]).get('email') ?? '';
+        return Promise.resolve({
+          reserva: {
+            codigo,
+            email,
+            nombre: 'Nadie',
+            llegada: '2030-06-10',
+            salida: '2030-06-12',
+            noches: 2,
+            huespedes: 1,
+            estado: 'PENDIENTE',
+            origen: 'WEB',
+            totalCents: null,
+            moneda: null,
+            plan: null,
+            abonadoCents: null,
+            pendienteCents: null,
+          },
+          habitacion: null,
+          hotel: {},
+          historial: [],
+        });
+      },
+      post: () => Promise.resolve({}),
+    },
+    urlApi: (ruta: string) => ruta,
+  };
+});
 
 function sesion({ huesped, admin }: { huesped?: string; admin?: string }) {
   vi.stubGlobal(
@@ -68,6 +85,8 @@ function sesion({ huesped, admin }: { huesped?: string; admin?: string }) {
 afterEach(() => {
   cleanup();
   estado.llamadas.length = 0;
+  estado.errorEstado = null;
+  estado.errorMensaje = '';
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -186,5 +205,65 @@ describe('validación del correo en la consulta', () => {
     expect(campoCorreo.getAttribute('aria-invalid')).toBe('true');
     expect(screen.getByText('Escribe un correo electrónico válido.')).toBeTruthy();
     expect(document.activeElement).toBe(campoCorreo);
+  });
+});
+
+describe('errores al consultar una reserva', () => {
+  it('no presenta una falla temporal como credenciales incorrectas y conserva los datos', async () => {
+    estado.errorEstado = 503;
+    estado.errorMensaje = 'detalle interno que no debe mostrarse';
+    sesion({});
+    await montar();
+
+    const codigo = screen.getByLabelText('Código de reserva') as HTMLInputElement;
+    const correo = screen.getByLabelText('Correo electrónico') as HTMLInputElement;
+    fireEvent.change(codigo, { target: { value: 'H-ABC123' } });
+    fireEvent.change(correo, { target: { value: 'yo@hotel.test' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar reserva' }));
+
+    expect(await screen.findByText(
+      'No pudimos consultar la reserva ahora. Inténtalo de nuevo en unos minutos.',
+    )).toBeTruthy();
+    expect(screen.queryByText('No encontramos una reserva con ese código y ese correo.')).toBeNull();
+    expect(screen.queryByText('detalle interno que no debe mostrarse')).toBeNull();
+    expect(codigo.value).toBe('H-ABC123');
+    expect(correo.value).toBe('yo@hotel.test');
+  });
+
+  it('mantiene el mensaje indistinguible cuando la API responde que no existe', async () => {
+    estado.errorEstado = 404;
+    estado.errorMensaje = 'reserva no encontrada';
+    sesion({});
+    await montar();
+
+    fireEvent.change(screen.getByLabelText('Código de reserva'), {
+      target: { value: 'H-ABC123' },
+    });
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'yo@hotel.test' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar reserva' }));
+
+    expect(await screen.findByText(
+      'No encontramos una reserva con ese código y ese correo.',
+    )).toBeTruthy();
+  });
+
+  it('muestra el mensaje seguro de conexión para los errores de red', async () => {
+    estado.errorEstado = 0;
+    estado.errorMensaje = 'No hay conexión con el hotel. Revisa tu internet e inténtalo de nuevo.';
+    sesion({});
+    await montar();
+
+    fireEvent.change(screen.getByLabelText('Código de reserva'), {
+      target: { value: 'H-ABC123' },
+    });
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'yo@hotel.test' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar reserva' }));
+
+    expect(await screen.findByText(estado.errorMensaje)).toBeTruthy();
+    expect(screen.queryByText('No encontramos una reserva con ese código y ese correo.')).toBeNull();
   });
 });

@@ -870,6 +870,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 - [x] **Ronda 219 — La guía local explica el fallo y permite recuperarse.** Si falla la consulta de `/api/lugares`, la portada conserva visible la sección «Encuéntranos y explora», muestra un aviso accesible y permite reintentar. La petición ignora respuestas tardías después de desmontar o repetir la carga. El estado exitoso sin ubicación/lugares conserva su comportamiento anterior. Prueba primero escrita y observada fallar; frontend 204/204, chequeo de tipos de pruebas, chequeo de tipos de producción y build Vite aprobados. Chrome con falla y recuperación simuladas: escritorio 1440 × 1000 y móvil 390 × 844, sin desbordamiento horizontal ni errores/advertencias de consola. Evidencia: `docs/evidence/round-219/verificacion.md`.
 
+- [x] **Ronda 220 — La consulta distingue una reserva no encontrada de un fallo temporal.** Un 404 conserva el mensaje que no revela si el código o el correo coinciden; errores de conexión muestran la causa recuperable y otros fallos muestran un aviso temporal seguro, sin exponer detalles internos. Código y correo permanecen en el formulario para reintentar. Prueba primero escrita y observada fallar; frontend 207/207, chequeo de tipos de pruebas, typecheck de producción y build Vite aprobados. Chrome: fallo de red simulado en escritorio (1440 × 1000) y móvil (390 × 844); aviso accesible, datos conservados, ancho del documento igual al viewport y sin excepciones de JavaScript. Evidencia: `docs/evidence/round-220/verificacion.md`.
+
 
 ## Criterios de aceptación, verificados con ejecución real
 
