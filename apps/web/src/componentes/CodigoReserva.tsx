@@ -44,7 +44,7 @@ export function CodigoReserva({ codigo }: { codigo: string }) {
         </span>
         <button
           type="button"
-          className="boton boton--fantasma boton--chico"
+          className="boton boton--fantasma boton--chico codigo-reserva__boton"
           onClick={() => void copiar()}
         >
           Copiar código

@@ -1364,6 +1364,11 @@
     flex-wrap: wrap;
   }
 
+  // La acción de copiar requiere el mismo objetivo mínimo que las demás acciones táctiles.
+  &__boton {
+    min-height: $alto-control-tactil;
+  }
+
   // El código se sigue viendo como un sello, no como un párrafo: es algo que se transcribe.
   &__texto {
     font-family: $fuente-cifra;
