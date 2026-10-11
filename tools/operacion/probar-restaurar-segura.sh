@@ -29,6 +29,16 @@ huella() {
 crear_base_hotel() {
   archivo="$1"
   codigo="$2"
+  version="${3:-21}"
+  if [ "$version" -ge 21 ]; then
+    columna_categoria=", categoria TEXT"
+    migracion="V21__categoria_lugares.sql"
+    descripcion="categoria lugares"
+  else
+    columna_categoria=""
+    migracion="V20__condiciones_acordadas.sql"
+    descripcion="condiciones acordadas"
+  fi
   sqlite3 "$archivo" <<SQL
 CREATE TABLE flyway_schema_history (
   installed_rank INTEGER NOT NULL,
@@ -42,7 +52,7 @@ CREATE TABLE flyway_schema_history (
   execution_time INTEGER NOT NULL,
   success INTEGER NOT NULL
 );
-INSERT INTO flyway_schema_history VALUES (21, '21', 'categoria lugares', 'SQL', 'V21__categoria_lugares.sql', 0, 'hotel', CURRENT_TIMESTAMP, 1, 1);
+INSERT INTO flyway_schema_history VALUES ($version, '$version', '$descripcion', 'SQL', '$migracion', 0, 'hotel', CURRENT_TIMESTAMP, 1, 1);
 CREATE TABLE users (id INTEGER, email TEXT, hash TEXT, rol TEXT, activo INTEGER, creado_en TEXT);
 CREATE TABLE reservations (
   id INTEGER, codigo TEXT, email TEXT, nombre TEXT, llegada TEXT, salida TEXT,
@@ -77,7 +87,7 @@ CREATE TABLE amenidades (id INTEGER, codigo TEXT, nombre TEXT);
 CREATE TABLE room_type_amenidades (room_type_id INTEGER, amenidad_id INTEGER);
 CREATE TABLE lugares_interes (
   id INTEGER, nombre TEXT, descripcion TEXT, latitud REAL, longitud REAL,
-  activo INTEGER, creado_en TEXT, categoria TEXT
+  activo INTEGER, creado_en TEXT$columna_categoria
 );
 CREATE TABLE mensajes (reservation_id INTEGER, autor TEXT, texto TEXT, creado_en TEXT, visto INTEGER);
 INSERT INTO reservations (codigo) VALUES ('$codigo');
@@ -308,5 +318,84 @@ mkdir -p "$CICLO_BACKUPS"
 crear_base_hotel "$CICLO_DB" "H-CICLO-SINTETICO"
 sqlite3 "$CICLO_DB" "CREATE TABLE audit_log (id INTEGER PRIMARY KEY);"
 /usr/local/bin/probar-respaldo.sh "$CICLO_DB" "$CICLO_BACKUPS"
+
+echo
+echo "=== 9. Un historial Flyway sin checksum se rechaza sin tocar el destino ==="
+SIN_CHECKSUM="$TEMP_DIR/hotel-sin-checksum.sqlite3"
+DESTINO_SIN_CHECKSUM="$TEMP_DIR/destino-sin-checksum.sqlite3"
+crear_base_hotel "$SIN_CHECKSUM" "H-SIN-CHECKSUM"
+sqlite3 "$SIN_CHECKSUM" 'ALTER TABLE flyway_schema_history DROP COLUMN checksum;'
+sqlite3 "$DESTINO_SIN_CHECKSUM" "CREATE TABLE sentinel (valor TEXT); INSERT INTO sentinel VALUES ('intacto');"
+SIN_CHECKSUM_ANTES="$(huella "$DESTINO_SIN_CHECKSUM")"
+set +e
+SALIDA="$("$RESTAURAR" "$DESTINO_SIN_CHECKSUM" "$SIN_CHECKSUM" 2>&1)"
+CODIGO=$?
+set -e
+[ "$CODIGO" -ne 0 ] || fallo "el restaurador aceptó un historial Flyway sin checksum: $SALIDA"
+case "$SALIDA" in
+  *"restauracion completada"*) fallo "el restaurador anunció éxito con historial Flyway incompleto" ;;
+esac
+[ "$(huella "$DESTINO_SIN_CHECKSUM")" = "$SIN_CHECKSUM_ANTES" ] \
+  || fallo "el destino cambió ante un historial Flyway sin checksum"
+echo "historial sin checksum rechazado; destino intacto"
+
+echo
+echo "=== 10. Un respaldo válido v20 se conserva para migrarlo al reiniciar ==="
+BUENO_V20="$TEMP_DIR/hotel-valido-v20.sqlite3"
+DESTINO_V20="$TEMP_DIR/destino-v20.sqlite3"
+crear_base_hotel "$BUENO_V20" "H-ANTERIOR" 20
+sqlite3 "$DESTINO_V20" "CREATE TABLE anterior (valor TEXT); INSERT INTO anterior VALUES ('reemplazable');"
+"$RESTAURAR" "$DESTINO_V20" "$BUENO_V20"
+[ "$(sqlite3 "$DESTINO_V20" "SELECT COUNT(*) FROM pragma_table_info('lugares_interes') WHERE name='categoria';")" = "0" ] \
+  || fallo "la restauración de v20 fabricó la columna introducida en v21"
+[ "$(sqlite3 "$DESTINO_V20" 'SELECT MAX(CAST(version AS INTEGER)) FROM flyway_schema_history;')" = "20" ] \
+  || fallo "la restauración v20 no conservó su versión Flyway para migración posterior"
+echo "respaldo v20 restaurado sin inventar el esquema de v21"
+
+echo
+echo "=== 11. Una interrupción después de instalar la candidata recupera la base previa ==="
+MV_REAL="$(command -v mv)"
+FALLO_MV_BIN="$TEMP_DIR/fallo-mv-bin"
+FALLO_MV_MARCADO="$TEMP_DIR/fallo-mv-inyectado"
+FALLO_MV_SALIDA="$TEMP_DIR/senal-restauracion.log"
+mkdir -p "$FALLO_MV_BIN"
+cat > "$FALLO_MV_BIN/mv" <<'SH'
+#!/bin/sh
+"$MV_REAL" "$@" || exit $?
+if [ "$2" = "$DESTINO_SENAL" ] && [ ! -e "$MARCADOR_SENAL" ]; then
+  : > "$MARCADOR_SENAL"
+  kill -TERM "$PPID"
+fi
+SH
+chmod +x "$FALLO_MV_BIN/mv"
+PATH_ANTERIOR="$PATH"
+export DESTINO_SENAL="$DESTINO_VALIDO" MARCADOR_SENAL="$FALLO_MV_MARCADO" MV_REAL
+PATH="$FALLO_MV_BIN:$PATH"
+export PATH
+"$RESTAURAR" "$DESTINO_VALIDO" "$BUENO_NUEVO" >"$FALLO_MV_SALIDA" 2>&1 &
+PID_RESTAURACION=$!
+for intento in $(seq 1 50); do
+  [ -e "$FALLO_MV_MARCADO" ] && break
+  sleep 0.1
+done
+PATH="$PATH_ANTERIOR"
+export PATH
+[ -f "$FALLO_MV_MARCADO" ] || {
+  kill -TERM "$PID_RESTAURACION" 2>/dev/null || true
+  wait "$PID_RESTAURACION" 2>/dev/null || true
+  fallo "no se alcanzó la sustitución atómica para inyectar SIGTERM"
+}
+set +e
+wait "$PID_RESTAURACION"
+CODIGO=$?
+set -e
+[ "$CODIGO" -ne 0 ] || fallo "el restaurador terminó como éxito después de SIGTERM"
+case "$(cat "$FALLO_MV_SALIDA")" in
+  *"estado anterior recuperado"*) ;;
+  *) fallo "SIGTERM no activó la recuperación: $(cat "$FALLO_MV_SALIDA")" ;;
+esac
+[ "$(sqlite3 "$DESTINO_VALIDO" 'SELECT codigo FROM reservations;')" = "H-SINTETICA" ] \
+  || fallo "la interrupción dejó instalada la candidata en lugar de la base previa"
+echo "SIGTERM posterior a la instalación recuperó la reserva previa y no anunció éxito"
 
 echo "PRUEBA DE RESTAURACION SEGURA VERIFICADA"

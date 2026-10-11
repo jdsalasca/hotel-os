@@ -13,6 +13,8 @@ TEMPORAL_DIR=""
 COPIA=""
 HOTEL_UID=""
 HOTEL_GID=""
+FASE_DESTRUCTIVA="0"
+RECUPERACION_EN_CURSO="0"
 
 limpiar_temporales() {
   if [ -n "$TEMPORAL_DIR" ] && [ -d "$TEMPORAL_DIR" ]; then
@@ -58,6 +60,7 @@ recuperar_estado_anterior() {
   fi
 
   RECUPERACION="$TEMPORAL_DIR/estado-anterior.sqlite3"
+  RECUPERACION_EN_CURSO="1"
   if sqlite3 "$COPIA" ".backup '$RECUPERACION'" \
     && chown "$HOTEL_UID:$HOTEL_GID" "$RECUPERACION" \
     && chmod 660 "$RECUPERACION" \
@@ -65,13 +68,35 @@ recuperar_estado_anterior() {
     && mv "$RECUPERACION" "$DESTINO" \
     && validar_base "$DESTINO" \
     && validar_escritura_api "$DESTINO"; then
+    FASE_DESTRUCTIVA="0"
+    RECUPERACION_EN_CURSO="0"
     echo "estado anterior recuperado desde $COPIA" >&2
     return 0
   fi
 
+  RECUPERACION_EN_CURSO="0"
   echo "ERROR: no se pudo recuperar automáticamente. Conserva y restaura $COPIA" >&2
   return 1
 }
+
+manejar_senal() {
+  codigo_senal="$1"
+  trap - INT TERM
+  if [ "$FASE_DESTRUCTIVA" = "1" ]; then
+    echo "ERROR: restauración interrumpida; se intenta recuperar el estado anterior." >&2
+    if [ "$RECUPERACION_EN_CURSO" = "1" ]; then
+      echo "ERROR: la recuperación también fue interrumpida. Conserva la copia $COPIA" >&2
+    elif [ -n "$COPIA" ]; then
+      recuperar_estado_anterior || true
+    else
+      echo "ERROR: no existía una base previa para recuperar; revisa $DESTINO antes de iniciar la API." >&2
+    fi
+  fi
+  exit "$codigo_senal"
+}
+
+trap 'manejar_senal 130' INT
+trap 'manejar_senal 143' TERM
 
 validar_base() {
   validar_archivo="$1"
@@ -82,59 +107,16 @@ validar_base() {
     return 1
   fi
 
-  for tabla in hotel_config users reservations reservation_items reservation_history blocks \
-    rooms room_types rate_plans rates channels channel_mappings ota_syncs \
-    indicator_definitions indicator_results adoption_activities admin_actions usuarios \
-    pagos amenidades room_type_amenidades lugares_interes mensajes; do
-    BASE_HAY_TABLA="$(consulta_sqlite "$validar_archivo" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='$tabla';")" || return 1
-    if [ "$BASE_HAY_TABLA" != "1" ]; then
-      echo "ERROR: $validar_archivo no contiene la tabla requerida $tabla" >&2
-      return 1
-    fi
-  done
+  BASE_HAY_TABLA="$(consulta_sqlite "$validar_archivo" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='flyway_schema_history';")" || return 1
+  if [ "$BASE_HAY_TABLA" != "1" ]; then
+    echo "ERROR: $validar_archivo no contiene el historial de migraciones Flyway" >&2
+    return 1
+  fi
 
-  for requerido in \
-    flyway_schema_history:installed_rank flyway_schema_history:version \
-    flyway_schema_history:description flyway_schema_history:type flyway_schema_history:script \
-    flyway_schema_history:installed_by flyway_schema_history:installed_on \
-    flyway_schema_history:execution_time flyway_schema_history:success \
-    hotel_config:clave hotel_config:valor hotel_config:actualizado_en \
-    users:id users:email users:hash users:rol users:activo users:creado_en \
-    reservations:id reservations:codigo reservations:email reservations:nombre \
-    reservations:llegada reservations:salida reservations:huespedes reservations:estado \
-    reservations:origen reservations:idempotencia reservations:creado_en reservations:usuario_id \
-    reservations:total_cents reservations:moneda reservations:rate_plan_id \
-    reservations:hora_entrada reservations:hora_salida reservations:politica_cancelacion \
-    reservation_items:reservation_id reservation_items:room_id reservation_items:desde reservation_items:hasta \
-    reservation_history:reservation_id reservation_history:estado_nuevo reservation_history:actor reservation_history:en \
-    blocks:room_id blocks:desde blocks:hasta blocks:motivo \
-    rooms:id rooms:codigo rooms:room_type_id rooms:estado rooms:nombre \
-    room_types:id room_types:codigo room_types:nombre room_types:capacidad_max \
-    rate_plans:id rate_plans:codigo rate_plans:nombre rate_plans:moneda rate_plans:activo \
-    rates:id rates:rate_plan_id rates:room_type_id rates:fecha rates:precio_cents \
-    rates:min_estancia rates:max_estancia rates:cerrado \
-    channels:codigo channels:nombre channels:activo \
-    channel_mappings:channel_codigo channel_mappings:external_id \
-    ota_syncs:channel_codigo ota_syncs:operacion ota_syncs:exitosa ota_syncs:en \
-    indicator_definitions:clave indicator_definitions:fase indicator_definitions:nombre \
-    indicator_definitions:definicion indicator_definitions:formula indicator_definitions:fuente \
-    indicator_definitions:unidad indicator_definitions:periodo_por_defecto indicator_definitions:activa \
-    indicator_results:clave indicator_results:periodo indicator_results:generado_en \
-    adoption_activities:tipo adoption_activities:descripcion adoption_activities:fecha \
-    adoption_activities:con_datos_de_origen \
-    admin_actions:actor admin_actions:metodo admin_actions:ruta admin_actions:estado admin_actions:en \
-    usuarios:google_sub usuarios:email usuarios:nombre usuarios:creado_en \
-    pagos:reservation_id pagos:monto_cents pagos:moneda pagos:actor pagos:creado_en \
-    amenidades:id amenidades:codigo amenidades:nombre \
-    room_type_amenidades:room_type_id room_type_amenidades:amenidad_id \
-    lugares_interes:id lugares_interes:nombre lugares_interes:descripcion lugares_interes:latitud \
-    lugares_interes:longitud lugares_interes:activo lugares_interes:creado_en lugares_interes:categoria \
-    mensajes:reservation_id mensajes:autor mensajes:texto mensajes:creado_en mensajes:visto; do
-    tabla="${requerido%%:*}"
-    columna="${requerido#*:}"
-    BASE_HAY_COLUMNA="$(consulta_sqlite "$validar_archivo" "SELECT COUNT(*) FROM pragma_table_info('$tabla') WHERE name='$columna';")" || return 1
+  for columna in installed_rank version description type script checksum installed_by installed_on execution_time success; do
+    BASE_HAY_COLUMNA="$(consulta_sqlite "$validar_archivo" "SELECT COUNT(*) FROM pragma_table_info('flyway_schema_history') WHERE name='$columna';")" || return 1
     if [ "$BASE_HAY_COLUMNA" != "1" ]; then
-      echo "ERROR: $validar_archivo no contiene la columna requerida $tabla.$columna" >&2
+      echo "ERROR: $validar_archivo no contiene la columna requerida flyway_schema_history.$columna" >&2
       return 1
     fi
   done
@@ -142,6 +124,11 @@ validar_base() {
   BASE_MIGRACIONES_FALLIDAS="$(consulta_sqlite "$validar_archivo" 'SELECT COUNT(*) FROM flyway_schema_history WHERE COALESCE(success, 0) <> 1;')" || return 1
   if [ "$BASE_MIGRACIONES_FALLIDAS" != "0" ]; then
     echo "ERROR: $validar_archivo registra migraciones Flyway fallidas" >&2
+    return 1
+  fi
+  BASE_MIGRACIONES_SIN_CHECKSUM="$(consulta_sqlite "$validar_archivo" "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1 AND type = 'SQL' AND version IS NOT NULL AND checksum IS NULL;")" || return 1
+  if [ "$BASE_MIGRACIONES_SIN_CHECKSUM" != "0" ]; then
+    echo "ERROR: $validar_archivo registra migraciones SQL Flyway sin checksum" >&2
     return 1
   fi
 
@@ -153,6 +140,81 @@ validar_base() {
     echo "ERROR: $validar_archivo no registra una migración SQL Flyway exitosa" >&2
     return 1
   fi
+  if [ "$BASE_VERSION" -gt 21 ]; then
+    echo "ERROR: $validar_archivo tiene una versión Flyway posterior a la que soporta esta imagen (v21)" >&2
+    return 1
+  fi
+
+  # Cada tabla y columna se exige a partir de la migración que la creó. Esto permite restaurar
+  # respaldos válidos antiguos para que Flyway complete las migraciones al arrancar la API.
+  for requerido in \
+    1:hotel_config 1:users 1:reservations 1:reservation_items \
+    1:reservation_history 1:blocks 1:rooms 1:room_types \
+    2:rate_plans 2:rates 2:channels 2:channel_mappings 2:ota_syncs \
+    3:indicator_definitions 3:indicator_results 3:adoption_activities \
+    5:admin_actions 7:usuarios 12:pagos 13:amenidades \
+    13:room_type_amenidades 14:lugares_interes 15:mensajes; do
+    tabla_version="${requerido%%:*}"
+    tabla="${requerido#*:}"
+    if [ "$BASE_VERSION" -ge "$tabla_version" ]; then
+      BASE_HAY_TABLA="$(consulta_sqlite "$validar_archivo" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='$tabla';")" || return 1
+      if [ "$BASE_HAY_TABLA" != "1" ]; then
+        echo "ERROR: $validar_archivo (v$BASE_VERSION) no contiene la tabla requerida $tabla" >&2
+        return 1
+      fi
+    fi
+  done
+
+  for requerido in \
+    1:hotel_config:clave 1:hotel_config:valor 1:hotel_config:actualizado_en \
+    1:users:id 1:users:email 1:users:hash 1:users:rol 1:users:activo 1:users:creado_en \
+    1:reservations:id 1:reservations:codigo 1:reservations:email 1:reservations:nombre \
+    1:reservations:llegada 1:reservations:salida 1:reservations:huespedes \
+    1:reservations:estado 1:reservations:origen 1:reservations:idempotencia 1:reservations:creado_en \
+    1:reservation_items:reservation_id 1:reservation_items:room_id \
+    1:reservation_items:desde 1:reservation_items:hasta \
+    1:reservation_history:reservation_id 1:reservation_history:estado_nuevo \
+    1:reservation_history:actor 1:reservation_history:en \
+    1:blocks:room_id 1:blocks:desde 1:blocks:hasta 1:blocks:motivo \
+    1:rooms:id 1:rooms:codigo 1:rooms:room_type_id 1:rooms:estado 1:rooms:nombre \
+    1:room_types:id 1:room_types:codigo 1:room_types:nombre 1:room_types:capacidad_max \
+    2:rate_plans:id 2:rate_plans:codigo 2:rate_plans:nombre 2:rate_plans:moneda 2:rate_plans:activo \
+    2:rates:id 2:rates:rate_plan_id 2:rates:room_type_id 2:rates:fecha 2:rates:precio_cents \
+    2:rates:min_estancia 2:rates:max_estancia 2:rates:cerrado \
+    2:channels:codigo 2:channels:nombre 2:channels:activo \
+    2:channel_mappings:channel_codigo 2:channel_mappings:external_id \
+    2:ota_syncs:channel_codigo 2:ota_syncs:operacion 2:ota_syncs:exitosa 2:ota_syncs:en \
+    3:indicator_definitions:clave 3:indicator_definitions:fase 3:indicator_definitions:nombre \
+    3:indicator_definitions:definicion 3:indicator_definitions:formula 3:indicator_definitions:fuente \
+    3:indicator_definitions:unidad 3:indicator_definitions:periodo_por_defecto 3:indicator_definitions:activa \
+    3:indicator_results:clave 3:indicator_results:periodo 3:indicator_results:generado_en \
+    3:adoption_activities:tipo 3:adoption_activities:descripcion \
+    3:adoption_activities:fecha 3:adoption_activities:con_datos_de_origen \
+    4:reservations:total_cents 4:reservations:moneda 4:reservations:rate_plan_id \
+    5:admin_actions:actor 5:admin_actions:metodo 5:admin_actions:ruta 5:admin_actions:estado 5:admin_actions:en \
+    7:usuarios:google_sub 7:usuarios:email 7:usuarios:nombre 7:usuarios:creado_en \
+    7:reservations:usuario_id \
+    12:pagos:reservation_id 12:pagos:monto_cents 12:pagos:moneda 12:pagos:actor 12:pagos:creado_en \
+    13:amenidades:id 13:amenidades:codigo 13:amenidades:nombre \
+    13:room_type_amenidades:room_type_id 13:room_type_amenidades:amenidad_id \
+    14:lugares_interes:id 14:lugares_interes:nombre 14:lugares_interes:descripcion \
+    14:lugares_interes:latitud 14:lugares_interes:longitud 14:lugares_interes:activo 14:lugares_interes:creado_en \
+    15:mensajes:reservation_id 15:mensajes:autor 15:mensajes:texto 15:mensajes:creado_en 15:mensajes:visto \
+    20:reservations:hora_entrada 20:reservations:hora_salida 20:reservations:politica_cancelacion \
+    21:lugares_interes:categoria; do
+    minimo="${requerido%%:*}"
+    restantes="${requerido#*:}"
+    tabla="${restantes%%:*}"
+    columna="${restantes#*:}"
+    if [ "$BASE_VERSION" -lt "$minimo" ]; then
+      continue
+    fi
+    BASE_HAY_COLUMNA="$(consulta_sqlite "$validar_archivo" "SELECT COUNT(*) FROM pragma_table_info('$tabla') WHERE name='$columna';")" || return 1
+    if [ "$BASE_HAY_COLUMNA" != "1" ]; then
+      echo "ERROR: $validar_archivo (v$BASE_VERSION) no contiene la columna requerida $tabla.$columna" >&2
+      return 1
+    fi
+  done
 
   BASE_TABLAS="$(consulta_sqlite "$validar_archivo" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';")" || return 1
   case "$BASE_TABLAS" in
@@ -219,6 +281,8 @@ if [ -f "$DESTINO" ]; then
 fi
 
 # Quitar el WAL viejo y reemplazar el archivo principal de forma atómica en el mismo volumen.
+# Desde aquí una señal debe intentar volver a la copia previa antes de terminar.
+FASE_DESTRUCTIVA="1"
 if ! rm -f "$DESTINO-wal" "$DESTINO-shm"; then
   echo "ERROR: no se pudieron limpiar los archivos WAL/SHM anteriores." >&2
   recuperar_estado_anterior || true
@@ -251,6 +315,7 @@ if ! validar_escritura_api "$DESTINO"; then
   exit 1
 fi
 
+FASE_DESTRUCTIVA="0"
 echo "restauracion completada"
 echo "  archivo:   $DESTINO"
 echo "  integridad: $BASE_INTEGRIDAD"

@@ -31,8 +31,8 @@ WORKDIR /app
 # NUEVO ya queda escribible sin ningún paso extra. Antes esto no se podía hacer: `/data` solo
 # existía en el volumen, que nacía de root, y el proceso acababa corriendo como root.
 RUN apk add --no-cache curl \
-  && addgroup -S hotel \
-  && adduser -S -G hotel -h /app hotel \
+  && addgroup -S -g 101 hotel \
+  && adduser -S -u 100 -G hotel -h /app hotel \
   && mkdir -p /data \
   && chown hotel:hotel /data
 
