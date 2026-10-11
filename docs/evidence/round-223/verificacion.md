@@ -146,9 +146,34 @@ Total time: 14:34 min
 exit code: 0
 ```
 
-## Alcance pendiente
+## Verificación posterior a la integración en `develop`
 
-Las pruebas ejercitan SQLite real, las migraciones actuales, el ciclo de respaldo/restauración,
-permisos de UID/GID y el reinicio de la API tras restaurar un v20. No prueban una instalación en
-producción; la guía continúa exigiendo detener la API, restaurar y comprobar `/api/health` al
-reiniciar. La integración a `develop` requiere repetir la verificación sobre esa rama.
+La integración conservó los cambios de las rondas 218, 224 y 225 ya presentes en `develop` y
+agregó los siete commits atómicos de R223. En el checkout integrado se repitió la suite completa:
+
+```text
+Tests run: 480, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+Total time: 13:20 min
+exit code: 0
+```
+
+También se reconstruyeron `hotel-ops-r223-develop` y `hotel-api-r223-develop`. La comprobación
+`id hotel` devolvió `uid=100(hotel) gid=101(hotel)` en ambas imágenes. El arnés completo terminó
+con código 0 y la línea final `PRUEBA DE RESTAURACION SEGURA VERIFICADA`; recorrió respaldos
+inválidos y válidos v1/v15/v20/v21, restricciones, rollback y recuperación ante `SIGTERM`.
+
+Los archivos `compose.yaml`, `compose.production.yaml` y `compose.tunnel.yaml` pasaron
+`docker compose config --quiet` con valores ficticios de validación y sin cargar `.env`.
+
+Por último, la API se inició en un volumen Docker temporal nuevo y respondió:
+
+```json
+{"tablas":"4","base":"accesible","estado":"ok"}
+```
+
+Tras detenerla limpiamente, la consulta SQLite en modo de solo lectura devolvió Flyway `21` y
+`0` filas en `PRAGMA foreign_key_check`. El contenedor y el volumen de esta prueba se retiraron.
+Estas comprobaciones ejercitan SQLite real, migraciones, permisos de UID/GID y restauración; no
+prueban una instalación en producción. La guía operativa continúa exigiendo detener la API,
+restaurar y comprobar `/api/health` al reiniciar.
