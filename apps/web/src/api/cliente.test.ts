@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { api, ErrorApi } from './cliente';
 
