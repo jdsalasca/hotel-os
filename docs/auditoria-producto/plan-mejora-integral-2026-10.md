@@ -421,6 +421,20 @@ Los comandos se ejecutaron contra la referencia `571e201`, en un worktree separa
 | UI en producción | Portada revisada visualmente en escritorio y móvil. | Capturas en `output/playwright`; menú móvil y rutas públicas básicas probados. |
 | API pública de producción | Lecturas de salud, hotel, venta y lugares respondieron. | No se realizaron cambios ni escrituras. |
 
+### Verificación posterior a integrar la ronda R203
+
+La revisión R203 quedó en `develop` como `2ed1e692`; el plan se rebasó sobre esa referencia y se verificó en el mismo checkout integrado antes de publicarlo. Esta tabla separa los resultados de `571e201` de la comprobación del estado actual:
+
+| Comprobación en `2ed1e69` + plan | Resultado |
+|---|---|
+| Web `npm test -- --no-file-parallelism --reporter=dot` | 181/181 pruebas en 28 archivos; 60,98 s. |
+| `npm run test:typecheck` | Pasó. |
+| `npm run build` | Pasó; Vite generó el bundle de producción. |
+| API `./mvnw.cmd -q test` | Pasó; 465 pruebas, 0 fallas, 0 errores y 1 omitida, confirmadas en 62 reportes Surefire. |
+| Estado de producción | Solo se realizaron consultas públicas de lectura; no hubo escrituras ni cambios de configuración. |
+
+Las [capturas de Mis reservas en escritorio](../evidence/round-203/01-mis-reservas-escritorio.png) y [móvil](../evidence/round-203/02-mis-reservas-movil.png), junto con la [nota de verificación R203](../evidence/round-203/verificacion.md), conservan la evidencia visual de esa mejora.
+
 ## 10. Fuentes internas clave
 
 - [Plan de producto existente](../plan.md)
