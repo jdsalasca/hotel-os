@@ -57,14 +57,16 @@ docker run --rm hotel-ops-r223 /usr/local/bin/probar-restaurar-segura.sh
 exit code: 0
 ```
 
-La salida final comprobó once casos: restauración válida con escritura WAL como `hotel`; rechazo
+La salida final comprobó doce bloques, 23 escenarios puntuales: restauración válida con escritura WAL como `hotel`; rechazo
 de directorio sin permiso para el usuario API sin cambiar la base previa; rechazo de esquema e
 historial parciales; rechazo de migración fallida; rechazo de base vacía conservando archivo, WAL y
 SHM; recuperación ante fallo de consulta posterior; recuperación tras falla parcial de limpieza de
 sidecars; ciclo completo de respaldo/destrucción/restauración; rechazo del historial sin checksum;
-restauración de v20 sin inventar la columna de v21; e interrupción `TERM` después de instalar la
-candidata con recuperación de la reserva previa. El ciclo acabó con integridad `ok`, 25 tablas y una
-reserva sintética.
+restauración de v20 sin inventar la columna de v21; rechazo de 12 respaldos v21, cada uno sin una
+columna introducida por V9, V10, V11, V16 o V19, conservando el destino; e interrupción `TERM`
+después de instalar la candidata con recuperación de la reserva previa. El ciclo acabó con integridad
+`ok`, 25 tablas y una reserva sintética. La nueva regresión falló primero al aceptar una base sin
+`rate_plans.descuento_pct`; tras completar la matriz de columnas por versión, los 12 casos pasaron.
 
 La revisión independiente detectó que exigir siempre el esquema v21 rechazaría respaldos anteriores
 válidos; la regresión v20 se observó fallar antes de aplicar la compatibilidad por versión y pasó después.

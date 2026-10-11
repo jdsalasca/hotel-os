@@ -236,9 +236,10 @@ API detenida, y reiníciala solo después de que el script confirme el resultado
 
 La regresión aislada usa bases sintéticas temporales. Comprueba propietario y escritura de la API,
 rechazo previo si el directorio no permite WAL/SHM, checksum Flyway ausente, historial/esquema
-incompletos y filas fallidas, una base vacía con destino y sidecars intactos, aceptación de un respaldo
-v20 sin la columna añadida en v21, recuperación ante fallos de consulta y limpieza parcial, rollback
-al recibir `TERM` durante la sustitución y el ciclo completo de respaldo/restauración.
+incompletos y filas fallidas, 12 columnas ausentes en esquemas v21, una base vacía con destino y
+sidecars intactos, aceptación de un respaldo v20 sin la columna añadida en v21, recuperación ante
+fallos de consulta y limpieza parcial, rollback al recibir `TERM` durante la sustitución y el ciclo
+completo de respaldo/restauración.
 Se ejecuta con:
 
 ```bash

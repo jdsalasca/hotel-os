@@ -53,7 +53,10 @@ CREATE TABLE flyway_schema_history (
   success INTEGER NOT NULL
 );
 INSERT INTO flyway_schema_history VALUES ($version, '$version', '$descripcion', 'SQL', '$migracion', 0, 'hotel', CURRENT_TIMESTAMP, 1, 1);
-CREATE TABLE users (id INTEGER, email TEXT, hash TEXT, rol TEXT, activo INTEGER, creado_en TEXT);
+CREATE TABLE users (
+  id INTEGER, email TEXT, hash TEXT, rol TEXT, activo INTEGER, creado_en TEXT,
+  debe_cambiar_clave INTEGER, nombre TEXT
+);
 CREATE TABLE reservations (
   id INTEGER, codigo TEXT, email TEXT, nombre TEXT, llegada TEXT, salida TEXT,
   huespedes INTEGER, estado TEXT, origen TEXT, idempotencia TEXT, creado_en TEXT,
@@ -61,12 +64,15 @@ CREATE TABLE reservations (
   hora_entrada TEXT, hora_salida TEXT, politica_cancelacion TEXT
 );
 CREATE TABLE hotel_config (clave TEXT, valor TEXT, actualizado_en TEXT);
-CREATE TABLE reservation_items (reservation_id INTEGER, room_id INTEGER, desde TEXT, hasta TEXT);
-CREATE TABLE reservation_history (reservation_id INTEGER, estado_nuevo TEXT, actor TEXT, en TEXT);
+CREATE TABLE reservation_items (id INTEGER, reservation_id INTEGER, room_id INTEGER, desde TEXT, hasta TEXT);
+CREATE TABLE reservation_history (
+  id INTEGER, reservation_id INTEGER, estado_ant TEXT, estado_nuevo TEXT,
+  detalle TEXT, actor TEXT, en TEXT
+);
 CREATE TABLE blocks (room_id INTEGER, desde TEXT, hasta TEXT, motivo TEXT);
 CREATE TABLE rooms (id INTEGER, codigo TEXT, room_type_id INTEGER, estado TEXT, nombre TEXT);
 CREATE TABLE room_types (id INTEGER, codigo TEXT, nombre TEXT, capacidad_max INTEGER);
-CREATE TABLE rate_plans (id INTEGER, codigo TEXT, nombre TEXT, moneda TEXT, activo INTEGER);
+CREATE TABLE rate_plans (id INTEGER, codigo TEXT, nombre TEXT, moneda TEXT, activo INTEGER, descuento_pct INTEGER);
 CREATE TABLE rates (
   id INTEGER, rate_plan_id INTEGER, room_type_id INTEGER, fecha TEXT, precio_cents INTEGER,
   min_estancia INTEGER, max_estancia INTEGER, cerrado INTEGER
@@ -82,14 +88,17 @@ CREATE TABLE indicator_results (clave TEXT, periodo TEXT, generado_en TEXT);
 CREATE TABLE adoption_activities (tipo TEXT, descripcion TEXT, fecha TEXT, con_datos_de_origen INTEGER);
 CREATE TABLE admin_actions (actor TEXT, metodo TEXT, ruta TEXT, estado INTEGER, en TEXT);
 CREATE TABLE usuarios (google_sub TEXT, email TEXT, nombre TEXT, creado_en TEXT);
-CREATE TABLE pagos (reservation_id INTEGER, monto_cents INTEGER, moneda TEXT, actor TEXT, creado_en TEXT);
+CREATE TABLE pagos (
+  id INTEGER, reservation_id INTEGER, monto_cents INTEGER, moneda TEXT, concepto TEXT,
+  actor TEXT, creado_en TEXT, anulado_en TEXT, anulado_por TEXT
+);
 CREATE TABLE amenidades (id INTEGER, codigo TEXT, nombre TEXT);
 CREATE TABLE room_type_amenidades (room_type_id INTEGER, amenidad_id INTEGER);
 CREATE TABLE lugares_interes (
   id INTEGER, nombre TEXT, descripcion TEXT, latitud REAL, longitud REAL,
   activo INTEGER, creado_en TEXT$columna_categoria
 );
-CREATE TABLE mensajes (reservation_id INTEGER, autor TEXT, texto TEXT, creado_en TEXT, visto INTEGER);
+CREATE TABLE mensajes (id INTEGER, reservation_id INTEGER, autor TEXT, texto TEXT, creado_en TEXT, visto INTEGER);
 INSERT INTO reservations (codigo) VALUES ('$codigo');
 SQL
 }
@@ -353,7 +362,40 @@ sqlite3 "$DESTINO_V20" "CREATE TABLE anterior (valor TEXT); INSERT INTO anterior
 echo "respaldo v20 restaurado sin inventar el esquema de v21"
 
 echo
-echo "=== 11. Una interrupción después de instalar la candidata recupera la base previa ==="
+echo "=== 11. Columnas añadidas por migraciones posteriores son obligatorias ==="
+for definicion in \
+  rate_plans:descuento_pct \
+  users:debe_cambiar_clave \
+  reservation_history:detalle \
+  users:nombre \
+  reservation_items:id \
+  reservation_history:id \
+  reservation_history:estado_ant \
+  pagos:id \
+  pagos:concepto \
+  pagos:anulado_en \
+  pagos:anulado_por \
+  mensajes:id; do
+  tabla="${definicion%%:*}"
+  columna="${definicion#*:}"
+  BASE_INCOMPLETA="$TEMP_DIR/hotel-sin-$tabla-$columna.sqlite3"
+  DESTINO_INCOMPLETO="$TEMP_DIR/destino-sin-$tabla-$columna.sqlite3"
+  crear_base_hotel "$BASE_INCOMPLETA" "H-SIN-$tabla-$columna"
+  sqlite3 "$BASE_INCOMPLETA" "ALTER TABLE $tabla DROP COLUMN $columna;"
+  sqlite3 "$DESTINO_INCOMPLETO" "CREATE TABLE sentinel (valor TEXT); INSERT INTO sentinel VALUES ('intacto');"
+  ANTES="$(huella "$DESTINO_INCOMPLETO")"
+  set +e
+  SALIDA="$("$RESTAURAR" "$DESTINO_INCOMPLETO" "$BASE_INCOMPLETA" 2>&1)"
+  CODIGO=$?
+  set -e
+  [ "$CODIGO" -ne 0 ] || fallo "se aceptó un v21 sin $tabla.$columna: $SALIDA"
+  [ "$(huella "$DESTINO_INCOMPLETO")" = "$ANTES" ] \
+    || fallo "el destino cambió ante la ausencia de $tabla.$columna"
+done
+echo "se rechazaron 12 respaldos v21 que omitían columnas de V9, V10, V11, V16 o V19; destinos intactos"
+
+echo
+echo "=== 12. Una interrupción después de instalar la candidata recupera la base previa ==="
 MV_REAL="$(command -v mv)"
 FALLO_MV_BIN="$TEMP_DIR/fallo-mv-bin"
 FALLO_MV_MARCADO="$TEMP_DIR/fallo-mv-inyectado"

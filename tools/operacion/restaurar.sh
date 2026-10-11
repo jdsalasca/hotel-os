@@ -200,6 +200,10 @@ validar_base() {
     14:lugares_interes:id 14:lugares_interes:nombre 14:lugares_interes:descripcion \
     14:lugares_interes:latitud 14:lugares_interes:longitud 14:lugares_interes:activo 14:lugares_interes:creado_en \
     15:mensajes:reservation_id 15:mensajes:autor 15:mensajes:texto 15:mensajes:creado_en 15:mensajes:visto \
+    9:rate_plans:descuento_pct 10:users:debe_cambiar_clave \
+    11:reservation_history:detalle 16:users:nombre \
+    19:reservation_items:id 19:reservation_history:id 19:reservation_history:estado_ant \
+    19:pagos:id 19:pagos:concepto 19:pagos:anulado_en 19:pagos:anulado_por 19:mensajes:id \
     20:reservations:hora_entrada 20:reservations:hora_salida 20:reservations:politica_cancelacion \
     21:lugares_interes:categoria; do
     minimo="${requerido%%:*}"
