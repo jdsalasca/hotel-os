@@ -3,5 +3,8 @@ OK   /consulta      -> "Hotel Eridu ┬À Consulta tu reserva"
 OK   /mis-reservas  -> "Hotel Eridu ┬À Mis reservas"
 OK   /privacidad    -> "Hotel Eridu ┬À Privacidad"
 OK   /no-existe     -> "Hotel Eridu ┬À P├ígina no encontrada"
+OK   /admin/hotelaria -> "Hotel Eridu ┬À P├ígina no encontrada"
+OK   /admin/promociones -> "Hotel Eridu ┬À P├ígina no encontrada"
+OK   /consultaXYZ   -> "Hotel Eridu ┬À P├ígina no encontrada"
 NAV  portada->mis-reservas: "Hotel Eridu ┬À Reserva directa" -> "Hotel Eridu ┬À Mis reservas"
 errores JS: 0

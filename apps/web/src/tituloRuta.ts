@@ -6,6 +6,9 @@
  * saber donde estaba. El titulo se recalcula en cada ruta, incluido el 404.
  *
  * El nombre del hotel va delante porque es lo que identifica la pestana de un vistazo.
+ *
+ * El mapa es exhaustivo a proposito: las rutas son exactas y el wildcard atiende el resto,
+ * asi que lo que no este aqui es una pagina que no existe y se anuncia como tal.
  */
 const TITULOS: Record<string, string> = {
   '/': '',
@@ -30,17 +33,15 @@ const BASE = 'Hotel Eridu';
 const SUFIJO = ' · Reserva directa';
 
 /**
- * Ruta exacta o la mas larga que le sea prefijo. Una ruta nueva del panel que no este en
- * el mapa no se queda sin titulo: hereda el de su seccion en vez de quedarse en blanco.
+ * Solo coincidencia exacta. Las rutas de esta SPA son exactas y el wildcard atiende el
+ * resto, así que cualquier ruta que no esté en el mapa es una página que no existe.
+ *
+ * La herencia por prefijo mentía: `/admin/hotelaria` se hacía pasar por Hotel y
+ * `/admin/promociones` por Panel, aunque ninguna de las dos existe. Aquí se dice la verdad:
+ * o hay ruta, o es la de "no encontrada".
  */
 function tituloDe(ruta: string): string {
-  const exacto = TITULOS[ruta];
-  if (exacto !== undefined) return exacto;
-  const prefijo = Object.keys(TITULOS)
-    .filter((clave) => clave !== '/' && ruta.startsWith(clave))
-    .sort((a, b) => b.length - a.length)[0];
-  if (prefijo !== undefined) return TITULOS[prefijo] ?? '';
-  return 'Página no encontrada';
+  return TITULOS[ruta] ?? 'Página no encontrada';
 }
 
 /** El titulo completo de la pestana, tal como queda en el navegador. */

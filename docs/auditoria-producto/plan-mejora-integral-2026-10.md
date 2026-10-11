@@ -153,6 +153,16 @@ El documento HTML tiene un título estático y la aplicación mantiene `Hotel Er
 - Evidencia: [index.html](../../apps/web/index.html#L34); navegación viva a una URL aleatoria con documento HTTP 200.
 - Cierre: títulos descriptivos por ruta, actualización de metadatos y canonical si aplica; validar que la plataforma sirva respuesta 404 real para rutas inexistentes sin romper rutas válidas del cliente.
 
+#### Cerrado en la ronda 207 — títulos por ruta (solo cliente)
+
+`document.title` ahora se recalcula en cada ruta: la portada conserva `Hotel Eridu · Reserva directa` y cada página anuncia la suya (`Mis reservas`, `Consulta tu reserva`, `Privacidad`, `Panel`, …). En una SPA el título también se quedaba pegado al navegar sin recargar, que es justo donde más engaña; el efecto depende de la ruta, no del montaje.
+
+**Semántica: coincidencia exacta, sin herencia.** Las rutas de esta SPA son exactas y el wildcard atiende el resto, así que lo que no está en el mapa es una página que no existe. Se descartó explícitamente heredar por prefijo: en un intento intermedio `/admin/hotelaria` y `/admin/promociones` —que hoy son 404— se presentaban como páginas del panel. Con coincidencia exacta, esas rutas y cualquier otra desconocida devuelven `Página no encontrada`.
+
+**Pendiente, no resuelto por esta ronda:** la ruta inexistente sigue respondiendo el documento con **estado HTTP 200**, porque lo sirve el `try_files` del nginx de la SPA. R207 solo arregla el título en el cliente; un crawler o un monitor sigue viendo una página válida. Sigue abierto validar un 404 real en el servidor sin romper las rutas del cliente. Tampoco se han tocado los metadatos por ruta ni el `canonical`, que formaban parte del cierre original.
+
+- Evidencia: [tituloRuta.ts](../../apps/web/src/tituloRuta.ts), [TituloRuta.test.tsx](../../apps/web/src/TituloRuta.test.tsx) (7 pruebas) y `docs/evidence/round-207/` con las 8 rutas medidas en navegador.
+
 ### P2 — dos fuentes de ruido de consola y auditoría automática
 
 Las páginas públicas consultan `/api/yo` y `/api/admin/sesion` de forma anónima; ambos endpoints protegidos responden 401. No se observaron excepciones JS sin capturar ni advertencias de ejecución. Lighthouse registró el rechazo esperado como error de consola.

@@ -77,10 +77,24 @@ describe('titulo por ruta', () => {
     await waitFor(() => expect(document.title).toContain('Consulta'));
   });
 
-  it('una ruta nueva que no este en el mapa hereda el titulo de su seccion', () => {
-    // Si manana se anade /admin/promociones y nadie lo anade al mapa, la pestana no puede
-    // quedarse con el titulo de la portada: hereda el de la seccion del panel.
-    expect(tituloDeRuta('/admin/promociones')).toContain('Panel');
+  it('la portada conserva su titulo propio y las hojas no existen', () => {
     expect(tituloDeRuta('/')).toBe('Hotel Eridu · Reserva directa');
+    expect(tituloDeRuta('/admin/promociones')).toBe('Hotel Eridu · Página no encontrada');
+  });
+
+  it('cualquier ruta desconocida dice que no existe, sin heredarse de otra', () => {
+    // Estas rutas hoy son 404: el wildcard las atiende. `/admin/hotelaria` no es hijo de
+    // `/admin/hotel` sino una hoja distinta, y `/admin/promociones` no existe. Con herencia
+    // por prefijo se presentaban como si fueran paginas reales del panel.
+    expect(tituloDeRuta('/admin/hotelaria')).toBe('Hotel Eridu · Página no encontrada');
+    expect(tituloDeRuta('/admin/promociones')).toBe('Hotel Eridu · Página no encontrada');
+    expect(tituloDeRuta('/admin/inventario/1')).toBe('Hotel Eridu · Página no encontrada');
+    expect(tituloDeRuta('/consultaXYZ')).toBe('Hotel Eridu · Página no encontrada');
+    expect(tituloDeRuta('/reservas')).toBe('Hotel Eridu · Página no encontrada');
+  });
+
+  it('no se confunde una hoja con una ruta distinta que empieza igual', () => {
+    expect(tituloDeRuta('/admin/hotelaria')).not.toContain('Hotel ·');
+    expect(tituloDeRuta('/admin/hotelaria')).not.toContain('Panel');
   });
 });
