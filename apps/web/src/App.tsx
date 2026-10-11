@@ -141,10 +141,14 @@ export function App() {
 
   return (
     <>
-      <a className="solo-lectores" href="#contenido">
-        Saltar al contenido principal
-      </a>
-      <VolverArribaAlNavegar />
+      {/* El mismo muro que protege las rutas, aqui arriba del shell: cabecera, pie y
+          "volver arriba" viven fuera de <Routes> y React deja escapar el error de un
+          useEffect, con lo que la pagina entera se queda en blanco. */}
+      <MuroAntipanico variante="sutil">
+        <a className="solo-lectores" href="#contenido">
+          Saltar al contenido principal
+        </a>
+        <VolverArribaAlNavegar />
 
       <header
         className="cabecera no-imprimir"
@@ -277,6 +281,7 @@ export function App() {
           </nav>
         </div>
       </footer>
+      </MuroAntipanico>
     </>
   );
 }

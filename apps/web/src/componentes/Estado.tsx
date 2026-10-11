@@ -84,7 +84,10 @@ export function PuertaAdmin({ children }: { children: ReactNode }) {
  * El error sigue saliendo por la consola del navegador para diagnosticar; aquí no
  * se traga nada, solo se le da a la persona a dónde ir.
  */
-export class MuroAntipanico extends Component<{ children: ReactNode }, { roto: boolean }> {
+export class MuroAntipanico extends Component<
+  { children: ReactNode; variante?: 'sutil' },
+  { roto: boolean }
+> {
   state = { roto: false };
 
   static getDerivedStateFromError(): { roto: boolean } {
@@ -93,6 +96,29 @@ export class MuroAntipanico extends Component<{ children: ReactNode }, { roto: b
 
   render() {
     if (!this.state.roto) return this.props.children;
+    // `sutil` es para cuando lo que se rompió es el armazón de la página (cabecera o pie):
+    // ahí no sirve volver al inicio, porque el enlace vive justamente en lo que se rompió.
+    // Lo único que queda es recargar, y se dice sin adornos.
+    if (this.props.variante === 'sutil') {
+      return (
+        <main id="contenido" className="centrado">
+          <section className="seccion">
+            <Aviso tono="error" titulo="Algo se rompió en esta página">
+              <p>Prueba a recargar. Si sigue igual, escríbenos.</p>
+              <p>
+                <button
+                  className="boton boton--primario"
+                  type="button"
+                  onClick={() => window.location.reload()}
+                >
+                  Recargar la página
+                </button>
+              </p>
+            </Aviso>
+          </section>
+        </main>
+      );
+    }
     return (
       <main id="contenido" className="centrado">
         <section className="seccion">
