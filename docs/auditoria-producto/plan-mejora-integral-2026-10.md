@@ -161,6 +161,22 @@ El documento HTML tiene un título estático y la aplicación mantiene `Hotel Er
 
 **Pendiente, no resuelto por esta ronda:** la ruta inexistente sigue respondiendo el documento con **estado HTTP 200**, porque lo sirve el `try_files` del nginx de la SPA. R207 solo arregla el título en el cliente; un crawler o un monitor sigue viendo una página válida. Sigue abierto validar un 404 real en el servidor sin romper las rutas del cliente. Tampoco se han tocado los metadatos por ruta ni el `canonical`, que formaban parte del cierre original.
 
+#### Cerrado en la ronda 208 — el servidor responde 404 real (cierra el 200 de R207)
+
+El nginx de la SPA servía `/index.html` para cualquier ruta. Ahora el fallback solo se concede a las rutas que la SPA declara de verdad; el resto recibe `=404`.
+
+| | Antes | Ahora |
+|---|---|---|
+| `/no-existe`, `/admin/hotelaria`, `/consultaXYZ`, `/adminx` | 200 con el documento completo | **404** |
+| Las 11 rutas reales (públicas y del panel) | 200 | 200 (sin cambios) |
+
+El riesgo real del cambio está verificado: la SPA sigue arrancando con **carga directa** en `/admin/reservas`, que es donde `try_files` decide y donde un 404 habría roto la navegación.
+
+Repite aquí el error que ya corrigió R207: un intento con `^/admin(/|$)` era demasiado ancho y `/admin/hotelaria` seguía recibiendo 200. Se sustituyó por la lista explícita de rutas del panel. El trade-off es deliberado y está escrito en el Dockerfile: una ruta nueva en `App.tsx` que no se añada al nginx dará 404 al recargar —un fallo visible que avisa, mejor que un 200 mentiroso.
+
+- Evidencia: `apps/web/Dockerfile` y `docs/evidence/round-208/` (16 peticiones medidas en contenedores).
+- **Sigue pendiente:** metadatos por ruta (`og:title`, `description`) y `canonical`, que también formaban parte del cierre original de este P2.
+
 - Evidencia: [tituloRuta.ts](../../apps/web/src/tituloRuta.ts), [TituloRuta.test.tsx](../../apps/web/src/TituloRuta.test.tsx) (7 pruebas) y `docs/evidence/round-207/` con las 8 rutas medidas en navegador.
 
 ### P2 — dos fuentes de ruido de consola y auditoría automática
