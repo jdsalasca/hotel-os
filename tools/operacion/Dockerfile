@@ -3,6 +3,8 @@
 FROM alpine:3.20
 
 RUN apk add --no-cache sqlite bash
+RUN addgroup -S -g 101 hotel \
+  && adduser -S -u 100 -G hotel -H hotel
 
 COPY respaldar.sh restaurar.sh probar-respaldo.sh probar-restaurar-segura.sh programar.sh programar-simulacro.sh verificar-respaldo.sh /usr/local/bin/
 # Git for Windows can check out shell scripts with CRLF; normalize them for Alpine /bin/sh.

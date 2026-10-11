@@ -211,18 +211,30 @@ con una escritura en curso produce un archivo inconsistente: el WAL contiene cam
 principal aún no tiene. Además el script **verifica la integridad del respaldo** y borra el archivo
 si no la pasa, y aplica la retención configurada.
 
-`restaurar.sh` también valida el contenido antes de acercarse al destino: exige el historial de
-Flyway y las tablas `users`, `reservations`, `rooms`, `room_types` y `rates`. Prepara y vuelve a
-validar una copia candidata junto a la base, guarda el estado actual con `.backup`, limpia los
-WAL/SHM antiguos y reemplaza el archivo mediante un cambio atómico. Después valida de nuevo el
-esquema y las reservas. Una base SQLite vacía puede ser íntegra; por eso `integrity_check` por sí
-solo no basta. Si la validación falla, el comando termina con error y no anuncia la restauración.
-Si falla la comprobación posterior, intenta recuperar la copia anterior y conserva su ruta para
-recuperación manual.
+`restaurar.sh` valida el contenido antes de acercarse al destino: además de `integrity_check`, exige
+el historial estándar de Flyway con migraciones SQL exitosas y sin filas de migración fallida, las
+tablas actuales del hotel y sus columnas esenciales. Un historial de una sola columna, una versión
+no numérica, una fila fallida o tablas vacías e incompletas se rechazan antes de tocar la base destino.
 
-La regresión aislada usa exclusivamente bases sintéticas temporales. Comprueba la restauración
-válida, el rechazo de una base sin esquema sin alterar el destino ni sus WAL/SHM, la recuperación
-del destino previo ante una falla posterior y el ciclo completo. Se ejecuta con:
+Antes de preparar el reemplazo, comprueba que el usuario `hotel` de la API pueda crear archivos en
+el directorio destino; SQLite necesita allí sus archivos WAL/SHM. Si restauras en `/data`, el
+volumen debe conservar el propietario documentado arriba (`100:101`). El candidato se prepara y
+valida junto al destino, luego recibe propietario `hotel:hotel` (UID/GID `100:101`) y modo `660`.
+El estado actual se conserva con `.backup` dentro de un directorio único y exclusivo. Si la limpieza
+de WAL/SHM falla parcialmente, se rechaza la restauración y se intenta reconstruir la base previa.
+Después de instalar, se repiten las validaciones de esquema y se comprueba una escritura transaccional
+real como `hotel`, en modo WAL; la tabla de prueba se crea y revierte dentro de la misma transacción. La copia previa se
+conserva para recuperación manual.
+
+Una base SQLite vacía puede ser íntegra; por eso `integrity_check` por sí solo no basta. Si una
+validación falla, el comando termina con error y no anuncia la restauración. Restaura siempre con la
+API detenida, y reiníciala solo después de que el script confirme el resultado.
+
+La regresión aislada usa bases sintéticas temporales. Comprueba propietario y escritura de la API,
+rechazo previo si el directorio no permite WAL/SHM, rechazo de historial/esquema incompletos y de
+filas Flyway fallidas, una base vacía con destino y sidecars intactos, recuperación ante una consulta
+fallida, recuperación ante limpieza parcial de sidecars y el ciclo completo de respaldo/restauración.
+Se ejecuta con:
 
 ```bash
 docker build -t hotel-ops tools/operacion

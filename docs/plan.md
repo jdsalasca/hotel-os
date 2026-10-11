@@ -883,11 +883,11 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 ### Plan de la ronda activa 223 — Rechazar respaldos ajenos antes de reemplazar la base
 
 1. **Reproducir sin datos reales — completado:** la regresión primero falló contra `1b31d92`: una base vacía pasó integridad y el restaurador anunció éxito con `0` tablas y reservas `?`.
-2. **Fijar la regresión primero — completado:** el caso válido conserva esquema y reservas; el inválido termina con error y no cambia el destino ni sus WAL/SHM; una falla posterior inyectada no informa éxito y recupera el destino previo; el ciclo completo usa ocho tablas y datos sintéticos.
-3. **Corregir el restaurador — completado:** valida historial Flyway y tablas mínimas, comprueba la candidata antes de reemplazar, conserva copia previa, instala mediante `mv` y verifica de nuevo; errores posteriores no anuncian éxito.
-4. **Verificar e integrar — en curso:** regresión y ciclo pasan en el contenedor de operaciones; sintaxis del restaurador y `git diff --check` pasan. ShellCheck no está instalado en el entorno. Falta revisión, integración y prueba final en `develop`.
+2. **Fijar las regresiones — completado:** cobertura para propietario/permisos de la API, directorio sin escritura, esquema parcial con versión no numérica, fila Flyway fallida, base vacía con WAL/SHM intactos, falla posterior, limpieza parcial de sidecars y ciclo sintético de respaldo/restauración.
+3. **Corregir el restaurador — completado:** exige las tablas y columnas actuales del hotel, migraciones SQL exitosas y ausencia de migraciones fallidas; comprueba antes el acceso de `hotel` al directorio, instala el archivo con propietario `100:101` y modo `660`, conserva una copia previa en ruta exclusiva, comprueba escritura real en WAL y recupera ante fallas de instalación o limpieza.
+4. **Verificar e integrar — en curso:** regresiones y ciclo pasan en el contenedor de operaciones; backend real aplicó sus 21 migraciones y su base de 25 tablas fue aceptada por el restaurador temporal. Falta revisión, integración y verificación final en `develop`.
 
-**Aceptación:** el caso inválido termina con código distinto de cero antes de modificar el archivo principal ni sus archivos WAL/SHM; el caso válido deja esquema íntegro y el conteo esperado; ninguna consulta posterior fallida puede imprimirse como restauración completada. No se ejecutan scripts contra `/data`, respaldos reales o una instalación en producción.
+**Aceptación:** un respaldo parcial o inválido termina con código distinto de cero sin alterar el destino; un directorio inaccesible para `hotel` se rechaza antes de sustituir la base; el caso válido deja esquema íntegro, UID/GID `100:101` y escritura comprobada en WAL; ninguna falla posterior o parcial puede anunciar éxito y, cuando existe una copia previa, se intenta recuperarla. Todas las verificaciones usan bases sintéticas o un volumen Docker temporal recién creado; no se tocan respaldos reales ni volúmenes de producción.
 
 
 ## Criterios de aceptación, verificados con ejecución real

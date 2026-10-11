@@ -1,12 +1,15 @@
 # Ronda 223 — Restauración segura
 
-Fecha: 2026-10-11. La reproducción y las verificaciones se hicieron únicamente con SQLite sintética dentro de contenedores efímeros; no se montaron `/data`, respaldos reales ni volúmenes de producción.
+Fecha: 2026-10-11. No se leyó ni modificó ninguna base o respaldo real. Las regresiones usaron
+archivos SQLite sintéticos en contenedores efímeros. La comprobación con Flyway se hizo en un
+volumen Docker nuevo y temporal, creado para esta ronda y eliminado después.
 
-## Hallazgo reproducido antes del cambio
+## Hallazgo reproducido antes de la corrección
 
 Base de partida: `develop` en `1b31d926087c2ae5d67f3fadf58147bb961a03c6`.
 
-La regresión creó una base SQLite sin esquema. `PRAGMA integrity_check` devolvió `ok`, pero no existían `flyway_schema_history` ni `reservations`. El restaurador previo terminó con código 0, reemplazó el destino sintético y mostró:
+Una base SQLite vacía devolvía `PRAGMA integrity_check = ok`; el restaurador anterior terminaba con
+código 0, reemplazaba el destino sintético y anunciaba:
 
 ```text
 restauracion completada
@@ -15,38 +18,81 @@ restauracion completada
   reservas:   ?
 ```
 
-La prueba falló por ese comportamiento antes de modificar `restaurar.sh`.
+La revisión posterior encontró fallas adicionales. Una base con historial Flyway de una sola
+columna (`version='texto'`) y cinco tablas de una columna pasaba como esquema v0. Además, el
+contenedor de operación corría como root y el archivo instalado quedaba inaccesible para la API,
+que corre como `hotel` (UID 100, GID 101). Las pruebas de esquema, identidad y acceso fallaron con
+el comportamiento previo; una fila Flyway `success=0` también se demostró aceptada antes de añadir
+su rechazo.
 
-## Cambio verificado
+## Cambio
 
-- Se exige integridad, historial Flyway y las tablas `users`, `reservations`, `rooms`, `room_types` y `rates`.
-- Se prepara una copia candidata junto al destino y se valida antes de guardar o tocar el destino.
-- El estado previo se conserva con `.backup`; se limpian WAL/SHM antiguos y se instala la candidata con `mv` en el mismo sistema de archivos.
-- Se vuelve a validar la base instalada. Los fallos de consulta o verificación terminan con error, no imprimen éxito y activan recuperación desde la copia previa cuando existe.
-- El contenedor normaliza finales CRLF de los scripts operativos para que funcionen si Git para Windows entrega esos finales.
+- Comprueba integridad, columnas estándar del historial Flyway, que no existan migraciones fallidas
+  y que haya una migración SQL exitosa con versión numérica.
+- Exige las 23 tablas del producto y columnas esenciales de las tablas de reservas, inventario,
+  tarifas, usuarios, chat, indicadores y auditoría.
+- Verifica antes de modificar la base que `hotel` pueda crear archivos en el directorio destino;
+  evita instalar una base si SQLite no podrá crear WAL/SHM.
+- Prepara la candidata en el mismo volumen, le asigna `100:101` y modo `660`, y guarda el estado
+  previo en una ruta exclusiva creada con `mktemp`.
+- Comprueba la base instalada como el usuario `hotel`: activa WAL y ejecuta DDL dentro de una
+  transacción que se revierte.
+- Ante una falla al limpiar WAL/SHM, instalar o validar, devuelve error, no informa éxito y trata de
+  recuperar la copia previa. La ruta de esa copia se conserva para recuperación manual.
+- La imagen de operaciones crea el usuario de prueba `hotel` con el mismo UID/GID que la API.
 
-## Verificación local
+## Regresiones y ciclo sintético
 
-Construcción de la imagen:
+Comandos ejecutados desde el worktree aislado:
 
 ```text
 docker build -t hotel-ops-r223 tools/operacion
 exit code: 0
-```
 
-Prueba aislada y ciclo existente, con bases de demostración temporales. La regresión incluye una
-falla de consulta posterior inyectada una sola vez para comprobar que no se informa éxito y que se
-recupera el destino anterior:
-
-```text
 docker run --rm hotel-ops-r223 /usr/local/bin/probar-restaurar-segura.sh
 exit code: 0
 ```
 
-La salida confirmó restauración válida (`esquema v1`, `6 tablas`, `1 reservas`), rechazo de la base vacía con destino/WAL/SHM sin cambios, recuperación de la reserva previa ante el fallo inyectado y ciclo completo restaurado con `8 tablas` y `1` reserva.
+La salida final comprobó ocho casos: restauración válida con escritura WAL como `hotel`; rechazo
+de directorio sin permiso para el usuario API sin cambiar la base previa; rechazo de esquema e
+historial parciales; rechazo de migración fallida; rechazo de base vacía conservando archivo, WAL y
+SHM; recuperación ante fallo de consulta posterior; recuperación tras falla parcial de limpieza de
+sidecars; y ciclo completo de respaldo, destrucción sintética y restauración. El ciclo acabó con
+integridad `ok`, 25 tablas y una reserva sintética.
 
-Comprobaciones adicionales: `sh -n /usr/local/bin/restaurar.sh` en el contenedor, código 0; `git diff --check`, sin errores. ShellCheck no está disponible globalmente y no se instaló.
+## Migraciones reales y estado de la API
 
-## Alcance de la evidencia
+```text
+docker build -t hotel-api-r223 apps/api
+exit code: 0
+```
 
-Esto verifica el comportamiento del script contra datos sintéticos y el contenedor de operaciones. La instalación real sigue requiriendo detener la aplicación antes de restaurar y comprobar `/api/health` después de arrancarla.
+Se inició la imagen sobre el volumen nuevo `hotel-r223-schema-probe`, sin credenciales externas ni
+datos reales. Los logs confirmaron que Flyway validó y aplicó las 21 migraciones hasta v21. La API
+respondió:
+
+```text
+{"base":"accesible","tablas":"4","estado":"ok"}
+```
+
+La base de ese volumen fue aceptada por el restaurador, copiándola únicamente a `/tmp` dentro del
+contenedor efímero:
+
+```text
+respaldo verificado: esquema v21, 25 tablas, 0 reservas, integridad ok
+restauracion completada
+  archivo:   /tmp/hotel-r223-migrated.sqlite3
+  integridad: ok
+  esquema:   v21 (25 tablas)
+  reservas:  0
+exit code: 0
+```
+
+El contenedor y el volumen temporal se eliminaron después de comprobar el resultado.
+
+## Alcance pendiente
+
+Las pruebas ejercitan SQLite real, las migraciones actuales, el ciclo de respaldo/restauración y
+permisos de UID/GID. No prueban una restauración operativa sobre `/data` ni una instalación en
+producción; la guía continúa exigiendo detener la API, restaurar y comprobar `/api/health` al
+reiniciar. La integración a `develop` y el push quedan pendientes de revisión y verificación final.
