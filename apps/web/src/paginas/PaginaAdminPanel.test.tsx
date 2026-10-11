@@ -13,7 +13,12 @@ describe('la web pública sin salida', () => {
    * Monta el panel con las respuestas que se le indiquen. `tipos` es lo que devuelve
    * `/api/admin/tipos`: vacío significa que no hay nada que vender.
    */
-  function Montar(hotel: Record<string, string>, tipos: unknown[] = [{ id: 1 }]) {
+  function Montar(
+    hotel: Record<string, string>,
+    tipos: unknown[] = [{ id: 1 }],
+    fallaLugares = false,
+    ubicado = true,
+  ) {
     globalThis.fetch = vi.fn(async (url: unknown) => {
       const ruta = String(url);
       if (ruta.includes('/api/admin/sesion')) {
@@ -26,6 +31,10 @@ describe('la web pública sin salida', () => {
       }
       if (ruta.includes('/api/admin/tipos')) {
         return new Response(JSON.stringify(tipos), { status: 200 });
+      }
+      if (ruta.includes('/api/lugares')) {
+        if (fallaLugares) return new Response('', { status: 500 });
+        return new Response(JSON.stringify({ hotel: { ubicado }, lugares: [] }), { status: 200 });
       }
       if (ruta.includes('/api/hotel')) {
         return new Response(JSON.stringify(hotel), { status: 200 });
@@ -82,22 +91,47 @@ describe('la web pública sin salida', () => {
     expect(screen.queryByText(/los huéspedes no pueden contactarte/i)).toBeNull();
   });
 
-  it('avisa que la web no puede vender mientras no haya ningún tipo de habitación', async () => {
-    // Sin tipos no hay nada que ofrecer: la portada no muestra disponibilidad y quien
-    // llega a reservar se topa con el estado vacío. El hotelero tiene que saberlo aquí.
-    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' }, []);
+  it('junta los pendientes en un solo aviso, con su enlace cada uno', async () => {
+    // Es el estado real de producción: los tres bloqueos a la vez.
+    Montar({ nombre: 'Hotel Eridu', contacto_email: '', contacto_telefono: '' }, [], false, false);
 
     await waitFor(() => {
-      expect(screen.getByText(/tu web no puede vender/i)).toBeTruthy();
+      expect(screen.getByText(/tu web tiene 3 cosas pendientes/i)).toBeTruthy();
     });
+    // Un aviso, no tres: así las puertas de trabajo no quedan fuera de la pantalla.
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(screen.getByRole('link', { name: /ubicar en el mapa/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /crear habitaciones/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /pon tu contacto/i })).toBeTruthy();
   });
 
-  it('no avisa de venta cuando ya hay tipos creados', async () => {
-    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' }, [{ id: 1 }]);
+  it('en singular cuando sólo falta una cosa', async () => {
+    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' }, [{ id: 1 }], false, false);
+
+    await waitFor(() => {
+      expect(screen.getByText(/tu web tiene una cosa pendiente/i)).toBeTruthy();
+    });
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('no muestra ningún aviso cuando la web está completa', async () => {
+    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' }, [{ id: 1 }], true);
 
     await screen.findByRole('heading', { name: 'Panel del hotel' });
-    expect(screen.queryByText(/tu web no puede vender/i)).toBeNull();
+    expect(screen.queryByRole('listitem')).toBeNull();
+    expect(screen.queryByText(/cosas pendientes/i)).toBeNull();
+  });
+
+  it('una lectura que falla no cuenta como pendiente', async () => {
+    // La de lugares falla: el mapa no se declara pendiente, pero las otras dos sí avisan.
+    Montar({ nombre: 'Hotel Eridu', contacto_email: '', contacto_telefono: '' }, [], undefined, true);
+
+    await waitFor(() => {
+      expect(screen.getByText(/tu web tiene 2 cosas pendientes/i)).toBeTruthy();
+    });
+    expect(screen.queryByRole('link', { name: /ubicar en el mapa/i })).toBeNull();
+    expect(screen.getByRole('link', { name: /crear habitaciones/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /pon tu contacto/i })).toBeTruthy();
   });
 });
 

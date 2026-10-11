@@ -29,6 +29,12 @@ export function PaginaAdminPanel() {
    * contacto, que es donde el hotelero se da cuenta de que su web está ciega.
    */
   const [sinVenta, setSinVenta] = useState<boolean | null>(null);
+  /**
+   * Punto del hotel en el mapa. Sin él la web pública no muestra mapa ni calcula distancias:
+   * la función está construida, pero nadie la ve. Tercer aviso de la misma familia que los
+   * dos anteriores, con el mismo trato: si la lectura falla no se afirma nada.
+   */
+  const [sinMapa, setSinMapa] = useState<boolean | null>(null);
 
   async function actualizarMensajesNuevos() {
     if (sesion.haySesion !== true) return;
@@ -77,6 +83,19 @@ export function PaginaAdminPanel() {
   }, [sesion.haySesion]);
 
   useEffect(() => {
+    if (sesion.haySesion !== true) return;
+    // Mismo criterio que los otros dos: un fallo de red no es "no has puesto el punto".
+    try {
+      api
+        .get<{ hotel?: { ubicado?: boolean } }>('/api/lugares')
+        .then((datos) => setSinMapa(datos.hotel?.ubicado !== true))
+        .catch(() => setSinMapa(null));
+    } catch {
+      setSinMapa(null);
+    }
+  }, [sesion.haySesion]);
+
+  useEffect(() => {
     if (sesion.haySesion === true) {
       // Si el huésped empieza a escribir antes de este efecto, conserva su edición.
       setNombre((actual) => actual ?? sesion.nombre);
@@ -101,6 +120,39 @@ export function PaginaAdminPanel() {
     }
   }
 
+  /**
+   * Lo que le falta a la web para funcionar, en orden de gravedad: sin punto en el mapa no
+   * hay mapa ni distancias, sin habitaciones no hay nada que vender, sin contacto el cliente
+   * que no puede reservar se queda sin a quién escribir. Cada lectura fallida deja su
+   * bandera en null y esa tarea no entra: un fallo de red no es una tarea pendiente.
+   */
+  const tareas = [
+    sinMapa === true
+      ? {
+          a: '/admin/hotel',
+          enlace: 'Ubicar en el mapa',
+          texto:
+            'El mapa no aparece: falta el punto del hotel en el GPS, así que la web tampoco dice a qué distancia quedan los sitios.',
+        }
+      : null,
+    sinVenta === true
+      ? {
+          a: '/admin/inventario',
+          enlace: 'Crear habitaciones',
+          texto:
+            'No puede vender: no hay ningún tipo de habitación, así que la portada no muestra disponibilidad.',
+        }
+      : null,
+    sinContacto === true
+      ? {
+          a: '/admin/hotel',
+          enlace: 'Pon tu contacto',
+          texto:
+            'Los huéspedes no pueden contactarte: ni correo ni teléfono, así que quien no pueda reservar en línea se queda sin a quién escribir.',
+        }
+      : null,
+  ].filter((t): t is { a: string; enlace: string; texto: string } => t !== null);
+
   if (sesion.haySesion === false)
     return <PuertaAdmin>Inicia sesión para entrar al panel.</PuertaAdmin>;
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
@@ -113,28 +165,26 @@ export function PaginaAdminPanel() {
           Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
         </p>
 
-        {sinVenta ? (
-          <Aviso tono="aviso" titulo="Tu web no puede vender todavía">
-            <p>
-              No hay ningún tipo de habitación creado, así que la portada no muestra
-              disponibilidad y nadie puede reservar. Crea el primero y tu web empieza a
-              vender.
-            </p>
-            <p>
-              <Link to="/admin/inventario">Crear habitaciones</Link>
-            </p>
-          </Aviso>
-        ) : null}
-
-        {sinContacto ? (
-          <Aviso tono="aviso" titulo="Los huéspedes no pueden contactarte">
-            <p>
-              Ni correo ni teléfono: quien quiera reservar y no pueda hacerlo en línea se queda
-              sin a quién escribir. Pon tu contacto y la web dejará de ser un callejón sin salida.
-            </p>
-            <p>
-              <Link to="/admin/hotel">Pon tu contacto</Link>
-            </p>
+        {tareas.length > 0 ? (
+          <Aviso
+            tono="aviso"
+            titulo={
+              tareas.length === 1
+                ? 'Tu web tiene una cosa pendiente'
+                : `Tu web tiene ${tareas.length} cosas pendientes`
+            }
+          >
+            {/* Una lista, no tres tarjetas: apiladas empujan las puertas de trabajo fuera de
+                la pantalla y el hotelero tiene que hacer scroll para llegar a lo que vino a
+                hacer. Aquí ve todo de una vez y cada línea lleva a su arreglo. */}
+            <ul className="pila gap-e1">
+              {tareas.map((tarea) => (
+                <li key={tarea.a}>
+                  {tarea.texto}{' '}
+                  <Link to={tarea.a}>{tarea.enlace}</Link>
+                </li>
+              ))}
+            </ul>
           </Aviso>
         ) : null}
 
