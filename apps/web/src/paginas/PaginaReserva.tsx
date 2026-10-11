@@ -62,24 +62,6 @@ export function PaginaReserva() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    // Un fallo aquí no debe impedir reservar: las condiciones son información, no un
-    // requisito. Si no se pueden leer, no se muestra bloque (y no se inventa nada).
-    api.get<Record<string, string>>('/api/hotel')
-      .then((datos) => {
-        const entrada = datos.hora_entrada?.trim();
-        const salida = datos.hora_salida?.trim();
-        const cancelacion = datos.politica_cancelacion?.trim();
-        if (!entrada && !salida && !cancelacion) return;
-        setCondiciones({
-          entrada: entrada || undefined,
-          salida: salida || undefined,
-          cancelacion: cancelacion || undefined,
-        });
-      })
-      .catch(() => setCondiciones(null));
-  }, []);
-
   const conCuenta = sesion.haySesion === true || panel.haySesion === true;
   const [email, setEmail] = useState('');
   const [nombre, setNombre] = useState('');
@@ -95,11 +77,44 @@ export function PaginaReserva() {
    * Condiciones que el hotel fijó (horas y cancelación). El backend ya las guarda y las
    * publica en /api/hotel, pero el huésped no las veía hasta llegar a /terminos, después
    * de decidir. Se piden aquí, antes de confirmar. Si no hay nada configurado no se
-   * inventa ninguna: el bloque no aparece (mejor callar que mentir).
+   * inventa ninguna: el bloque no aparece. Un fallo temporal sí se comunica con una opción
+   * de reintento, sin impedir que el huésped continúe.
    */
   const [condiciones, setCondiciones] = useState<{
     entrada?: string; salida?: string; cancelacion?: string;
   } | null>(null);
+  const [errorCondiciones, setErrorCondiciones] = useState(false);
+  const [cargandoCondiciones, setCargandoCondiciones] = useState(true);
+  const [intentoCondiciones, setIntentoCondiciones] = useState(0);
+
+  useEffect(() => {
+    let vigente = true;
+    setCargandoCondiciones(true);
+    void api.get<Record<string, string>>('/api/hotel')
+      .then((datos) => {
+        if (!vigente) return;
+        const entrada = datos.hora_entrada?.trim();
+        const salida = datos.hora_salida?.trim();
+        const cancelacion = datos.politica_cancelacion?.trim();
+        setCondiciones(!entrada && !salida && !cancelacion ? null : {
+          entrada: entrada || undefined,
+          salida: salida || undefined,
+          cancelacion: cancelacion || undefined,
+        });
+        setErrorCondiciones(false);
+      })
+      .catch(() => {
+        if (!vigente) return;
+        setCondiciones(null);
+        setErrorCondiciones(true);
+      })
+      .finally(() => {
+        if (vigente) setCargandoCondiciones(false);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [intentoCondiciones]);
 
   async function recuperarComprobante(actual: LocalizadorComprobante) {
     setRecuperando(true);
@@ -323,6 +338,22 @@ export function PaginaReserva() {
                   ) : null}
                 </dl>
               </section>
+            ) : null}
+            {errorCondiciones ? (
+              <Aviso tono="error" titulo="No pudimos cargar las condiciones del hotel">
+                <p>Las condiciones no están disponibles temporalmente. Puedes volver a intentarlo antes de confirmar.</p>
+                <button
+                  className="boton boton--secundario boton--chico"
+                  type="button"
+                  disabled={cargandoCondiciones}
+                  onClick={() => {
+                    setCargandoCondiciones(true);
+                    setIntentoCondiciones((anterior) => anterior + 1);
+                  }}
+                >
+                  {cargandoCondiciones ? 'Reintentando…' : 'Reintentar condiciones'}
+                </button>
+              </Aviso>
             ) : null}
             <Link
               className="boton boton--fantasma boton--chico"

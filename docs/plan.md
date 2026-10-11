@@ -874,6 +874,8 @@ indicadores en 3 fases, UI SCSS responsive accesible, SQLite en volumen nombrado
 
 - [x] **Ronda 221 — El panel no confunde un fallo del checklist con un hotel listo.** Si `/api/admin/preparacion` falla, el panel conserva una alerta accesible con explicación y botón «Reintentar»; una respuesta exitosa vuelve a mostrar los pasos pendientes, y un resultado exitoso sin pendientes continúa ocultando la lista. Prueba de regresión escrita y observada fallar antes del cambio; frontend 208/208, chequeo de tipos de pruebas, typecheck de producción, build Vite y `git diff --check` aprobados. Chrome con respuestas sintéticas 503 y luego 200: aviso y recuperación comprobados; escritorio 1440 × 1000 y móvil 390 × 844, sin desbordamiento horizontal ni errores/advertencias de consola. Evidencia: `docs/evidence/round-221/verificacion.md`.
 
+- [x] **Ronda 222 — La reserva informa si no pudo leer las condiciones del hotel.** Si falla `/api/hotel` al consultar horarios o política de cancelación, el resumen muestra un aviso accesible y permite volver a intentar sin deshabilitar la solicitud. Una respuesta exitosa sin condiciones sigue sin mostrar un bloque inventado. Prueba escrita y observada fallar antes del cambio; frontend 209/209, chequeo de tipos de pruebas, typecheck de producción, build Vite y `git diff --check` aprobados. Chrome con 503 y luego 200 sintéticos: error y recuperación comprobados; escritorio 1440 × 1000 y móvil 390 × 844, sin desbordamiento horizontal ni errores/advertencias de consola. Evidencia: `docs/evidence/round-222/verificacion.md`.
+
 
 ## Criterios de aceptación, verificados con ejecución real
 

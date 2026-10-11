@@ -116,6 +116,28 @@ describe('PaginaReserva', () => {
     expect(screen.queryByRole('region', { name: /condiciones/i })).toBeNull();
   });
 
+  it('avisa si no puede leer las condiciones y permite reintentarlo sin bloquear la reserva', async () => {
+    api.get
+      .mockRejectedValueOnce(new Error('Servicio no disponible'))
+      .mockResolvedValueOnce({
+        hora_entrada: '15:00',
+        hora_salida: '12:00',
+        politica_cancelacion: 'Gratis hasta 24 h antes',
+      });
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    const aviso = await screen.findByRole('alert');
+    expect(aviso.textContent).toContain('No pudimos cargar las condiciones del hotel');
+    expect(screen.getByRole('button', { name: 'Confirmar solicitud de reserva' }).hasAttribute('disabled')).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar condiciones' }));
+
+    const condiciones = await screen.findByRole('region', { name: /condiciones/i });
+    expect(condiciones.textContent).toContain('15:00');
+    expect(condiciones.textContent).toContain('Gratis hasta 24 h antes');
+    expect(api.get).toHaveBeenCalledTimes(2);
+  });
+
   it('copia el código de reserva de un clic y lo confirma', async () => {
     // Quien reserva sin cuenta solo se lleva el código: si no lo puede copiar tiene que
     // anotarlo a mano, y un H-0/l mal transcrito se pierde.
