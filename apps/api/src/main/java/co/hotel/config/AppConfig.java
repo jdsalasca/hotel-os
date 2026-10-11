@@ -5,10 +5,12 @@ import co.hotel.reservas.SqliteDataSources;
 import co.hotel.seguridad.LoginThrottle;
 import java.time.Duration;
 import javax.sql.DataSource;
+import org.springframework.boot.flyway.autoconfigure.FlywayDataSource;
+import org.springframework.boot.flyway.autoconfigure.FlywayMigrationStrategy;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
@@ -26,12 +28,27 @@ public class AppConfig {
    * Ver {@link SqliteDataSources} para por qué esto no es negociable con una sola instancia.
    */
   @Bean
+  @Primary
   public DataSource dataSource(HotelProperties props) {
     return SqliteDataSources.paraRuta(props.jdbcPath());
   }
 
   @Bean
+  @FlywayDataSource
+  public DataSource flywayDataSource(HotelProperties props) {
+    return SqliteDataSources.paraMigraciones(props.jdbcPath());
+  }
+
+  @Bean
   public JdbcTemplate jdbcTemplate(DataSource dataSource) { return new JdbcTemplate(dataSource); }
+
+  @Bean
+  public FlywayMigrationStrategy flywayMigrationStrategy(DataSource dataSource) {
+    return flyway -> {
+      flyway.migrate();
+      VerificarIntegridadForanea.verificar(dataSource);
+    };
+  }
 
   /** El cliente HTTP lo comparten los conectores OTA y el envío de correo. */
   @Bean

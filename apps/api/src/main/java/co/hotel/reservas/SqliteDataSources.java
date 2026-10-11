@@ -30,6 +30,19 @@ public final class SqliteDataSources {
   private SqliteDataSources() {}
 
   public static DataSource paraRuta(String rutaSqlite) {
+    return crear(rutaSqlite, true);
+  }
+
+  /**
+   * Flyway necesita completar las reconstrucciones de reservas sin activar cascadas intermedias.
+   * La aplicación nunca debe usar esta conexión: al terminar cada migración, AppConfig verifica
+   * las relaciones con el DataSource normal, que sí aplica claves foráneas.
+   */
+  public static DataSource paraMigraciones(String rutaSqlite) {
+    return crear(rutaSqlite, false);
+  }
+
+  private static DataSource crear(String rutaSqlite, boolean clavesForaneas) {
     String ruta = sinPrefijo(rutaSqlite);
     if (ruta.isBlank())
       throw new IllegalArgumentException("falta la ruta del archivo SQLite (JDBC_URL)");
@@ -40,7 +53,7 @@ public final class SqliteDataSources {
     config.setJournalMode(SQLiteConfig.JournalMode.WAL);
     config.setSynchronous(SQLiteConfig.SynchronousMode.NORMAL);
     config.setBusyTimeout(5000);
-    config.enforceForeignKeys(true);
+    config.enforceForeignKeys(clavesForaneas);
     config.setTransactionMode(TransactionMode.IMMEDIATE);
 
     SQLiteDataSource ds = new SQLiteDataSource(config);
