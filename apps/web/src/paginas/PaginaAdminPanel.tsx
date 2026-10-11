@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
 import { useActualizacionPeriodicaVisible } from '../api/useActualizacionPeriodicaVisible';
-import { Cargando, MensajeError, PuertaAdmin } from '../componentes/Estado';
+import { Aviso, Cargando, MensajeError, PuertaAdmin } from '../componentes/Estado';
 import { ListaPreparacion } from '../componentes/ListaPreparacion';
 
 /**
@@ -17,6 +17,12 @@ export function PaginaAdminPanel() {
   const [nombre, setNombre] = useState<string | null>(null);
   const [guardandoNombre, setGuardandoNombre] = useState(false);
   const [nombreError, setNombreError] = useState<string | null>(null);
+  /**
+   * Contacto del hotel. Sin correo ni teléfono la web pública es un callejón sin salida:
+   * quien quiere reservar y no puede, tampoco tiene a quién escribir. Se comprueba aquí,
+   * en la puerta del panel, porque es donde el hotelero se da cuenta.
+   */
+  const [sinContacto, setSinContacto] = useState<boolean | null>(null);
 
   async function actualizarMensajesNuevos() {
     if (sesion.haySesion !== true) return;
@@ -32,6 +38,23 @@ export function PaginaAdminPanel() {
     void actualizarMensajesNuevos();
   }, [sesion.haySesion]);
   useActualizacionPeriodicaVisible(actualizarMensajesNuevos, sesion.haySesion === true);
+
+  useEffect(() => {
+    if (sesion.haySesion !== true) return;
+    // Si no se puede leer, no se afirma nada: `sinContacto` se queda en null y no se avisa.
+    try {
+      api
+        .get<Record<string, string>>('/api/hotel')
+        .then((datos) => {
+          const email = (datos.contacto_email ?? '').trim();
+          const telefono = (datos.contacto_telefono ?? '').trim();
+          setSinContacto(email.length === 0 && telefono.length === 0);
+        })
+        .catch(() => setSinContacto(null));
+    } catch {
+      setSinContacto(null);
+    }
+  }, [sesion.haySesion]);
 
   useEffect(() => {
     if (sesion.haySesion === true) {
@@ -69,6 +92,18 @@ export function PaginaAdminPanel() {
         <p className="seccion__intro">
           Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
         </p>
+
+        {sinContacto ? (
+          <Aviso tono="aviso" titulo="Los huéspedes no pueden contactarte">
+            <p>
+              Ni correo ni teléfono: quien quiera reservar y no pueda hacerlo en línea se queda
+              sin a quién escribir. Pon tu contacto y la web dejará de ser un callejón sin salida.
+            </p>
+            <p>
+              <Link to="/admin/hotel">Pon tu contacto</Link>
+            </p>
+          </Aviso>
+        ) : null}
 
         <form className="tarjeta pila mb-e4" onSubmit={(e) => void guardarNombre(e)}>
           <h2 className="t-lg mb-0">Mi cuenta</h2>

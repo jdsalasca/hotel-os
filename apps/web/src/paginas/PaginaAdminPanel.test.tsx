@@ -3,6 +3,77 @@ import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-libra
 import { MemoryRouter } from 'react-router-dom';
 import { PaginaAdminPanel } from './PaginaAdminPanel';
 
+describe('la web pública sin salida', () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  /** Producción real: sin correo ni teléfono configurados. */
+  function Montar(hotel: Record<string, string>) {
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/admin/sesion')) {
+        return new Response(JSON.stringify({ email: 'dueno@hotel.test', nombre: 'Dueño' }), {
+          status: 200,
+        });
+      }
+      if (ruta.includes('/api/admin/mensajes/nuevos')) {
+        return new Response(JSON.stringify({ nuevos: 0 }), { status: 200 });
+      }
+      if (ruta.includes('/api/hotel')) {
+        return new Response(JSON.stringify(hotel), { status: 200 });
+      }
+      return new Response('{}', { status: 404 });
+    }) as unknown as typeof fetch;
+    render(
+      <MemoryRouter>
+        <PaginaAdminPanel />
+      </MemoryRouter>,
+    );
+  }
+
+  it('avisa en el panel que los huéspedes no tienen forma de contactar al hotel', async () => {
+    Montar({ nombre: 'Hotel Eridu', contacto_email: '', contacto_telefono: '' });
+
+    await waitFor(() => {
+      expect(screen.getByText(/los huéspedes no pueden contactarte/i)).toBeTruthy();
+    });
+    // Y dice por dónde se arregla, para que el aviso no sea un reproche sin salida.
+    expect(screen.getByRole('link', { name: /pon tu contacto/i })).toBeTruthy();
+  });
+
+  it('no avisa cuando ya hay correo o teléfono', async () => {
+    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' });
+
+    await screen.findByRole('heading', { name: 'Panel del hotel' });
+    expect(screen.queryByText(/los huéspedes no pueden contactarte/i)).toBeNull();
+  });
+
+  it('si la lectura del hotel falla, no inventa el aviso', async () => {
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/admin/sesion')) {
+        return new Response(JSON.stringify({ email: 'dueno@hotel.test', nombre: 'Dueño' }), {
+          status: 200,
+        });
+      }
+      if (ruta.includes('/api/admin/mensajes/nuevos')) {
+        return new Response(JSON.stringify({ nuevos: 0 }), { status: 200 });
+      }
+      return new Response('', { status: 500 });
+    }) as unknown as typeof fetch;
+    render(
+      <MemoryRouter>
+        <PaginaAdminPanel />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Panel del hotel' });
+    expect(screen.queryByText(/los huéspedes no pueden contactarte/i)).toBeNull();
+  });
+});
+
 describe('PaginaAdminPanel', () => {
   afterEach(() => {
     cleanup();
