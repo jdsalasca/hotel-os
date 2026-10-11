@@ -1,38 +1,53 @@
-# Ronda 219 — Recuperación de la guía local
+# Ronda 219 - la dirección se ve donde el huésped busca
 
-## Problema observado
+## Corrección a mi propia premisa
 
-La portada consultaba `/api/lugares`, pero, cuando la solicitud fallaba, el `catch` guardaba `null`. La vista interpretaba ese `null` igual que una respuesta válida sin datos y ocultaba por completo el mapa y su sección, sin explicar qué ocurrió ni ofrecer una forma de reintentar.
+Partí de que `direccion` "solo se usaba en el panel y no salía en ningún sitio público".
+**Era falso, y a medias**: `App.tsx:152` ya la mete en el contacto del pie de todas las
+páginas, desde la ronda 14 (identidad operativa administrable y visible).
 
-## Cambio entregado
+Lo que sí era cierto: esa línea del pie es texto tenue, dentro de una tira de contacto que
+además lleva el teléfono y el correo. La dirección estaba ahí, pero **no donde el huésped mira
+cuando quiere saber dónde está el hotel**.
 
-- La pantalla diferencia un fallo de red de una respuesta válida sin ubicación o sin lugares.
-- Ante un fallo, conserva el título «Encuéntranos y explora» y presenta un aviso accesible con el estado y una acción «Reintentar».
-- Durante el reintento, el botón queda deshabilitado y anuncia «Reintentando…».
-- Las respuestas de solicitudes anteriores se descartan al desmontar la portada o iniciar otro intento.
-- No cambia el API ni la base de datos; la respuesta exitosa sin datos conserva el comportamiento existente.
+## El hueco real
 
-## Pruebas y compilación
+El huésped que pregunta "dónde es esto" mira la sección "Encuéntranos y explora". Ahí había un
+pin y ningún texto. La dirección solo aparecía si bajaba hasta el pie.
 
-La regresión se añadió antes de corregir el comportamiento: el primer recorrido del test terminó con el fallo esperado porque no encontraba el rol `alert`. Tras implementar el aviso y el reintento:
+Y hay un caso peor: si el hotel **no ha puesto su pin**, la sección entera no se pintaba
+(`mapa.hotel.ubicado || mapa.lugares.length > 0`). Con dirección escrita a mano y sin
+coordenadas, el huésped no veía nada de nada.
 
-- Suite completa: **31 archivos y 204 pruebas aprobados** (`npm test -- --reporter=dot`, código de salida 0).
-- Tipos de las pruebas (`npm run test:typecheck`): código de salida 0.
-- Tipos de producción y build (`npm run build`): código de salida 0; Vite transformó 75 módulos.
-- `git diff --check`: código de salida 0.
-- El log de la suite contiene el mensaje de error controlado `pum` de la prueba ya existente del límite de errores; las 204 pruebas terminaron aprobadas.
+## Lo que se hizo
 
-## Revisión visual
+1. La dirección se muestra sobre el mapa, con el tamaño del resto de la sección.
+2. La sección se abre **también** si solo hay dirección, aunque no haya pin ni lugares.
+3. En blanco o ausente, no se pinta nada: ni "Dirección:" vacío ni dato inventado.
 
-La vista de producción se abrió en Chrome usando respuestas locales sintéticas: el primer `/api/lugares` falla; al pulsar «Reintentar», la segunda petición devuelve un lugar de demostración. No se alteró ningún servicio ni dato real.
+## Duplicación, dicha claro
 
-- Escritorio, 1440 × 1000: aviso y acción visibles dentro de la sección de guía.
-- Móvil, 390 × 844: aviso y acción visibles, ancho de documento 390 px.
-- Recuperación móvil, 390 × 844: mapa y «Café de la plaza» visibles después del segundo intento; ancho de documento 390 px.
-- Consola del navegador: cero errores o advertencias durante la revisión visual.
+Ahora la dirección aparece **dos veces** en la misma pantalla: en la sección y en el pie.
 
-Capturas: `guia-error-escritorio.png`, `guia-error-movil.png` y `guia-recuperada-movil.png`.
+Se mantiene a propósito. El pie es una tira de contacto que está en todas las páginas y lleva
+teléfono y correo; la sección es donde el huésped busca la ubicación. Quitarla del pie habría
+requerido tocar `App.tsx`, que es de otra ronda, y la habría borrado de las demás páginas. Si
+se quiere evitar el duplicado, la decisión es de diseño y toca ese archivo.
 
-## Alcance pendiente
+## Verificación
 
-Esta ronda recupera los errores de la consulta pública de la guía. No cambia el resultado exitoso que indica que el hotel aún no está ubicado, ni agrega un mapa vacío cuando la API responde correctamente sin hotel ubicado y sin lugares.
+Capturas contra los contenedores reales, con dirección configurada y **sin pin** (que es el
+caso que antes no mostraba nada):
+
+- Sección presente: sí.
+- Bloque de dirección: sí, con el texto `Dirección: Calle 12 # 3-45, Villa de Leyva, Boyaca`.
+- Sin desborde horizontal ni en 1440 px ni en 390 px.
+- 2 errores JS: los 401 de `/api/yo`, el sondeo de sesión que `useSesionHuesped` maneja.
+
+Capturas: `01-direccion-escritorio.png`, `02-direccion-movil.png`,
+`03-seccion-completa.png` (se ve la sección con dirección y sin mapa).
+
+## Pruebas
+
+222 frontend (`--no-file-parallelism`), `tsc --noEmit` y `test:typecheck` limpios,
+`vite build` correcto. 5 pruebas nuevas, todas con rojo previo confirmado.

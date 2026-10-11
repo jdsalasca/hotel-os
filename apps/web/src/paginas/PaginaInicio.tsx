@@ -199,6 +199,13 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
 
   /** Contacto público para el estado vacío: sin habitaciones, que al menos escriban. */
   const [contacto, setContacto] = useState<{ email: string; telefono: string } | null>(null);
+  /**
+   * Dirección pública. Es administrable desde el panel y antes no salía en ningún sitio de
+   * la web: el huésped veía un pin en el mapa y ninguna dirección escrita. Para un hotel
+   * pequeño la dirección es lo primero que se busca, y es lo único que sirve cuando todavía
+   * no hay pin puesto.
+   */
+  const [direccion, setDireccion] = useState('');
 
   useEffect(() => {
     void api
@@ -207,6 +214,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
         const email = (h.contacto_email ?? '').trim();
         const telefono = (h.contacto_telefono ?? '').trim();
         setContacto(email || telefono ? { email, telefono } : null);
+        setDireccion((h.direccion ?? '').trim());
       })
       .catch(() => setContacto(null));
   }, []);
@@ -1041,13 +1049,19 @@ function marcadoresDelMapa(
         </div>
       ) : null}
 
-      {mapa !== null &&
-      (mapa.hotel.ubicado || mapa.lugares.length > 0) ? (
+      {/* La dirección basta para abrir la sección: si el hotel todavía no puso su pin, una
+          dirección escrita a mano sirve para encontrarlo y antes no se veía nada. */}
+      {(mapa !== null && (mapa.hotel.ubicado || mapa.lugares.length > 0)) || direccion ? (
         <div className="centrado">
           <section className="seccion" aria-labelledby="titulo-mapa">
             <h2 id="titulo-mapa" className="seccion__titulo">
               Encuéntranos y explora
             </h2>
+            {direccion ? (
+              <p className="mapa__direccion">
+                <span className="mapa__direccion-etiqueta">Dirección:</span> {direccion}
+              </p>
+            ) : null}
             <div className="campo mapa__filtro">
               <label className="campo__etiqueta" htmlFor="filtro-lugares-categoria">
                 Filtrar lugares por categoría
@@ -1067,7 +1081,7 @@ function marcadoresDelMapa(
                 {lugaresFiltrados.length} {lugaresFiltrados.length === 1 ? 'lugar' : 'lugares'}
               </p>
             </div>
-            {mapa.hotel.ubicado &&
+            {mapa !== null && mapa.hotel.ubicado &&
             mapa.hotel.latitud !== undefined &&
             mapa.hotel.longitud !== undefined ? (
               <div className="mapa">

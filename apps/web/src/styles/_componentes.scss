@@ -844,6 +844,18 @@
     margin-bottom: $e-4;
   }
 
+  // La dirección es el dato que se busca antes que el mapa: va arriba y ocupa la fila entera.
+  &__direccion {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: $texto-sm;
+    color: $tinta;
+  }
+
+  &__direccion-etiqueta {
+    font-weight: $peso-fuerte;
+  }
+
   &__marco {
     width: 100%;
     height: 22rem;

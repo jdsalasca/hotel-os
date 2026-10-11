@@ -191,6 +191,79 @@ async function buscar() {
   await screen.findAllByText('Elegir esta habitación');
 }
 
+describe('dónde está el hotel', () => {
+  // La sección se pinta con el hotel ubicado, que es el caso normal.
+  function hotelUbicado() {
+    estado.lugaresPublicos = {
+      hotel: { ubicado: true, latitud: 5.65, longitud: -73.52 },
+      lugares: [],
+    };
+  }
+
+  it('la dirección configurada se muestra junto al mapa', async () => {
+    // La dirección ya salía en el pie de todas las páginas (App.tsx), pero en una línea de
+    // contacto en texto tenue. Aquí se pone donde el huésped busca "dónde está": sobre el
+    // mapa, con el tamaño del resto de la sección.
+    estado.hotel = {
+      nombre: 'Hotel Eridu',
+      direccion: 'Calle 12 # 3-45, Villa de Leyva',
+    };
+    hotelUbicado();
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    await screen.findByRole('heading', { name: 'Encuéntranos y explora' });
+    expect(screen.getByText('Calle 12 # 3-45, Villa de Leyva')).toBeTruthy();
+  });
+
+  it('sin dirección configurada no se inventa ni se deja un hueco vacío', async () => {
+    estado.hotel = { nombre: 'Hotel Eridu' };
+    hotelUbicado();
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    await screen.findByRole('heading', { name: 'Encuéntranos y explora' });
+    expect(screen.queryByText(/dirección:/i)).toBeNull();
+  });
+
+  it('una dirección en blanco se trata como ausente', async () => {
+    estado.hotel = { nombre: 'Hotel Eridu', direccion: '   ' };
+    hotelUbicado();
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    await screen.findByRole('heading', { name: 'Encuéntranos y explora' });
+    expect(screen.queryByText(/dirección:/i)).toBeNull();
+  });
+
+  it('con dirección pero sin pin, la dirección es lo único que se puede dar', async () => {
+    // Si el hotel no ha puesto su punto, hoy no se veía nada de la sección: ni mapa ni
+    // dirección. Una dirección escrito a mano sirve para encontrar el hotel; nada, no.
+    estado.hotel = {
+      nombre: 'Hotel Eridu',
+      direccion: 'Calle 12 # 3-45, Villa de Leyva',
+    };
+    estado.lugaresPublicos = { hotel: { ubicado: false }, lugares: [] };
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    await screen.findByRole('heading', { name: 'Encuéntranos y explora' });
+    expect(screen.getByText('Calle 12 # 3-45, Villa de Leyva')).toBeTruthy();
+  });
+
+  it('la dirección se anuncia completa, etiqueta y valor juntos', async () => {
+    estado.hotel = {
+      nombre: 'Hotel Eridu',
+      direccion: 'Calle 12 # 3-45, Villa de Leyva',
+    };
+    hotelUbicado();
+    const { container } = render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    await screen.findByRole('heading', { name: 'Encuéntranos y explora' });
+    // El pin del mapa dice "aquí"; la dirección es lo que permite encontrarlo de verdad.
+    // Se comprueba el bloque entero: partido en dos nodos, un lector de pantalla lo anunciaría
+    // como "Dirección:" suelto y luego el texto, sin relación.
+    const bloque = container.querySelector('.mapa__direccion');
+    expect(bloque?.textContent).toBe('Dirección: Calle 12 # 3-45, Villa de Leyva');
+  });
+});
+
 describe('distancias de sitios', () => {
   it('filtra lugares por categoría y alinea la lista con los marcadores del mapa', async () => {
     estado.lugaresPublicos = {
