@@ -78,6 +78,36 @@ La implementación inicial contaba habitaciones activas y tarifas en consultas i
 - La prueba [HotelVentaTest.java](../../apps/api/src/test/java/co/hotel/hotel/HotelVentaTest.java) cubre ahora ambos negativos relacionados y un positivo válido. Las fechas disponibles se calculan por separado y no se infieren de este indicador.
 - Acción aplicada en la ronda 205: la consulta relaciona habitación activa → mismo tipo → tarifa → plan activo. No equipara una fila de precio cualquiera con disponibilidad para cualquier fecha.
 
+### Cerrado en la ronda 204 — un fallo del armazón dejaba la página en blanco
+
+**Causa precisa.** `MuroAntipanico` (en `componentes/Estado.tsx`) envuelve únicamente a
+`<Routes>`. La cabecera —`SaludoSesion`, `BadgeMensajes`, `CierreSesionPanel`—, el componente
+`VolverArribaAlNavegar` y el pie quedan **fuera** de ese muro. React no propaga hacia arriba
+el error lanzado desde un `useEffect`: al producirse fuera de todo muro, desmonta el árbol
+entero y el visitante se queda con una pantalla vacía, sin mensaje y sin salida.
+
+La reproducción no fue una suposición: la traza real del fallo apunta a
+`commitHookEffectListMount`, por encima de cualquier componente, lo que confirma que el muro
+de rutas no intercepta ese caso.
+
+**Corrección.** Sin añadir un segundo muro: `MuroAntipanico` envuelve ahora también el shell, y
+admite una variante `sutil` que ofrece **Recargar** en lugar de "Volver al inicio" —cuando lo
+que se rompió es la cabecera, ese enlace vive justo en lo que falló y sería inútil. `App.test.tsx`
+sigue en 9/9: envolver el shell no rompió ninguna ruta.
+
+**Pruebas.** `ShellRoto.test.tsx` sobre el `App` real: el fallo del shell pasa de Pantalla en
+blanco a aviso con salida, más un test de no-regresión que comprueba que las rutas siguen
+funcionando. Suite completa **183/183** frontend, `tsc --noEmit` y `test:typecheck` limpios,
+`vite build` correcto, `git diff --check` limpio.
+
+**Evidencia visual.** `docs/evidence/round-204/` con fallo inyectado de verdad en contenedores:
+1 alerta visible, botón "Recargar la página", `pagina en blanco: no`, 0 errores JS y sin
+desborde a 1440 px y 390 px. Antes del cambio, esa misma pantalla era completamente blanca.
+
+- Nota de método: el diagnóstico inicial de esta ronda ("no hay ningún ErrorBoundary y
+  cualquier fallo deja la pantalla en blanco") **era falso** y se descartó antes de
+  commitear. `MuroAntipanico` ya existía y ya estaba probado.
+
 ### P1 — el texto público atribuye una pausa que no existe como dato
 
 El código deriva `false` del catálogo, pero la UI habla de “pausadas” y promete consultar más adelante. El hotel puede estar pausado intencionalmente, aunque el endpoint actual no lo distingue. La UI hace una inferencia que los datos no respaldan y no orienta al visitante sobre el paso disponible.
