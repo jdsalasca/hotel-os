@@ -23,6 +23,12 @@ export function PaginaAdminPanel() {
    * en la puerta del panel, porque es donde el hotelero se da cuenta.
    */
   const [sinContacto, setSinContacto] = useState<boolean | null>(null);
+  /**
+   * Tipos de habitación. Sin ninguno no hay nada que ofrecer: la portada muestra el estado
+   * vacío y quien llega a reservar no puede. Se comprueba en la misma puerta que el
+   * contacto, que es donde el hotelero se da cuenta de que su web está ciega.
+   */
+  const [sinVenta, setSinVenta] = useState<boolean | null>(null);
 
   async function actualizarMensajesNuevos() {
     if (sesion.haySesion !== true) return;
@@ -53,6 +59,20 @@ export function PaginaAdminPanel() {
         .catch(() => setSinContacto(null));
     } catch {
       setSinContacto(null);
+    }
+  }, [sesion.haySesion]);
+
+  useEffect(() => {
+    if (sesion.haySesion !== true) return;
+    // Igual que el contacto: si no se puede leer, `sinVenta` se queda en null y no se avisa.
+    // No se afirma que no hay nada que vender por un fallo de red.
+    try {
+      api
+        .get<unknown[]>('/api/admin/tipos')
+        .then((tipos) => setSinVenta(!Array.isArray(tipos) || tipos.length === 0))
+        .catch(() => setSinVenta(null));
+    } catch {
+      setSinVenta(null);
     }
   }, [sesion.haySesion]);
 
@@ -92,6 +112,19 @@ export function PaginaAdminPanel() {
         <p className="seccion__intro">
           Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
         </p>
+
+        {sinVenta ? (
+          <Aviso tono="aviso" titulo="Tu web no puede vender todavía">
+            <p>
+              No hay ningún tipo de habitación creado, así que la portada no muestra
+              disponibilidad y nadie puede reservar. Crea el primero y tu web empieza a
+              vender.
+            </p>
+            <p>
+              <Link to="/admin/inventario">Crear habitaciones</Link>
+            </p>
+          </Aviso>
+        ) : null}
 
         {sinContacto ? (
           <Aviso tono="aviso" titulo="Los huéspedes no pueden contactarte">

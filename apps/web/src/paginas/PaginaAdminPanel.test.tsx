@@ -9,8 +9,11 @@ describe('la web pública sin salida', () => {
     vi.unstubAllGlobals();
   });
 
-  /** Producción real: sin correo ni teléfono configurados. */
-  function Montar(hotel: Record<string, string>) {
+  /**
+   * Monta el panel con las respuestas que se le indiquen. `tipos` es lo que devuelve
+   * `/api/admin/tipos`: vacío significa que no hay nada que vender.
+   */
+  function Montar(hotel: Record<string, string>, tipos: unknown[] = [{ id: 1 }]) {
     globalThis.fetch = vi.fn(async (url: unknown) => {
       const ruta = String(url);
       if (ruta.includes('/api/admin/sesion')) {
@@ -20,6 +23,9 @@ describe('la web pública sin salida', () => {
       }
       if (ruta.includes('/api/admin/mensajes/nuevos')) {
         return new Response(JSON.stringify({ nuevos: 0 }), { status: 200 });
+      }
+      if (ruta.includes('/api/admin/tipos')) {
+        return new Response(JSON.stringify(tipos), { status: 200 });
       }
       if (ruta.includes('/api/hotel')) {
         return new Response(JSON.stringify(hotel), { status: 200 });
@@ -61,6 +67,9 @@ describe('la web pública sin salida', () => {
       if (ruta.includes('/api/admin/mensajes/nuevos')) {
         return new Response(JSON.stringify({ nuevos: 0 }), { status: 200 });
       }
+      if (ruta.includes('/api/admin/tipos')) {
+        return new Response(JSON.stringify([{ id: 1 }]), { status: 200 });
+      }
       return new Response('', { status: 500 });
     }) as unknown as typeof fetch;
     render(
@@ -71,6 +80,24 @@ describe('la web pública sin salida', () => {
 
     await screen.findByRole('heading', { name: 'Panel del hotel' });
     expect(screen.queryByText(/los huéspedes no pueden contactarte/i)).toBeNull();
+  });
+
+  it('avisa que la web no puede vender mientras no haya ningún tipo de habitación', async () => {
+    // Sin tipos no hay nada que ofrecer: la portada no muestra disponibilidad y quien
+    // llega a reservar se topa con el estado vacío. El hotelero tiene que saberlo aquí.
+    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' }, []);
+
+    await waitFor(() => {
+      expect(screen.getByText(/tu web no puede vender/i)).toBeTruthy();
+    });
+    expect(screen.getByRole('link', { name: /crear habitaciones/i })).toBeTruthy();
+  });
+
+  it('no avisa de venta cuando ya hay tipos creados', async () => {
+    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' }, [{ id: 1 }]);
+
+    await screen.findByRole('heading', { name: 'Panel del hotel' });
+    expect(screen.queryByText(/tu web no puede vender/i)).toBeNull();
   });
 });
 
