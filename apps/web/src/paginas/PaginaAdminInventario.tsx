@@ -335,7 +335,7 @@ export function PaginaAdminInventario() {
     }
   }
 
-  if (sesion.haySesion === false) return <PuertaAdmin>Inicia sesión para gestionar el inventario.</PuertaAdmin>;
+  if (sesion.haySesion === false) return <PuertaAdmin>Inicia sesión para gestionar las habitaciones.</PuertaAdmin>;
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
 
   const dias = diasDelMes(mes);

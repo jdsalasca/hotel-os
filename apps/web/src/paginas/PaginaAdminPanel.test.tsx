@@ -77,4 +77,33 @@ describe('PaginaAdminPanel', () => {
 
     expect(screen.getByRole('status').textContent).toBe('4 mensajes sin leer');
   });
+
+  it('llama "habitaciones" a la puerta y a su botón, no "inventario"', async () => {
+    // "Inventario" es jerga de gestión de ingresos. Quien regenta un hotel busca
+    // "habitaciones": si la puerta y el destino no se llaman igual, no los relaciona.
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.includes('/api/admin/sesion')) {
+        return new Response(JSON.stringify({ email: 'dueno@hotel.test', nombre: 'Dueño' }), {
+          status: 200,
+        });
+      }
+      if (ruta.includes('/api/admin/mensajes/nuevos')) {
+        return new Response(JSON.stringify({ nuevos: 0 }), { status: 200 });
+      }
+      return new Response('{}', { status: 404 });
+    }) as unknown as typeof fetch;
+
+    render(
+      <MemoryRouter>
+        <PaginaAdminPanel />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Habitaciones' })).toBeTruthy(),
+    );
+    // En toda la página no debe quedar ni un "inventario": es otra palabra para lo mismo.
+    expect(screen.queryAllByText(/inventario/i)).toHaveLength(0);
+  });
 });

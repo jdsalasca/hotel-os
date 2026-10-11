@@ -127,11 +127,11 @@ export function PaginaAdminPanel() {
           <article className="tarjeta pila">
             <h2 className="t-lg mb-0">Habitaciones</h2>
             <p className="campo__ayuda sin-margen">
-              Tipos, servicios, calendario, tarifas y bloqueos del inventario.
+              Tipos, servicios, calendario, tarifas y bloqueos.
             </p>
             <p className="sin-margen">
               <Link className="boton boton--secundario" to="/admin/inventario">
-                Gestionar inventario
+                Gestionar habitaciones
               </Link>
             </p>
           </article>

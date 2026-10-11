@@ -211,7 +211,7 @@ export function App() {
                   <NavLink to="/admin" end>Panel</NavLink>
                   <NavLink to="/admin/hoy">Hoy</NavLink>
                   <NavLink to="/admin/reservas">Reservas</NavLink>
-                  <NavLink to="/admin/inventario">Inventario</NavLink>
+                  <NavLink to="/admin/inventario">Habitaciones</NavLink>
                   <NavLink to="/admin/hotel">Hotel</NavLink>
                   <NavLink to="/admin/integraciones">Integraciones</NavLink>
                   <NavLink to="/admin/indicadores">Indicadores</NavLink>
@@ -280,7 +280,7 @@ export function App() {
           ) : null}
           {sesionPanel.haySesion === true ? (
           <nav className="nav" aria-label="Navegación del panel">
-            <NavLink to="/admin/inventario">Inventario</NavLink>
+            <NavLink to="/admin/inventario">Habitaciones</NavLink>
             <NavLink to="/admin/hoy">Hoy</NavLink>
             <NavLink to="/admin/hotel">Hotel</NavLink>
             <NavLink to="/admin/integraciones">Integraciones</NavLink>

@@ -237,7 +237,10 @@ describe('App', () => {
     await screen.findByText('¿Cuándo quieres venir?');
     await waitFor(() => {
       const nav = document.querySelector('footer nav[aria-label="Navegación del panel"]');
-      expect(nav?.textContent).toContain('Inventario');
+      expect(nav?.textContent).toContain('Habitaciones');
+      // La puerta y el destino se llaman igual: el hotelero busca "habitaciones" y la encuentra.
+      // "Inventario" es jerga de gestión de ingresos, no como habla quien regenta un hotel.
+      expect(nav?.textContent).not.toContain('Inventario');
     });
   });
 
