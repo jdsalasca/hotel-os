@@ -23,9 +23,22 @@ import { PaginaMisReservas } from './paginas/PaginaMisReservas';
 import { PaginaNoEncontrada } from './paginas/PaginaNoEncontrada';
 import { PaginaPrivacidad } from './paginas/PaginaPrivacidad';
 import { PaginaTerminos } from './paginas/PaginaTerminos';
+import { tituloDeRuta } from './tituloRuta';
 
 function texto(valor?: string): string {
   return valor?.trim() ?? '';
+}
+
+/**
+ * El título de la pestaña tenía que cambiar con la ruta: en una SPA todas las páginas
+ * heredaban el mismo nombre y no se distinguían ni al guardar ni al compartir el enlace.
+ */
+function TituloPorRuta() {
+  const ruta = useLocation().pathname;
+  useEffect(() => {
+    document.title = tituloDeRuta(ruta);
+  }, [ruta]);
+  return null;
 }
 
 /**
@@ -148,6 +161,7 @@ export function App() {
         <a className="solo-lectores" href="#contenido">
           Saltar al contenido principal
         </a>
+        <TituloPorRuta />
         <VolverArribaAlNavegar />
 
       <header
