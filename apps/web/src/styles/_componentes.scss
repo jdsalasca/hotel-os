@@ -1353,16 +1353,37 @@
 
 // --- Código de reserva ---
 .codigo-reserva {
-  font-family: $fuente-cifra;
-  font-size: $texto-2xl;
-  font-weight: $peso-fuerte;
-  letter-spacing: 0.08em;
-  color: $teja-oscuro;
-  padding: $e-3 $e-4;
-  background: $blanco-fachada;
-  border: 1px dashed $borde-fuerte;
-  border-radius: $radio;
-  display: inline-block;
+  display: flex;
+  flex-direction: column;
+  gap: $e-2;
+
+  &__fila {
+    display: flex;
+    align-items: center;
+    gap: $e-3;
+    flex-wrap: wrap;
+  }
+
+  // El código se sigue viendo como un sello, no como un párrafo: es algo que se transcribe.
+  &__texto {
+    font-family: $fuente-cifra;
+    font-size: $texto-2xl;
+    font-weight: $peso-fuerte;
+    letter-spacing: 0.08em;
+    color: $teja-oscuro;
+    padding: $e-3 $e-4;
+    background: $blanco-fachada;
+    border: 1px dashed $borde-fuerte;
+    border-radius: $radio;
+  }
+
+  // El aviso se reserva el hueco aunque esté vacío: si el texto apareciera de golpe, la
+  // página daría un salto bajo el botón justo cuando el usuario lo ha pulsado.
+  &__aviso {
+    font-size: $texto-sm;
+    color: $verde-andina;
+    min-height: 1.5em;
+  }
 }
 
 // --- Asistente de alta: el hotelero avanza por pasos en vez de cinco formularios sueltos ---

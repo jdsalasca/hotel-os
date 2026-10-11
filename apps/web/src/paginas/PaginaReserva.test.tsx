@@ -113,6 +113,58 @@ describe('PaginaReserva', () => {
     expect(screen.queryByRole('region', { name: /condiciones/i })).toBeNull();
   });
 
+  it('copia el código de reserva de un clic y lo confirma', async () => {
+    // Quien reserva sin cuenta solo se lleva el código: si no lo puede copiar tiene que
+    // anotarlo a mano, y un H-0/l mal transcrito se pierde.
+    const escribir = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: escribir } });
+    api.post.mockResolvedValue({
+      codigo: 'H-A1B2C3',
+      mensaje: 'Solicitud recibida',
+    });
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    const correo = await screen.findByLabelText('Correo electrónico *');
+    fireEvent.change(correo, { target: { value: 'ana@hotel.test' } });
+    const nombre = screen.getByLabelText('Nombre *');
+    fireEvent.change(nombre, { target: { value: 'Ana' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar solicitud de reserva' }));
+
+    const copiar = await screen.findByRole('button', { name: /copiar código/i });
+    fireEvent.click(copiar);
+
+    expect(escribir).toHaveBeenCalledWith('H-A1B2C3');
+    // Y se dice que se copió: si no, el huésped no sabe si funcionó y lo intentará otra vez.
+    expect(await screen.findByText(/copiado/i)).toBeTruthy();
+  });
+
+  it('si el navegador no deja copiar, el código queda seleccionable a mano', async () => {
+    // El portapapeles puede estar bloqueado (permiso, http antiguo). Antes de rendirse, el
+    // código se selecciona: eso siempre funciona y evita perder la reserva.
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockRejectedValue(new Error('bloqueado')),
+      },
+    });
+    const seleccionar = vi.fn();
+    (window as unknown as { getSelection: unknown }).getSelection = () => ({
+      removeAllRanges: vi.fn(),
+      addRange: seleccionar,
+    }) as unknown as Selection;
+    api.post.mockResolvedValue({ codigo: 'H-A1B2C3', mensaje: 'Solicitud recibida' });
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    const correo = await screen.findByLabelText('Correo electrónico *');
+    fireEvent.change(correo, { target: { value: 'ana@hotel.test' } });
+    fireEvent.change(screen.getByLabelText('Nombre *'), { target: { value: 'Ana' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar solicitud de reserva' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: /copiar código/i }));
+
+    // El aviso honesto: no se copió, pero se puede seleccionar a mano.
+    expect(await screen.findByText(/seleccionado/i)).toBeTruthy();
+  });
+
   it('devuelve a la búsqueda con las fechas y huéspedes elegidos', () => {
     render(<MemoryRouter><PaginaReserva /><EstadoNavegacion /></MemoryRouter>);
 

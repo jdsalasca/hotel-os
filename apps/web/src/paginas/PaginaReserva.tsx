@@ -4,6 +4,7 @@ import { ErrorApi, api } from '../api/cliente';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { useSesion } from '../api/useSesion';
 import { BotonWhatsApp } from '../componentes/BotonWhatsApp';
+import { CodigoReserva } from '../componentes/CodigoReserva';
 import { fechaCorta, monto } from '../api/formato';
 import { Aviso, HuecoImagen, MensajeError } from '../componentes/Estado';
 
@@ -198,11 +199,7 @@ export function PaginaReserva() {
 
           <BotonWhatsApp codigo={reserva.codigo} />
 
-          <p className="pila gap-e2">
-            <span className="campo__etiqueta">Tu código de reserva</span>
-            <br />
-            <span className="codigo-reserva">{reserva.codigo}</span>
-          </p>
+          <CodigoReserva codigo={reserva.codigo} />
 
           <Aviso tono="exito" titulo="Solicitud recibida">
             <p>{reserva.mensaje}</p>
