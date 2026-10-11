@@ -42,6 +42,11 @@ type RespuestaCalendario = {
 
 type BusquedaRestaurada = { llegada: string; salida: string; huespedes: number };
 
+/** Huéspedes que se pueden buscar: el rango que acepta la consulta, sin valores absurdos. */
+const HUESPEDES_POSIBLES = Array.from({ length: 20 }, (_, i) => i + 1);
+const HUESPEDES_MINIMO = 1;
+const HUESPEDES_MAXIMO = 20;
+
 function leerBusquedaRestaurada(estado: unknown): BusquedaRestaurada | null {
   if (!estado || typeof estado !== 'object') return null;
   const valor = (estado as { restaurarBusqueda?: unknown }).restaurarBusqueda;
@@ -476,7 +481,8 @@ function marcadoresDelMapa(
   const llegadaInvalida = Boolean(llegada && llegada < mananaIso());
   const salidaInvalida = Boolean(salida && (!llegada || salida <= llegada || salida < mananaIso()));
   const fechasInvalidas = llegadaInvalida || salidaInvalida;
-  const huespedesInvalidos = !Number.isInteger(huespedes) || huespedes < 1 || huespedes > 20;
+  const huespedesInvalidos =
+    !Number.isInteger(huespedes) || huespedes < HUESPEDES_MINIMO || huespedes > HUESPEDES_MAXIMO;;
   const resultadosDesactualizados = Boolean(
     buscado &&
     busqueda &&
@@ -608,17 +614,22 @@ function marcadoresDelMapa(
               </div>
               <div className="campo">
                 <label className="campo__etiqueta" htmlFor="huespedes">Huéspedes</label>
-                <input
+                {/* Selector, no campo numérico: el rango es corto y conocido (1-20), así que
+                    en móvil abre la rueda del sistema y hace imposible el valor inválido en
+                    vez de explicarlo con un error después. */}
+                <select
                   id="huespedes"
-                  type="number"
-                  min={1}
-                  max={20}
-                  step={1}
                   value={huespedes}
                   aria-invalid={huespedesInvalidos ? 'true' : undefined}
                   aria-describedby={huespedesInvalidos ? 'error-huespedes' : undefined}
                   onChange={(e) => setHuespedes(Number(e.target.value))}
-                />
+                >
+                  {HUESPEDES_POSIBLES.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

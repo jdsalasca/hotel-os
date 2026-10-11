@@ -609,6 +609,23 @@ describe('búsqueda usable con teclado y lector de pantalla', () => {
     expect(estado.llamadasBusqueda).toHaveLength(0);
   });
 
+  it('los huéspedes se eligen de una lista, no se escriben a mano', async () => {
+    // Campo numérico abierto: se podía escribir 0, dejar el valor vacío (NaN) o 99. Para un
+    // rango tan corto (1-20) un selector nativo es mejor: en móvil abre la rueda del sistema
+    // y hace imposible el valor inválido, en vez de explicarlo con un error después.
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    const huespedes = await screen.findByLabelText('Huéspedes');
+    expect(huespedes.tagName).toBe('SELECT');
+
+    // Del 1 al 20, que es el rango que acepta la búsqueda.
+    const opciones = Array.from(huespedes.querySelectorAll('option')).map((o) => o.textContent);
+    expect(opciones).toEqual(
+      Array.from({ length: 20 }, (_, i) => String(i + 1)),
+    );
+    expect((huespedes as HTMLSelectElement).value).toBe('2');
+  });
+
   it('rechaza más de 20 huéspedes con error junto al campo y sin consultar', async () => {
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
     fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
