@@ -19,6 +19,9 @@ type Fila = {
   moneda: string | null;
   abonado_cents: number | null;
   pendiente_cents: number | null;
+  /** R180: hora congelada al reservar. Si viene vacia, se usa la del hotel. */
+  hora_entrada?: string | null;
+  hora_salida?: string | null;
 };
 
 const estado = vi.hoisted(() => ({
@@ -32,6 +35,9 @@ vi.mock('../api/cliente', () => ({
   api: {
     get: (url: string) => {
       if (url === '/api/mis-reservas') return Promise.resolve({ reservas: estado.lista });
+      if (url === '/api/hotel') {
+        return Promise.resolve({ hora_entrada: '15:00', hora_salida: '11:00' });
+      }
       if (url === '/api/mis-reservas/mensajes/nuevos') {
         return Promise.resolve({ nuevos: 0, porReserva: {} });
       }
@@ -134,6 +140,30 @@ describe('resumen de mis reservas', () => {
 
     const fila = screen.getByText('H-MIA1').closest('tr');
     expect(fila?.textContent).toContain(montoCompartido(300000, 'COP'));
+  });
+
+  it('cada reserva dice a que hora es la entrada y la salida', async () => {
+    // El dato ya lo publica el hotel (`hora_entrada`/`hora_salida`) y antes no salia en
+    // ningun lado de "Mis reservas": el huesped tenia la fecha pero no la hora.
+    sembrar();
+    await montar();
+
+    await waitFor(() =>
+      expect(screen.getByText('Check-in desde las 15:00')).toBeTruthy());
+    expect(screen.getByText('Check-out hasta las 11:00')).toBeTruthy();
+  });
+
+  it('si la reserva congelo su propia hora, esa gana sobre la del hotel', async () => {
+    // R180 congelo las condiciones acordadas al reservar, incluida la hora: si el huesped
+    // recibio "desde las 14:00" al confirmar, mostrarle el 15:00 global seria mentira.
+    sembrar();
+    estado.lista[0] = { ...estado.lista[0]!, hora_entrada: '14:00', hora_salida: '10:00' };
+    await montar();
+
+    await waitFor(() =>
+      expect(screen.getByText('Check-in desde las 14:00')).toBeTruthy());
+    expect(screen.getByText('Check-out hasta las 10:00')).toBeTruthy();
+    expect(screen.queryByText(/desde las 15:00/)).toBeNull();
   });
 
   it('pone primero las estadías próximas y en curso, y separa el historial', async () => {

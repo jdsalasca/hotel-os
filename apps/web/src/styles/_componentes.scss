@@ -299,6 +299,16 @@
 
   .cifra { @include cifra; }
   .tabla__fecha { white-space: nowrap; }
+
+  // La hora de check-in va bajo la fecha, en otro peso: es el dato que evita el
+  // Plantón en recepción, pero no compite con la fecha en la lectura rápida.
+  .tabla__nota {
+    display: block;
+    font-family: $fuente-texto;
+    font-size: $texto-xs;
+    font-weight: $peso-normal;
+    color: $tinta-suave;
+  }
 }
 
 .mis-reservas__grupo th {

@@ -1,0 +1,9 @@
+﻿notas de horario en pantalla:
+  - Check-in desde las 15:00
+  - Check-out hasta las 11:00
+  - Check-in desde las 14:00
+  - Check-out hasta las 10:00
+filas: 3
+desborde horizontal: false
+errores JS: 1
+  - Failed to load resource: the server responded with a status of 401 ()

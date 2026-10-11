@@ -19,6 +19,9 @@ type Reserva = {
   moneda: string | null;
   abonado_cents: number | null;
   pendiente_cents: number | null;
+  /** Condiciones congeladas al reservar (R180). Si vienen, mandan sobre las del hotel. */
+  hora_entrada?: string | null;
+  hora_salida?: string | null;
 };
 
 function monto(cents: number | null, moneda: string | null): string | null {
@@ -56,6 +59,28 @@ export function PaginaMisReservas() {
   const [nuevos, setNuevos] = useState<Record<string, number>>({});
   /** Reserva cuyo formulario de huéspedes está abierto, con el valor tecleado. */
   const [abriendoGrupo, setAbriendoGrupo] = useState<{ codigo: string; valor: string } | null>(null);
+  /**
+   * Horarios del hotel. El dato ya era público y administrable, pero no salía en la página
+   * donde el huésped lo necesita: tenía la fecha y ninguna hora. Si el hotel no lo tiene
+   * configurado no se inventa nada, simplemente no se pinta.
+   */
+  const [horarios, setHorarios] = useState<{ entrada?: string; salida?: string }>({});
+  useEffect(() => {
+    void api
+      .get<{ hora_entrada?: string; hora_salida?: string }>('/api/hotel')
+      .then((d) =>
+        setHorarios({ entrada: d.hora_entrada?.trim() || undefined, salida: d.hora_salida?.trim() || undefined }),
+      )
+      .catch(() => setHorarios({}));
+  }, []);
+
+  /**
+   * La hora congelada en la reserva manda sobre la del hotel (R180): si al confirmar le
+   * prometieron "desde las 14:00", escribir 15:00 sería una mentira. Solo se cae al horario
+   * general cuando la reserva no trae el suyo.
+   */
+  const horaEntrada = (r: Reserva) => r.hora_entrada?.trim() || horarios.entrada;
+  const horaSalida = (r: Reserva) => r.hora_salida?.trim() || horarios.salida;
   const fechaActual = hoyIso();
   const reservaVigente = (estado: string) => estado === 'CONFIRMADA' || estado === 'PENDIENTE';
   const proximasYEnCurso = (reservas ?? [])
@@ -322,8 +347,18 @@ export function PaginaMisReservas() {
                     <td data-label="Código">
                       <code>{r.codigo}</code>
                     </td>
-                    <td className="cifra tabla__fecha" data-label="Llegada">{fechaCorta(r.llegada)}</td>
-                    <td className="cifra tabla__fecha" data-label="Salida">{fechaCorta(r.salida)}</td>
+                    <td className="cifra tabla__fecha" data-label="Llegada">
+                      {fechaCorta(r.llegada)}
+                      {horaEntrada(r) ? (
+                        <span className="tabla__nota">Check-in desde las {horaEntrada(r)}</span>
+                      ) : null}
+                    </td>
+                    <td className="cifra tabla__fecha" data-label="Salida">
+                      {fechaCorta(r.salida)}
+                      {horaSalida(r) ? (
+                        <span className="tabla__nota">Check-out hasta las {horaSalida(r)}</span>
+                      ) : null}
+                    </td>
                     <td className="cifra" data-label="Huéspedes">{r.huespedes}</td>
                     <td className="cifra" data-label="Total">{monto(r.total_cents, r.moneda) ?? 'Sin precio'}</td>
                     <td className="cifra" data-label="Abonado">{monto(r.abonado_cents ?? 0, r.moneda) ?? '—'}</td>
