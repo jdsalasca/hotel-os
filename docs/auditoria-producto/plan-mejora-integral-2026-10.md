@@ -425,6 +425,19 @@ Las etapas describen entregas acumulativas. Una etapa puede dividirse en rondas 
 - No quedan fondos/textos codificados que hagan ilegible una página pública al cambiar de tema; se verifica cada ruta objetivo en escritorio y móvil.
 - Cambio exclusivamente visual: no cambia disponibilidad, permisos, precios, mensajes funcionales ni solicitudes de API.
 
+### Seguimiento de rondas sobre reserva directa (corte 2026-10-11)
+
+| Ronda | Resultado comprobable | Estado / siguiente trabajo |
+|---|---|---|
+| R209 (`a777357`) — aviso por correo | Se añadió el aviso al crear la reserva y pruebas para fallo de envío e idempotencia. [Evidencia](../evidence/round-209/verificacion.md). | El correo se intenta después de guardar. Si el proveedor falla o no está configurado, la reserva permanece, pero el aviso puede perderse. Outbox, reintento durable y entrega real verificada siguen abiertos en Etapa 8. |
+| R210 (`f30ec38`) — copiar código | Se añadió acción de copia y alternativa que selecciona el código si el portapapeles está bloqueado; hay [pruebas funcionales](../../apps/web/src/paginas/PaginaReserva.test.tsx). | **Verificación visual pendiente:** no hay capturas de esta ronda en `docs/evidence/round-210/`. Antes de marcar el criterio visual cerrado, registrar escritorio y móvil y comprobar teclado/aviso. |
+| R211 (`4d3bcc3`) — navegación de habitaciones | “Inventario” pasó a “Habitaciones” en navegación, tarjeta y texto de acceso; la ruta técnica se conservó. [Evidencia visual y funcional](../evidence/round-211/evidencia.md). | Cerrada para el alcance de etiquetas de navegación. |
+| R212 — estado del correo | El mensaje de solicitud ahora coincide con `PENDIENTE`; prueba RED/GREEN, suite de API y empaquetado. [Evidencia](../evidence/round-212/verificacion.md). | Cerrada para la veracidad del texto. No resuelve la fiabilidad de entrega registrada en R209. |
+
+**Orden recomendado para que otro agente tome trabajo:** primero cerrar la evidencia visual pendiente de R210 en navegador, sin ampliar el código salvo que aparezca un defecto. Después diseñar R213 para persistir avisos fallidos en un outbox transaccional con reintentos limitados, idempotencia, estado observable y fixtures sin datos de huéspedes. Validar ese diseño con la regla de la Etapa 8 de que una caída del correo nunca pierda ni duplique la reserva. La disponibilidad de Gmail y su prueba de entrega requieren configuración autorizada del hotel; no se simulan como éxito.
+
+El tema oscuro/claro conserva su lugar en la Etapa 9, después de estabilizar reservas, datos públicos y tokens visuales.
+
 ## 6. Contrato de ejecución para el equipo y agentes
 
 Cada tarea tomada del plan debe dejar en su descripción o PR lo siguiente:

@@ -6,7 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * El correo de confirmación que recibe el huésped al reservar.
+ * El aviso que recibe el huésped al solicitar una reserva.
  *
  * En una reserva directa no hay plataforma intermediaria que le mande un correo: si el hotel
  * no lo hace, el huésped se queda con un código en una pantalla y sin ninguna constancia. Por
@@ -29,18 +29,20 @@ public class CorreoConfirmacion {
 
   /** El asunto, con el nombre del hotel si lo tiene configurado. */
   public String asunto() {
-    return nombreHotel() + ": reserva confirmada";
+    return nombreHotel() + ": solicitud de reserva recibida";
   }
 
   /**
-   * El cuerpo. Va en texto plano a proposito: es un aviso de "tu reserva existe", no un
-   * diseno, y asi se lee igual en cualquier cliente.
+   * El cuerpo va en texto plano: confirma la recepción de la solicitud sin prometer que ya
+   * esté confirmada, y se lee igual en cualquier cliente.
    */
   public String cuerpo(String codigo, CrearReserva datos, LocalDate llegada, LocalDate salida) {
     return """
       Hola %s:
 
-      Tu reserva en %s está confirmada.
+      Tu solicitud de reserva en %s fue recibida.
+
+      Estado: Pendiente de confirmación.
 
         Código: %s
         Llegada: %s

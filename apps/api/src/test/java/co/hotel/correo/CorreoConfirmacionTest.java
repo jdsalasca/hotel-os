@@ -72,6 +72,20 @@ class CorreoConfirmacionTest {
   }
 
   @Test
+  @DisplayName("el correo distingue una solicitud pendiente de una reserva confirmada")
+  void comunicaElEstadoPendienteSinPrometerConfirmacion() {
+    var d = datos();
+    var aviso = correo();
+    String asunto = aviso.asunto();
+    String cuerpo = aviso.cuerpo("H-ABC123", d, d.llegada(), d.salida());
+
+    assertTrue(asunto.toLowerCase().contains("solicitud de reserva"), asunto);
+    assertTrue(cuerpo.contains("Tu solicitud de reserva en el hotel fue recibida."), cuerpo);
+    assertTrue(cuerpo.contains("Estado: Pendiente de confirmación."), cuerpo);
+    assertFalse(cuerpo.toLowerCase().contains("está confirmada"), cuerpo);
+  }
+
+  @Test
   @DisplayName("sin nombre de hotel el aviso no dice null")
   void sinNombreDeHotelNoDiceNull() {
     var d = datos();
