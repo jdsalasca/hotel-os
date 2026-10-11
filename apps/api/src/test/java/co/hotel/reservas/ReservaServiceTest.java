@@ -84,6 +84,7 @@ class ReservaServiceTest {
   private JdbcTemplate jdbc;
   private ReservaService svc;
   private AuditoriaService auditoria;
+  private InventarioService inventario;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -96,7 +97,7 @@ class ReservaServiceTest {
     }
     this.jdbc = new JdbcTemplate(dataSource);
     this.auditoria = new AuditoriaService(new AuditoriaRepository(jdbc));
-    var inventario = new InventarioService(new InventarioRepository(jdbc), new TarifaRepository(jdbc),
+    inventario = new InventarioService(new InventarioRepository(jdbc), new TarifaRepository(jdbc),
       new SqliteTransactionExecutor(dataSource));
     this.svc = new ReservaService(new ReservaRepository(jdbc), new SqliteTransactionExecutor(dataSource),
       auditoria, inventario, new ReservaServiceHuesped(jdbc, new UsuariosHuespedRepository(jdbc)),
@@ -449,6 +450,77 @@ class ReservaServiceTest {
         () -> svc.cambiarFechas(codigo, LocalDate.parse("2026-01-10"), LocalDate.parse("2026-01-12"),
           "admin@hotel.test"));
       assertEquals("2026-11-01", svc.buscar(codigo).orElseThrow().llegada().toString());
+    }
+  }
+
+  @Nested
+  @DisplayName("aviso al huesped")
+  class AvisoAlHuesped {
+
+    /** Doble que anota el envio en vez de llamar a Gmail. */
+    private static class CorreoEspia extends co.hotel.correo.CorreoService {
+      final java.util.List<String> enviados = new java.util.ArrayList<>();
+      CorreoEspia() { super(null, null); }
+      @Override public co.hotel.correo.ResultadoEnvio enviar(String d, String a, String c) {
+        enviados.add(d + "|" + a + "|" + c);
+        return co.hotel.correo.ResultadoEnvio.ok("espia");
+      }
+    }
+
+    private CorreoEspia correo;
+
+    @BeforeEach void conCorreoEspia() {
+      this.correo = new CorreoEspia();
+      svc = new ReservaService(new ReservaRepository(jdbc), new SqliteTransactionExecutor(dataSource),
+        auditoria, inventario, new ReservaServiceHuesped(jdbc, new UsuariosHuespedRepository(jdbc)),
+        new co.hotel.hotel.HotelConfigService(
+          new co.hotel.hotel.HotelConfigRepository(jdbc), new SqliteTransactionExecutor(dataSource)),
+        correo);
+    }
+
+    /**
+     * En una reserva directa no hay plataforma intermediaria que mande el correo. Si el hotel
+     * no avisa, el huesped se queda con un codigo en una pantalla y sin constancia de nada.
+     */
+    @Test void reservarDisparaElAvisoAlCorreoDelHuesped() {
+      String codigo = crear("avisada@example.com", "2026-11-01", "2026-11-05", 1);
+
+      assertEquals(1, correo.enviados.size(), "no se aviso al huesped: " + correo.enviados);
+      String enviado = correo.enviados.get(0);
+      assertTrue(enviado.startsWith("avisada@example.com|"), enviado);
+      assertTrue(enviado.contains(codigo), "el aviso debe llevar el codigo: " + enviado);
+    }
+
+    @Test void unCorreoQueSaleMalNoTumbaLaReserva() {
+      // El huesped ya reservo: perder la habitacion porque Gmail no respondio seria peor que
+      // no avisarle. El fallo se registra y la reserva sigue ahi.
+      CorreoEspia roto = new CorreoEspia() {
+        @Override public co.hotel.correo.ResultadoEnvio enviar(String d, String a, String c) {
+          return co.hotel.correo.ResultadoEnvio.fallo("Gmail no responde");
+        }
+      };
+      svc = new ReservaService(new ReservaRepository(jdbc), new SqliteTransactionExecutor(dataSource),
+        auditoria, inventario, new ReservaServiceHuesped(jdbc, new UsuariosHuespedRepository(jdbc)),
+        new co.hotel.hotel.HotelConfigService(
+          new co.hotel.hotel.HotelConfigRepository(jdbc), new SqliteTransactionExecutor(dataSource)),
+        roto);
+
+      String codigo = crear("otro@example.com", "2026-11-01", "2026-11-05", 1);
+
+      assertNotNull(codigo);
+      assertEquals(1, contar("reservations"));
+    }
+
+    @Test void unReintentoNoVuelveAEnviarElAviso() {
+      // La idempotencia devuelve la reserva ya creada: si tambien reenviara el aviso, el
+      // huesped recibiria dos correos identicos por el mismo fallo de red.
+      String clave = "clave-fija-1";
+      svc.crear(new CrearReserva("reintento@example.com", "Ana", LocalDate.parse("2026-11-01"),
+        LocalDate.parse("2026-11-05"), 2, Origen.WEB, clave, 1));
+      svc.crear(new CrearReserva("reintento@example.com", "Ana", LocalDate.parse("2026-11-01"),
+        LocalDate.parse("2026-11-05"), 2, Origen.WEB, clave, 1));
+
+      assertEquals(1, correo.enviados.size(), "se aviso dos veces: " + correo.enviados);
     }
   }
 }

@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class ReservaService {
+  private static final org.slf4j.Logger log =
+    org.slf4j.LoggerFactory.getLogger(ReservaService.class);
   private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[A-Za-z]{2,}$");
 
   private final ReservaRepository repo;
@@ -32,6 +34,9 @@ public class ReservaService {
   private final Supplier<LocalDate> hoyHotel;
   /** Condiciones del hotel (horas y cancelación) que se congelan en cada venta (V20). */
   private final HotelConfigService hotelConfig;
+  /** Avisa al huesped al reservar. Puede ser null en pruebas que no miran el correo. */
+  private final co.hotel.correo.CorreoService correo;
+  private final co.hotel.correo.CorreoConfirmacion texto;
 
   /** Un valor vacío no es una condición: se guarda como NULL, no como cadena en blanco. */
   private static String vacioANull(String valor) {
@@ -43,9 +48,10 @@ public class ReservaService {
   @org.springframework.beans.factory.annotation.Autowired
   public ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
                         InventarioService inventario, ReservaServiceHuesped huespedes,
-                        HotelConfigService configuracion, HotelProperties propiedades) {
+                        HotelConfigService configuracion, HotelProperties propiedades,
+                        co.hotel.correo.CorreoService correo) {
     this(repo, tx, auditoria, inventario, huespedes, configuracion,
-      () -> LocalDate.now(configuracion.zonaHoraria(propiedades.zonaHoraria())));
+      () -> LocalDate.now(configuracion.zonaHoraria(propiedades.zonaHoraria())), correo);
   }
 
   /** Constructor directo para pruebas de servicio que no levantan el contexto Spring. */
@@ -56,9 +62,24 @@ public class ReservaService {
       () -> LocalDate.now(java.time.ZoneId.of("America/Bogota")));
   }
 
-  private ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
+  /** Igual que el anterior, pero ademas avisa al huesped por correo al confirmar. */
+  public ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
                         InventarioService inventario, ReservaServiceHuesped huespedes,
-                        HotelConfigService hotelConfig, Supplier<LocalDate> hoyHotel) {
+                        HotelConfigService configuracion, co.hotel.correo.CorreoService correo) {
+    this(repo, tx, auditoria, inventario, huespedes, configuracion,
+      () -> LocalDate.now(java.time.ZoneId.of("America/Bogota")), correo);
+  }
+
+  private ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
+                         InventarioService inventario, ReservaServiceHuesped huespedes,
+                         HotelConfigService hotelConfig, Supplier<LocalDate> hoyHotel) {
+    this(repo, tx, auditoria, inventario, huespedes, hotelConfig, hoyHotel, null);
+  }
+
+  private ReservaService(ReservaRepository repo, SqliteTransactionExecutor tx, AuditoriaService auditoria,
+                         InventarioService inventario, ReservaServiceHuesped huespedes,
+                         HotelConfigService hotelConfig, Supplier<LocalDate> hoyHotel,
+                         co.hotel.correo.CorreoService correo) {
     this.repo = repo;
     this.tx = tx;
     this.auditoria = auditoria;
@@ -66,6 +87,8 @@ public class ReservaService {
     this.huespedes = huespedes;
     this.hotelConfig = hotelConfig;
     this.hoyHotel = hoyHotel;
+    this.correo = correo;
+    this.texto = new co.hotel.correo.CorreoConfirmacion(hotelConfig);
   }
 
   public String crear(CrearReserva datos) {
@@ -104,7 +127,10 @@ public class ReservaService {
     String clave = (datos.claveIdempotencia() == null || datos.claveIdempotencia().isBlank())
         ? UUID.randomUUID().toString() : datos.claveIdempotencia();
 
-    return tx.enTransaccion(estado -> {
+    // Un reintento con la misma clave devuelve la reserva ya creada, y NO debe volver a
+    // avisar: el huesped recibiria dos correos identicos por el mismo fallo de red.
+    boolean[] yaExistia = {false};
+    String codigoReserva = tx.enTransaccion(estado -> {
       // La idempotencia solo aplica al mismo huésped: otra persona que comparta la clave es una
       // reserva distinta, no un reintento. Sin el correo, se le devolvía la reserva ajena entera.
       var existente = repo.codigoPorClave(clave, datos.email());
@@ -120,6 +146,7 @@ public class ReservaService {
             "esa clave de idempotencia ya creó otra reserva: repite la petición original o usa una clave nueva");
         }
         if (usuarioId != null) huespedes.vincular(existente.get(), usuarioId);
+        yaExistia[0] = true;
         return existente.get();
       }
 
@@ -183,6 +210,26 @@ public class ReservaService {
       if (usuarioId != null) huespedes.vincular(codigo, usuarioId);
       return codigo;
     });
+    if (!yaExistia[0]) avisarPorCorreo(codigoReserva, datos);
+    return codigoReserva;
+  }
+
+  /**
+   * Avisa al huésped de que su reserva existe. Va **después** de la transacción y nunca
+   * propaga el fallo: en una reserva directa no hay plataforma intermediaria que le mande
+   * nada, así que este correo es la única constancia que le queda; pero un Gmail que no
+   * responde no puede devolverle al huesped la habitación que ya tenía.
+   */
+  private void avisarPorCorreo(String codigo, CrearReserva datos) {
+    if (correo == null) return;
+    try {
+      var r = correo.enviar(datos.email(), texto.asunto(),
+        texto.cuerpo(codigo, datos, datos.llegada(), datos.salida()));
+      if (!r.enviado()) log.warn("reserva {} creada pero el aviso al huésped no salió: {}",
+        codigo, r.motivo());
+    } catch (RuntimeException e) {
+      log.warn("reserva {} creada pero el aviso al huésped falló: {}", codigo, e.toString());
+    }
   }
 
   /** Cambia el estado y deja rastro. Cancelar libera inventario para nuevas reservas. */
