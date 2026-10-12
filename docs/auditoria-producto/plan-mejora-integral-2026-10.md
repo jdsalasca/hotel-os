@@ -282,6 +282,10 @@ Las etapas describen entregas acumulativas. Una etapa puede dividirse en rondas 
 - El panel identifica lo que falta para completitud, valida antes de persistir y confirma qué guardó.
 - Pruebas cubren campos vacíos, entradas inválidas y actualización correcta; datos sintéticos no pueden confundirse con producción.
 
+#### Aplicado en la ronda R249 — resumen informativo de la ficha
+
+`/admin/hotel` muestra los diez campos de la ficha como informados o pendientes y lleva al campo correspondiente; la ubicación abre el selector. El resumen solo aparece después de leer la configuración, no decide si el hotel puede vender y no valida ni aprueba los datos. La ubicación reacciona a los valores actuales del formulario y deja de mostrar el aviso al completar ambas coordenadas. La ronda no modifica el perfil público, las reglas de venta ni datos reales. Las demás tareas de esta etapa —validaciones y publicación únicamente de datos confirmados— siguen abiertas.
+
 ### Etapa 3 — recorridos públicos y presentación
 
 **Prioridad:** P1/P2<br>
