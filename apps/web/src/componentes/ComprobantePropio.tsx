@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Aviso, Cargando, Etiqueta } from './Estado';
-import { enlaceWhatsApp } from '../api/formato';
+import { enlaceWhatsApp, monto } from '../api/formato';
 
 export type ComprobantePropioDatos = {
   reserva: {
@@ -18,11 +18,6 @@ export type ComprobantePropioDatos = {
   habitacion: { codigo: string; nombre: string; tipo: string } | null;
   hotel: { nombre?: string | null; contacto_telefono?: string | null };
 };
-
-function monto(cents: number | null, moneda: string | null): string | null {
-  if (cents === null || moneda === null) return null;
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: moneda }).format(cents / 100);
-}
 
 /**
  * Comprobante de una reserva propia, sin código ni correo a la vista: el padre ya sabe el

@@ -23,7 +23,11 @@ export function noches(llegada: string, salida: string): number {
  * Centavos a moneda legible. La moneda la fija el hotel; aquí no hay ninguna por defecto.
  * Con `currencyDisplay: 'code'` el importe no se confunde: "$ 4.500" no dice de qué moneda.
  */
-export function monto(centavos: number, moneda: string): string {
+export function monto(centavos: number, moneda: string): string;
+export function monto(centavos: number | null, moneda: string | null): string | null;
+export function monto(centavos: number | null, moneda: string | null): string | null {
+  if (centavos === null || moneda === null) return null;
+
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: moneda,

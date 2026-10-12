@@ -33,6 +33,18 @@ describe('ComprobantePropio', () => {
     await screen.findByText('Hotel Eridu');
   });
 
+  it('identifica la moneda en el total y el saldo del huésped', async () => {
+    const conSaldo = {
+      ...COMPROBANTE,
+      reserva: { ...COMPROBANTE.reserva, abonadoCents: 10000, pendienteCents: 10000 },
+    };
+    render(<ComprobantePropio codigo="H-123" cargar={() => Promise.resolve(conSaldo)} />);
+    await screen.findByText('Habitación 101 · Doble');
+
+    expect(document.body.textContent).toContain('COP\u00a0200 · Estándar');
+    expect(document.body.textContent).toContain('Abonado: COP\u00a0100 · Pendiente: COP\u00a0100');
+  });
+
   it('avisa si el comprobante no se puede leer', async () => {
     render(<ComprobantePropio codigo="H-404" cargar={() => Promise.reject(new Error('falló'))} />);
     await screen.findByText('No se pudo leer el comprobante');
