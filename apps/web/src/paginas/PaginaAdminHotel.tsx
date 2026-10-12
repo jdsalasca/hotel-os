@@ -76,6 +76,23 @@ const CAMPOS: {
   },
 ];
 
+const CAMPOS_RESUMEN_FICHA: {
+  etiqueta: string;
+  claves: string[];
+  ubicacion?: boolean;
+}[] = [
+  { etiqueta: 'Nombre del hotel', claves: ['nombre'] },
+  { etiqueta: 'Correo de contacto', claves: ['contacto_email'] },
+  { etiqueta: 'Teléfono de contacto', claves: ['contacto_telefono'] },
+  { etiqueta: 'Dirección', claves: ['direccion'] },
+  { etiqueta: 'Hora de entrada', claves: ['hora_entrada'] },
+  { etiqueta: 'Hora de salida', claves: ['hora_salida'] },
+  { etiqueta: 'Política de cancelación', claves: ['politica_cancelacion'] },
+  { etiqueta: 'Zona horaria', claves: ['zona_horaria'] },
+  { etiqueta: 'Moneda', claves: ['moneda'] },
+  { etiqueta: 'Punto del hotel', claves: ['latitud', 'longitud'], ubicacion: true },
+];
+
 const VACIO: ConfigHotel = Object.fromEntries(CAMPOS.map((campo) => [campo.clave, '']));
 
 /** Centro de la vista cuando el hotel aún no está ubicado: Boyacá, donde está el hotel. */
@@ -91,8 +108,6 @@ export function PaginaAdminHotel() {
   const [guardando, setGuardando] = useState(false);
   const [cargaFallida, setCargaFallida] = useState(false);
   const [eligiendoPunto, setEligiendoPunto] = useState(false);
-  /** Sin punto guardado el mapa no se publica. `null` mientras no se sabe: no se afirma nada. */
-  const [sinPunto, setSinPunto] = useState<boolean | null>(null);
 
   useEffect(() => {
     async function cargar() {
@@ -103,13 +118,8 @@ export function PaginaAdminHotel() {
         const actual = await api.get<ConfigHotel>('/api/admin/hotel-config');
         const datos = { ...VACIO, ...actual };
         setValores(datos);
-        // `Number('')` es 0, que es un número válido: hay que mirar el texto.
-        setSinPunto(
-          (datos.latitud ?? '').trim().length === 0 || (datos.longitud ?? '').trim().length === 0,
-        );
       } catch (e) {
         setCargaFallida(true);
-        setSinPunto(null);
         setError(e instanceof Error ? e.message : 'No se pudo cargar la configuración del hotel');
       } finally {
         setCargando(false);
@@ -135,6 +145,16 @@ export function PaginaAdminHotel() {
     }
   }
 
+  const resumenFicha = CAMPOS_RESUMEN_FICHA.map((campo) => ({
+    ...campo,
+    informado: campo.claves.every((clave) => Boolean(valores[clave]?.trim())),
+  }));
+  const datosPendientes = resumenFicha.filter((campo) => !campo.informado).length;
+  const configuracionConocida = !cargando && !cargaFallida;
+  const sinPunto =
+    configuracionConocida &&
+    !(Boolean(valores.latitud?.trim()) && Boolean(valores.longitud?.trim()));
+
   if (sesion.haySesion === false) return <PuertaAdmin>Inicia sesión para configurar el hotel.</PuertaAdmin>;
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
 
@@ -155,23 +175,59 @@ export function PaginaAdminHotel() {
           </Aviso>
         ) : null}
 
-        {/* Sin el punto del hotel el mapa y las distancias no se publican. El panel avisa y
-            manda aquí, pero los campos del GPS son los últimos del formulario: sin este aviso
-            el hotelero tenía que cazarlos. El botón abre el selector directamente. */}
-        {sinPunto ? (
-          <Aviso tono="aviso" titulo="El mapa no aparece en tu web">
-            <p>
-              Falta el punto del hotel en el GPS: sin él la web no muestra el mapa ni dice a qué
-              distancia quedan los sitios.
+        {configuracionConocida ? (
+          <section className="tarjeta pila" aria-labelledby="hotel-resumen-publico">
+            <h2 className="t-base mb-0" id="hotel-resumen-publico">
+              Estado de la ficha del hotel
+            </h2>
+            <p className="campo__ayuda sin-margen">
+              El resumen indica si hay un valor en cada campo; no determina si se puede vender ni
+              valida el contenido. Revisa que los datos sean correctos y estén aprobados por el
+              hotel antes de guardar.
             </p>
-            <button
-              className="boton boton--secundario boton--chico no-estirar"
-              type="button"
-              onClick={() => setEligiendoPunto(true)}
-            >
-              Ubicar en el mapa
-            </button>
-          </Aviso>
+            <p className="sin-margen">
+              {datosPendientes === 0
+                ? 'Todos los datos de esta lista tienen un valor.'
+                : `${datosPendientes} de ${resumenFicha.length} datos aún no tienen valor.`}
+            </p>
+            <ul className="lista-marcada rejilla">
+              {resumenFicha.map((campo) => (
+                <li className="campo" key={campo.etiqueta}>
+                  <strong className="campo__etiqueta">{campo.etiqueta}</strong>
+                  <span className="campo__ayuda">
+                    {campo.informado ? 'Informado' : 'Pendiente'}
+                  </span>
+                  {campo.ubicacion ? (
+                    <span className="campo__ayuda">
+                      {campo.informado
+                        ? 'La web puede mostrar el mapa y las distancias.'
+                        : 'El mapa no aparece en tu web sin el punto del hotel.'}
+                    </span>
+                  ) : null}
+                  {!campo.informado ? (
+                    <button
+                      className="boton boton--secundario boton--chico no-estirar"
+                      type="button"
+                      disabled={guardando}
+                      aria-label={campo.ubicacion
+                        ? 'Ubicar en el mapa: punto del hotel'
+                        : `Completar ${campo.etiqueta.toLocaleLowerCase()}`}
+                      onClick={() => {
+                        if (campo.ubicacion) {
+                          setEligiendoPunto(true);
+                          return;
+                        }
+                        const pendiente = campo.claves.find((clave) => !valores[clave]?.trim());
+                        if (pendiente) document.getElementById(`hotel-${pendiente}`)?.focus();
+                      }}
+                    >
+                      {campo.ubicacion ? 'Ubicar en el mapa' : 'Ir al campo'}
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
 
         <form className="tarjeta pila" aria-busy={cargando} onSubmit={(e) => void guardar(e)}>

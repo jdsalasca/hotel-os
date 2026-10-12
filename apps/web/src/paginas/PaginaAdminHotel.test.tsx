@@ -52,7 +52,7 @@ describe('lo que bloquea la web, arriba del formulario', () => {
     // El aviso está antes que los campos del formulario, no después.
     expect(
       Boolean(
-        aviso.compareDocumentPosition(screen.getByLabelText(/Nombre del hotel/i)) &
+        aviso.compareDocumentPosition(screen.getByRole('textbox', { name: 'Nombre del hotel' })) &
           Node.DOCUMENT_POSITION_FOLLOWING,
       ),
     ).toBe(true);
@@ -67,8 +67,52 @@ describe('lo que bloquea la web, arriba del formulario', () => {
     montar();
     await waitFor(() => expect(estado.get).toHaveBeenCalled());
 
-    await screen.findByLabelText(/Nombre del hotel/i);
+    await screen.findByRole('textbox', { name: 'Nombre del hotel' });
     expect(screen.queryByText(/el mapa no aparece/i)).toBeNull();
+  });
+});
+
+describe('estado de la ficha del hotel', () => {
+  it('distingue datos informados y pendientes con la configuración cargada', async () => {
+    estado.get.mockResolvedValueOnce({
+      nombre: 'Hotel Eridu',
+      contacto_email: 'reservas@hotel.test',
+      direccion: 'Calle 1, Villa de Leyva',
+      moneda: 'COP',
+      latitud: '5.63',
+      longitud: '-73.52',
+    });
+    montar();
+
+    const resumen = await screen.findByRole('region', { name: 'Estado de la ficha del hotel' });
+    const filas = Array.from(resumen.querySelectorAll('li'));
+    const correo = filas.find((fila) => fila.textContent?.includes('Correo de contacto'));
+    const telefono = filas.find((fila) => fila.textContent?.includes('Teléfono de contacto'));
+
+    expect(correo?.textContent).toContain('Informado');
+    expect(telefono?.textContent).toContain('Pendiente');
+    expect(resumen.textContent).toContain('Punto del hotel');
+  });
+
+  it('lleva el foco al campo del formulario desde un dato pendiente', async () => {
+    estado.get.mockResolvedValueOnce({ nombre: 'Hotel Eridu' });
+    montar();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Completar correo de contacto' }));
+
+    expect(document.activeElement).toBe(screen.getByLabelText('Correo de contacto'));
+  });
+
+  it('actualiza el estado del GPS al informar las coordenadas desde el selector', async () => {
+    estado.get.mockResolvedValueOnce({ latitud: '', longitud: '' });
+    montar();
+
+    await screen.findByText(/el mapa no aparece en tu web/i);
+    fireEvent.click(await screen.findByRole('button', { name: /ubicar en el mapa/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Norte' }));
+
+    expect(screen.queryByText('El mapa no aparece en tu web')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cerrar el mapa' })).toBeTruthy();
   });
 });
 
