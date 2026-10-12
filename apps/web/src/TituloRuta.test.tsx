@@ -1,4 +1,6 @@
 import { describe, expect, it, afterEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, cleanup, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
@@ -39,6 +41,16 @@ describe('titulo por ruta', () => {
     );
 
     await waitFor(() => expect(document.title).toBe('Hotel Eridu · Inicio'));
+  });
+
+  it('el HTML inicial no promete reservas antes de montar React', () => {
+    const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+
+    expect(html).toContain('<title>Hotel Eridu · Inicio</title>');
+    expect(html).toContain('name="description" content="Información de Hotel Eridu y acceso a la gestión de reservas."');
+    expect(html).toContain('property="og:title" content="Hotel Eridu · Inicio"');
+    expect(html).toContain('property="og:description"');
+    expect(html).not.toMatch(/reserva directa/i);
   });
 
   it('mis reservas se anuncia como tal y no como la portada', async () => {

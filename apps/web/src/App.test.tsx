@@ -34,6 +34,9 @@ describe('App', () => {
     );
     await screen.findByText('La reserva en línea no está disponible en este momento.');
 
+    expect(screen.getByText(/Información y gestión de reservas de Hotel Eridu/)).toBeTruthy();
+    expect(screen.queryByText(/Reservas directas de Hotel Eridu/)).toBeNull();
+
     const nav = container.querySelector('header nav[aria-label="Navegación principal"]');
     expect(nav?.querySelector('a[href="/"]')?.textContent).toBe('Inicio');
   });

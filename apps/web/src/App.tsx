@@ -273,7 +273,7 @@ export function App() {
       <footer className="pie no-imprimir">
         <div className="pie__interna">
           <p className="sin-margen">
-            Reservas directas de {nombre}. Los precios mostrados son los que el hotel ha configurado.
+            Información y gestión de reservas de {nombre}. Los precios mostrados son los que el hotel ha configurado.
           </p>
           {contacto.length > 0 ? (
             <p className="campo__ayuda sin-margen">{contacto.join(' · ')}</p>
