@@ -70,9 +70,9 @@ export function PaginaAdminIntegraciones() {
         api.get<PlanTarifario[]>('/api/admin/planes'),
       ]);
       setPanel(estado);
-      setHabitaciones(habs);
-      setTipos(tiposCargados);
-      setPlanes(planesCargados);
+      setHabitaciones(Array.isArray(habs) ? habs : []);
+      setTipos(Array.isArray(tiposCargados) ? tiposCargados : []);
+      setPlanes(Array.isArray(planesCargados) ? planesCargados : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cargar el estado de los canales');
     } finally {
@@ -143,10 +143,10 @@ export function PaginaAdminIntegraciones() {
                   </p>
                 </div>
 
-                {canal.variablesFaltantes.length > 0 ? (
+                {(canal.variablesFaltantes ?? []).length > 0 ? (
                   <Aviso tono="aviso" titulo="Faltan credenciales">
                     <ul className="sin-margen lista-marcada">
-                      {canal.variablesFaltantes.map((v) => (
+                      {(canal.variablesFaltantes ?? []).map((v) => (
                         <li key={v}>
                           <code>{v}</code>
                         </li>
@@ -155,11 +155,11 @@ export function PaginaAdminIntegraciones() {
                   </Aviso>
                 ) : null}
 
-                {canal.requisitosPendientes.length > 0 ? (
+                {(canal.requisitosPendientes ?? []).length > 0 ? (
                   <div className="pila gap-e1">
                     <h3 className="t-sm mb-0">Requisitos pendientes</h3>
                     <ul className="campo__ayuda sin-margen lista-marcada">
-                      {canal.requisitosPendientes.map((r) => (
+                      {(canal.requisitosPendientes ?? []).map((r) => (
                         <li key={r}>{r}</li>
                       ))}
                     </ul>
@@ -283,7 +283,11 @@ function FormularioMapeo({
   const [externo, setExterno] = useState('');
   const [errorFormulario, setErrorFormulario] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const recursos = alcance === 'habitacion' ? habitaciones : tipos;
+  // Con el inventario protegido arriba esto ya es un array; la guarda evita que un estado
+  // intermedio (almacenado antes de la corrección) rompa el selector.
+  const recursos = Array.isArray(alcance === 'habitacion' ? habitaciones : tipos)
+    ? (alcance === 'habitacion' ? habitaciones : tipos)
+    : [];
 
   async function enviar(evento: FormEvent) {
     evento.preventDefault();
