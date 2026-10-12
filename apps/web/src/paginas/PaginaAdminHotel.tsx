@@ -91,6 +91,8 @@ export function PaginaAdminHotel() {
   const [guardando, setGuardando] = useState(false);
   const [cargaFallida, setCargaFallida] = useState(false);
   const [eligiendoPunto, setEligiendoPunto] = useState(false);
+  /** Sin punto guardado el mapa no se publica. `null` mientras no se sabe: no se afirma nada. */
+  const [sinPunto, setSinPunto] = useState<boolean | null>(null);
 
   useEffect(() => {
     async function cargar() {
@@ -99,9 +101,15 @@ export function PaginaAdminHotel() {
       setError(null);
       try {
         const actual = await api.get<ConfigHotel>('/api/admin/hotel-config');
-        setValores({ ...VACIO, ...actual });
+        const datos = { ...VACIO, ...actual };
+        setValores(datos);
+        // `Number('')` es 0, que es un número válido: hay que mirar el texto.
+        setSinPunto(
+          (datos.latitud ?? '').trim().length === 0 || (datos.longitud ?? '').trim().length === 0,
+        );
       } catch (e) {
         setCargaFallida(true);
+        setSinPunto(null);
         setError(e instanceof Error ? e.message : 'No se pudo cargar la configuración del hotel');
       } finally {
         setCargando(false);
@@ -144,6 +152,25 @@ export function PaginaAdminHotel() {
         {guardado ? (
           <Aviso tono="exito" titulo="Datos guardados">
             La web pública ya muestra la identidad actualizada.
+          </Aviso>
+        ) : null}
+
+        {/* Sin el punto del hotel el mapa y las distancias no se publican. El panel avisa y
+            manda aquí, pero los campos del GPS son los últimos del formulario: sin este aviso
+            el hotelero tenía que cazarlos. El botón abre el selector directamente. */}
+        {sinPunto ? (
+          <Aviso tono="aviso" titulo="El mapa no aparece en tu web">
+            <p>
+              Falta el punto del hotel en el GPS: sin él la web no muestra el mapa ni dice a qué
+              distancia quedan los sitios.
+            </p>
+            <button
+              className="boton boton--secundario boton--chico no-estirar"
+              type="button"
+              onClick={() => setEligiendoPunto(true)}
+            >
+              Ubicar en el mapa
+            </button>
           </Aviso>
         ) : null}
 
@@ -214,16 +241,21 @@ export function PaginaAdminHotel() {
               </div>
             ))}
           </div>
-          <div className="acciones-lugar">
-            <button
-              className="boton boton--secundario boton--chico"
-              type="button"
-              disabled={cargando}
-              onClick={() => setEligiendoPunto((v) => !v)}
-            >
-              {eligiendoPunto ? 'Cerrar el mapa' : 'Ubicar en el mapa'}
-            </button>
-          </div>
+          {/* El botón de aquí sólo aparece cuando el aviso de arriba no está: si no hay
+              punto, quien llega siguiendo el aviso del panel ya tiene el mapa a un clic y
+              dos botones con el mismo nombre compiten por el mismo destino. */}
+          {sinPunto ? null : (
+            <div className="acciones-lugar">
+              <button
+                className="boton boton--secundario boton--chico"
+                type="button"
+                disabled={cargando}
+                onClick={() => setEligiendoPunto(true)}
+              >
+                {eligiendoPunto ? 'Cerrar el mapa' : 'Ubicar en el mapa'}
+              </button>
+            </div>
+          )}
           {eligiendoPunto ? (
             <SelectorDePunto
               titulo="Ubicación del hotel"

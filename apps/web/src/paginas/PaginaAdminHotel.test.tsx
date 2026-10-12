@@ -40,6 +40,38 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+describe('lo que bloquea la web, arriba del formulario', () => {
+  it('con el GPS vacío, avisa arriba y abre el selector de un clic', async () => {
+    // El panel manda aquí a arreglar el GPS. Los campos son los últimos del formulario, así
+    // que el hotelero tenía que cazarlos: el aviso va arriba y abre el mapa directamente.
+    estado.get.mockResolvedValue({ latitud: '', longitud: '' });
+    montar();
+    await waitFor(() => expect(estado.get).toHaveBeenCalled());
+
+    const aviso = await screen.findByText(/el mapa no aparece/i);
+    // El aviso está antes que los campos del formulario, no después.
+    expect(
+      Boolean(
+        aviso.compareDocumentPosition(screen.getByLabelText(/Nombre del hotel/i)) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+
+    // Y de la advertencia al mapa hay un solo clic.
+    fireEvent.click(screen.getByRole('button', { name: /ubicar en el mapa/i }));
+    expect(await screen.findByRole('button', { name: /usar este punto/i })).toBeTruthy();
+  });
+
+  it('con el GPS puesto, no avisa de nada', async () => {
+    estado.get.mockResolvedValue({ latitud: '5.65', longitud: '-73.52' });
+    montar();
+    await waitFor(() => expect(estado.get).toHaveBeenCalled());
+
+    await screen.findByLabelText(/Nombre del hotel/i);
+    expect(screen.queryByText(/el mapa no aparece/i)).toBeNull();
+  });
+});
+
 describe('elegir el punto del hotel en el mapa', () => {
   it('mover el punto cambia lo que se guarda, sin depender de arrastrar el visor', async () => {
     estado.get.mockResolvedValue({ latitud: '', longitud: '' });
