@@ -38,6 +38,8 @@ const estado = vi.hoisted(() => ({
     };
   }[],
   creaciones: 0,
+  fallosLecturaLugares: 0,
+  lecturasLugares: 0,
   lugaresCreados: [] as {
     nombre: string;
     descripcion: string;
@@ -53,7 +55,14 @@ const estado = vi.hoisted(() => ({
 vi.mock('../api/cliente', () => ({
   api: {
     get: async (ruta: string) => {
-      if (ruta === '/api/admin/lugares') return { lugares: estado.lugares };
+      if (ruta === '/api/admin/lugares') {
+        estado.lecturasLugares++;
+        if (estado.fallosLecturaLugares > 0) {
+          estado.fallosLecturaLugares--;
+          throw new Error('Error de red temporal');
+        }
+        return { lugares: estado.lugares };
+      }
       if (ruta === '/api/admin/hotel-config') return estado.hotelConfig;
       throw new Error(`ruta no esperada: ${ruta}`);
     },
@@ -112,6 +121,8 @@ afterEach(() => {
   ];
   estado.cambios.length = 0;
   estado.creaciones = 0;
+  estado.fallosLecturaLugares = 0;
+  estado.lecturasLugares = 0;
   estado.lugaresCreados.length = 0;
   estado.hotelConfig = { nombre: 'Hotel Eridu', latitud: '5.65', longitud: '-73.52' };
   vi.unstubAllGlobals();
@@ -119,6 +130,33 @@ afterEach(() => {
 });
 
 describe('edición de lugares del mapa', () => {
+  it('espera a confirmar la sesión antes de cargar lugares', async () => {
+    await montar();
+
+    expect(estado.lecturasLugares).toBe(1);
+  });
+
+  it('permite reintentar la carga de lugares después de un error temporal', async () => {
+    // Los reintentos iniciales no deben ocultar que una carga fallida necesita acción del usuario.
+    estado.fallosLecturaLugares = 2;
+    conectarAdmin();
+    render(
+      <MemoryRouter>
+        <PaginaAdminLugares />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(estado.lecturasLugares).toBe(1));
+    expect(await screen.findByText('Error de red temporal')).toBeTruthy();
+    expect(screen.queryByText(/Cargando lugares/)).toBeNull();
+    estado.fallosLecturaLugares = 0;
+    fireEvent.click(await screen.findByRole('button', { name: 'Reintentar carga de lugares' }));
+
+    expect(await screen.findByRole('row', { name: /Mirador del valle/ })).toBeTruthy();
+    expect(estado.lecturasLugares).toBe(2);
+    expect(screen.queryByRole('button', { name: 'Reintentar carga de lugares' })).toBeNull();
+  });
+
   it('permite clasificar y guardar un lugar nuevo', async () => {
     await montar();
     fireEvent.change(screen.getByLabelText('Categoría'), { target: { value: 'COMER' } });

@@ -43,6 +43,8 @@ export function PaginaAdminLugares() {
   const [nuevo, setNuevo] = useState(VACIO);
   const [editando, setEditando] = useState<Lugar | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorCargaLugares, setErrorCargaLugares] = useState<string | null>(null);
+  const [cargandoLugares, setCargandoLugares] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const nombreRef = useRef<HTMLInputElement>(null);
   /** El hotel sin GPS no publica el mapa: la pantalla lo dice en vez de quedarse callada. */
@@ -52,11 +54,15 @@ export function PaginaAdminLugares() {
   const [eligiendoPunto, setEligiendoPunto] = useState(false);
 
   async function cargar() {
+    setCargandoLugares(true);
+    setErrorCargaLugares(null);
     try {
       const datos = await api.get<{ lugares: Lugar[] }>('/api/admin/lugares');
       setLugares(datos.lugares);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudieron cargar los lugares');
+      setErrorCargaLugares(e instanceof Error ? e.message : 'No se pudieron cargar los lugares');
+    } finally {
+      setCargandoLugares(false);
     }
   }
 
@@ -78,7 +84,7 @@ export function PaginaAdminLugares() {
   }
 
   useEffect(() => {
-    if (sesion.haySesion === false) return;
+    if (sesion.haySesion !== true) return;
     void cargar();
     void cargarPuntoDelHotel();
   }, [sesion.haySesion]);
@@ -176,6 +182,20 @@ export function PaginaAdminLugares() {
         </p>
 
         {error ? <MensajeError texto={error} /> : null}
+        {errorCargaLugares ? (
+          <div className="pila">
+            <MensajeError texto={errorCargaLugares} />
+            <div className="acciones-lugar">
+              <button
+                className="boton boton--secundario boton--chico"
+                type="button"
+                onClick={() => void cargar()}
+              >
+                Reintentar carga de lugares
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {/* Sin el punto del hotel no hay distancias que mostrar: el hotelero crea lugares con
             entusiasmo, guarda, y la web sigue vacía sin que nadie le diga por qué. */}
@@ -296,7 +316,9 @@ export function PaginaAdminLugares() {
           </div>
         </form>
 
-        {lugares === null ? <Cargando texto="Cargando lugares" /> : null}
+        {lugares === null && cargandoLugares && errorCargaLugares === null ? (
+          <Cargando texto="Cargando lugares" />
+        ) : null}
         {lugares !== null && lugares.length === 0 ? (
           <Vacio titulo="Sin lugares todavía" detalle="Agrega el primero: aparecerá en el mapa de la web." />
         ) : null}
