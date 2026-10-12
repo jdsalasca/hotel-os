@@ -4,11 +4,11 @@
 
 **Objetivo:** guardar la intención del aviso en la misma transacción que la reserva y enviarla después con un worker durable, reintentos acotados, estado administrativo seguro y recuperación que nunca duplique a ciegas un correo.
 
-**Arquitectura:** una tabla SQLite V22 será la fuente de verdad del outbox. El alta de reserva inserta una sola tarea dentro de la transacción existente; un worker de instancia única reclama tareas con lease y un transporte Gmail específico, sin los reintentos ocultos del cliente OTA. Una API administrativa de solo lectura y una sección independiente de Integraciones expondrán estados allowlist; el modo de mantenimiento y la cuarentena protegerán las restauraciones.
+**Arquitectura:** una tabla SQLite V22 será la fuente de verdad del outbox. El alta de reserva inserta una sola tarea dentro de la transacción existente; un worker de instancia única reclama tareas con lease y registra con CAS la fase antes de cada llamada externa. El worker queda cerrado hasta completar recuperación de arranque. Una API administrativa de solo lectura y una sección independiente de Integraciones expondrán estados allowlist. Las restauraciones usan una señal lateral persistente en `/data/.correo-outbox-restauracion-pendiente`, distinta del modo de mantenimiento, para poner en cuarentena el respaldo antes de habilitar cualquier envío.
 
 **Stack:** Java 25, Spring Boot, Spring JDBC, SQLite y Flyway; Gmail API con OAuth 2.0; React, TypeScript, Vite, SCSS y Vitest; Docker Compose para las comprobaciones integradas.
 
-**Especificación:** docs/superpowers/specs/2026-10-11-correo-outbox-design.md, aprobada el 2026-10-12. Este plan todavía requiere aprobación.
+**Especificación:** docs/superpowers/specs/2026-10-11-correo-outbox-design.md. El alcance funcional fue aprobado el 2026-10-12; los detalles técnicos revisados y este plan esperan aprobación antes de implementar.
 
 ## Restricciones globales
 
@@ -16,10 +16,13 @@
 - La migración nueva es V22, posterior a V21, verificada con SQLite temporal y Flyway.
 - Un solo worker procesa como máximo una fila por sondeo de cinco segundos; no permitir workers activos en varias réplicas.
 - Cada intento hace como máximo una petición OAuth y un POST Gmail; el transporte de correo no sigue redirecciones ni reintenta por su cuenta.
+- Antes de cada llamada externa, una actualización CAS debe verificar estado, lease y versión; CAS sin fila actualizada significa cero peticiones HTTP. `RECLAMADA→TOKEN_OAUTH` o `RECLAMADA→GMAIL_SEND` reserva un intento; `TOKEN_OAUTH→GMAIL_SEND` mantiene el mismo intento y toda escritura posterior usa el claim/version devuelto.
+- Leer como máximo 64 KiB de cada respuesta externa; nunca persistir ni registrar el cuerpo crudo. Una respuesta OAuth sobredimensionada bloquea configuración; una Gmail sobredimensionada deja resultado incierto.
 - Timeout por petición: 20 segundos; deadline total por tarea: 50 segundos; lease: 120 segundos.
 - Máximo: cinco intentos, con esperas base de 1, 5, 15 y 60 minutos; respetar Retry-After hasta 24 horas y agotar una espera mayor.
 - No repetir automáticamente RESULTADO_INCIERTO. La pantalla no tendrá acciones de reenvío ni resolución.
 - No guardar email, nombre, asunto, cuerpo, token, autorización, cuerpo HTTP ni error libre en outbox, API o logs.
+- Emitir una señal operativa de baja frecuencia con worker listo/activo, instante del último sondeo, número agregado de filas elegibles y edad de la más antigua; sin códigos, IDs de reserva/fila ni datos personales.
 - El aviso reconstruido será genérico, confirmará recepción de la solicitud e incluirá código y consulta del estado actual; no copiará datos que puedan quedar desactualizados.
 - Validar buzones ASCII simples de máximo 254 octetos, parte local de máximo 64, dominio con al menos dos etiquetas y sin controles, nombres visibles, comentarios, listas o dominios literales.
 - Los estados administrativos se identifican con texto y no solo con color; estilos nuevos en SCSS; teclado, foco visible, lector de pantalla y móvil son criterios de aceptación.
@@ -33,7 +36,10 @@
 - Una respuesta Gmail 2xx sin id no acredita aceptación durable; debe quedar incierta. Prueba: CorreoServiceTest.respuestaExitosaSinIdEsIncierta.
 - Un cursor mal formado no debe ampliar consultas ni exponer filas fuera del límite. Prueba: CorreoOutboxAdminControllerTest.cursorInvalidoEs400YLimiteNuncaSuperaCien.
 - La restauración puede volver al pasado una base local mientras Gmail conserva efectos externos; cualquier fila recuperada elegible debe quedar en cuarentena antes de iniciar el worker. Prueba: CorreoOutboxRecoveryTest.restauracionPoneEnCuarentenaAntesDeHabilitarWorker.
+- CAS previo a cada petición: claim obsoleto, lease vencido o cero filas actualizadas debe producir cero llamadas al servidor local. Prueba: CorreoOutboxWorkerTest.claimObsoletoNoIniciaHttp.
+- Mantenimiento normal no equivale a restauración: sin señal lateral no altera estados; con señal y flags incompatibles el arranque no queda listo ni hace HTTP. Prueba: CorreoOutboxStartupTest.
 - Email histórico inválido o CR/LF en campos de cabecera no debe originar una petición externa ni filtrarse en errores. Pruebas: CorreoOutboxWorkerTest.destinatarioHistoricoInvalidoNoHaceHttp y CorreoServiceTest.cabecerasConControlesNoHacenHttp.
+- Respuestas OAuth/Gmail superiores a 64 KiB no se parsean ni registran completas; una Gmail grande no dispara un segundo POST. Prueba: GoogleCorreoHttpTest.respuestaSobredimensionadaSeLimita.
 
 ## Etapa 1 — Validación y frontera externa de correo
 
@@ -71,13 +77,13 @@
 
 - GoogleCorreoHttp.postOAuth(String url, Map<String,String> headers, String body): RespuestaGoogle.
 - GoogleCorreoHttp.postGmail(String url, Map<String,String> headers, String body): RespuestaGoogle.
-- RespuestaGoogle entrega código, cuerpo acotado para parseo, Retry-After parseable y clase de fallo; su representación no expone credenciales ni texto crudo.
+- RespuestaGoogle entrega código, cuerpo de hasta 64 KiB para parseo, Retry-After parseable y clase de fallo; si excede el límite, se detiene la lectura y su representación no expone credenciales ni texto crudo.
 - CorreoService.enviarIntento(String destinatario, String asunto, String cuerpo): ResultadoIntentoCorreo distingue aceptación, reintento conocido, configuración bloqueada, rechazo permanente e incertidumbre, además de la fase OAuth/Gmail.
 
-- [ ] Añadir primero pruebas con HttpServer local que cuenten llamadas: éxito con id, éxito sin id, OAuth sin token, 401/403/429/5xx, redirect, timeout y caída de conexión.
+- [ ] Añadir primero pruebas con HttpServer local que cuenten llamadas: éxito con id, éxito sin id, OAuth sin token, 401/403/429/5xx, redirect, timeout, caída de conexión y cuerpos OAuth/Gmail por encima de 64 KiB.
 - [ ] Ejecutar apps/api/mvnw.cmd -f apps/api/pom.xml -Dtest=CorreoServiceTest,GoogleCorreoHttpTest test; verificar rojo en reintento implícito, redirect y clasificación.
 - [ ] Crear HttpClient de correo con timeout de 20 s y Redirect.NEVER; no inyectar ni cambiar HttpClienteOta, que conserva su política para conectores.
-- [ ] Implementar un solo POST por fase y mapear los reason JSON de Google a una allowlist. Tras iniciar Gmail, cualquier resultado no concluyente se clasifica como RESULTADO_INCIERTO.
+- [ ] Implementar un solo POST por fase, limitar la lectura de cada respuesta a 64 KiB y mapear los reason JSON de Google a una allowlist. Tras iniciar Gmail, cualquier resultado no concluyente, incluida una respuesta sobredimensionada, se clasifica como RESULTADO_INCIERTO.
 - [ ] Validar remitente, nombre visible, asunto y destinatario antes de OAuth; permitir saltos de línea solo en el cuerpo.
 - [ ] Repetir las pruebas y comprobar conteos de cero o un POST Gmail por intento.
 - [ ] Crear commit atómico: Aísla el transporte de correo.
@@ -95,14 +101,16 @@
 
 - CorreoOutboxRepository.crearAvisoReserva(long reservationId, Instant creadoEn): long.
 - CorreoOutboxRepository.reclamarSiguiente(Instant ahora, Duration lease): Optional<CorreoOutboxClaim>.
+- CorreoOutboxRepository.registrarInicioExterno(CorreoOutboxClaim claim, FaseCorreoOutbox fase): Optional<CorreoOutboxClaim>; CAS por id, `ENVIANDO`, lease vigente y versión actual. Solo admite `RECLAMADA→TOKEN_OAUTH`, `RECLAMADA→GMAIL_SEND` o `TOKEN_OAUTH→GMAIL_SEND`; las dos primeras transiciones incrementan el contador una vez, la tercera lo conserva. Cada éxito incrementa la versión y devuelve el claim nuevo; ausencia de fila impide cualquier petición.
 - CorreoOutboxRepository.guardarResultado(CorreoOutboxClaim claim, CambioCorreoOutbox cambio): boolean; la escritura condicional valida estado, lease y versión.
 - CorreoOutboxRepository.listar(EstadoCorreoOutbox estado, int limite, CursorCorreoOutbox cursor): PaginaCorreoOutbox.
 - La fila conserva solo relación, tipo, estado/fase, contador y máximo, UTC, lease/versión, clasificación allowlist e id de mensaje según la especificación; guarda solo el estado/resultado vigente, FK ON DELETE RESTRICT y unicidad reserva/tipo, sin bitácora append-only de transiciones.
 
-- [ ] Escribir pruebas SQLite real para V22 aplicada por Flyway, sin generación de correos retroactivos, unicidad, FK, índice de elegibilidad, campos no personales y UTC uniforme.
-- [ ] Probar inserción, reclamación de una fila elegible, lease/versionado y rechazo de una actualización con claim viejo.
+- [ ] Escribir pruebas SQLite real para aplicar V22 sobre una V21 poblada; comprobar que no aparecen avisos históricos, además de unicidad, FK, índice de elegibilidad, campos no personales y UTC uniforme.
+- [ ] Probar inserción, reclamación, cada transición CAS de fase, contador 1 para OAuth→Gmail y envío Gmail directo, versión/lease y rechazo de claims viejos o vencidos.
+- [ ] Probar que un CAS fallido deja el servidor HTTP local en cero llamadas y que una respuesta tardía no sobrescribe el resultado.
 - [ ] Ejecutar apps/api/mvnw.cmd -f apps/api/pom.xml -Dtest=CorreoOutboxRepositoryTest test; confirmar fallas previas por tabla u operaciones faltantes.
-- [ ] Crear V22 posterior a V21 y operaciones SQL con transacciones SQLite cortas; ninguna operación de red vive en el repositorio.
+- [ ] Crear V22 posterior a V21 y operaciones SQL con transacciones SQLite cortas; ninguna operación de red vive en el repositorio. Persistir fase e incrementar versión con CAS previo a cada petición; `guardarResultado` recibe el último claim devuelto.
 - [ ] Confirmar que una segunda inserción reserva/tipo no crea otra fila y que el FK impide borrar una reserva relacionada.
 - [ ] Repetir pruebas dirigidas sobre archivo SQLite temporal y comprobar BUILD SUCCESS.
 - [ ] Crear commit atómico: Agrega persistencia para outbox de correo.
@@ -139,17 +147,21 @@
 
 - CorreoOutboxPolicy.clasificar(ResultadoIntentoCorreo intento, int intentos): CambioCorreoOutbox.
 - CorreoOutboxWorker.procesarUnaVez(Instant ahora): boolean reclama y procesa como máximo una fila.
+- Antes de cada llamada HTTP el worker solicita `registrarInicioExterno`; si el CAS devuelve vacío, termina sin llamar al transporte. OAuth y Gmail del mismo ciclo consumen un único intento; Gmail directo consume uno.
 - CorreoOutboxWorker lee la reserva actual mediante ReservaRepository.porId(long), valida el email actual y construye asunto/cuerpo con CorreoConfirmacion.asunto() y cuerpo(String codigo); no copia destinatario ni cuerpo a la tabla.
+- El scheduler no basta para habilitar el worker: `CorreoOutboxStartup` mantiene la puerta cerrada hasta que Flyway y la recuperación del outbox terminen sin error.
 - Reloj, política de tiempos y cliente externo son inyectables; las pruebas no esperan minutos ni contactan Gmail real.
 
 - [ ] Escribir pruebas con reloj fijo para todos los estados; presupuesto de cinco llamadas y esperas de 1/5/15/60 minutos.
 - [ ] Probar Gmail 429 y 403 por cuota con Retry-After en segundos/fecha, ausente, malformado y mayor a 24 h; clasificar 403 de credenciales/cuota/razón desconocida.
+- [ ] Probar fallo transitorio en el intento 5/5: termina AGOTADO con contador 5/5 y nunca programa una sexta petición.
 - [ ] Probar timeout/5xx/redirección/2xx sin id tras iniciar Gmail como inciertos; OAuth transitorio como reintentable; OAuth inválido como bloqueado; rechazo 4xx permanente como agotado.
 - [ ] Probar destinatario histórico inválido, reserva ausente y configuración incompleta sin HTTP ni intento consumido, clasificación sin dirección completa en errores/logs, timeout total 50 s y lease de 120 s con duraciones inyectadas.
 - [ ] Ejecutar apps/api/mvnw.cmd -f apps/api/pom.xml -Dtest=CorreoOutboxWorkerTest,CorreoOutboxPolicyTest test y confirmar rojo.
-- [ ] Implementar sondeo cada 5 s con la programación de Spring habilitada, una fila por sondeo, prevención de solapamiento, límite de intentos comprobado al reclamar, contador justo antes de la primera llamada externa, deadlines, leases y actualización CAS por versión.
+- [ ] Implementar sondeo cada 5 s con la programación de Spring habilitada, una fila por sondeo, prevención de solapamiento, límite de intentos comprobado al reclamar, CAS de fase antes de cada llamada, deadlines, leases y escritura de resultado con última versión.
 - [ ] Hacer reintentable el lease vencido durante OAuth y terminal incierto el vencido después de iniciar GMAIL_SEND; una respuesta tardía no sobrescribe el claim vigente.
-- [ ] Añadir CORREO_OUTBOX_ACTIVO con default true; el worker no corre hasta completar recuperación al arrancar.
+- [ ] Añadir CORREO_OUTBOX_ACTIVO con default true, pero mantener la puerta de ejecución interna inicialmente cerrada. Si T6 aún no se implementó, ninguna tarea ni prueba de scheduler puede iniciar OAuth/Gmail.
+- [ ] Añadir señal periódica agregada de worker listo/activo, instante de sondeo, elegibles y edad de la fila elegible más antigua; no incluir códigos ni datos personales y evitar un log por fila.
 - [ ] Repetir pruebas y comprobar que nunca hay más de un POST por intento ni más de cinco por tarea.
 - [ ] Crear commit atómico: Procesa avisos desde el outbox.
 
@@ -160,23 +172,27 @@
 **Archivos**
 
 - Crear: apps/api/src/main/java/co/hotel/correo/CorreoOutboxRecovery.java, apps/api/src/main/java/co/hotel/correo/CorreoOutboxStartup.java, apps/api/src/main/java/co/hotel/correo/ResumenCuarentena.java y apps/api/src/main/java/co/hotel/seguridad/FiltroModoMantenimiento.java.
-- Modificar: apps/api/src/main/java/co/hotel/config/HotelProperties.java, apps/api/src/main/resources/application.properties, apps/api/src/main/java/co/hotel/config/AppConfig.java, compose.yaml, compose.production.yaml y .env.example.
-- Pruebas: apps/api/src/test/java/co/hotel/correo/CorreoOutboxRecoveryTest.java y apps/api/src/test/java/co/hotel/seguridad/ModoMantenimientoTest.java.
+- Modificar: apps/api/src/main/java/co/hotel/config/HotelProperties.java, apps/api/src/main/resources/application.properties, apps/api/src/main/java/co/hotel/config/AppConfig.java, compose.yaml, compose.production.yaml, .env.example, tools/operacion/restaurar.sh y tools/operacion/probar-restaurar-segura.sh.
+- Pruebas: apps/api/src/test/java/co/hotel/correo/CorreoOutboxRecoveryTest.java, apps/api/src/test/java/co/hotel/correo/CorreoOutboxStartupTest.java y apps/api/src/test/java/co/hotel/seguridad/ModoMantenimientoTest.java.
 
 **Interfaces**
 
 - CorreoOutboxRecovery.recuperarBloqueadosAlArrancar(Instant ahora) reactiva una vez por inicio las filas bloqueadas con menos de cinco intentos, conserva el contador y agota las que llegaron a cinco.
 - CorreoOutboxRecovery.ponerEnCuarentenaTrasRestauracion(Instant ahora): ResumenCuarentena cambia filas recuperadas elegibles a incierto en una transacción y verifica cero elegibles.
+- `CorreoOutboxStartup` corre después de Flyway y mantiene el scheduler cerrado. Si detecta `/data/.correo-outbox-restauracion-pendiente`, exige mantenimiento activo y worker apagado, cuarentena y verifica cero elegibles, y solo después elimina/sincroniza la señal. Si la configuración es incompatible o un paso falla, el arranque no queda listo y no hay mutaciones ni llamadas externas. Sin señal, mantenimiento normal no ejecuta cuarentena.
+- `restaurar.sh` crea atómicamente la señal antes de sustituir `/data/hotel.sqlite3`; una restauración fallida elimina la señal solo si valida la recuperación del estado previo. Una recuperación no verificable conserva la señal.
 - FiltroModoMantenimiento responde 503 y código MANTENIMIENTO_ACTIVO a rutas que mutan reservas y a /api/admin/correo/prueba; permite lecturas, salud y consulta administrativa.
 
 - [ ] Probar reinicio: bloqueadas con 0–4 intentos se reactivan sin reiniciar contador; 5/5 pasan a agotado y no generan HTTP; el sondeo del mismo proceso no repite transición.
-- [ ] Probar restauración SQLite temporal: mantener terminales; cambiar pendientes/enviando/reintento/bloqueadas a incierto, asignar RESPALDO_RESTAURADO_REVISAR, limpiar lease y próximo intento, dejar cero elegibles.
+- [ ] Probar restauración SQLite temporal: mantener terminales; cambiar pendientes/enviando/reintento/bloqueadas a incierto, asignar RESPALDO_RESTAURADO_REVISAR, limpiar lease y próximo intento, dejar cero elegibles y borrar el marcador solo tras commit/verificación.
+- [ ] Probar que mantenimiento normal sin marcador no altera ninguna fila; con marcador y flags ausentes/incorrectas el worker permanece cerrado y el proceso no queda listo; al fallar cuarentena, verificación o borrado del marcador no se hace HTTP.
+- [ ] Extender `probar-restaurar-segura.sh`: restauración válida deja marcador, rechazo antes de reemplazar no lo crea, rollback validado lo retira, recuperación no verificable lo conserva, incluidos casos de interrupción.
 - [ ] Probar rollback de cuarentena y worker apagado ante fallo; probar mantenimiento en alta pública y administrativa, cancelación, cambios de fecha/habitación/huéspedes y estado desde huésped y administración, y correo de prueba. No bloquear consultas de solo lectura.
-- [ ] Ejecutar apps/api/mvnw.cmd -f apps/api/pom.xml -Dtest=CorreoOutboxRecoveryTest,ModoMantenimientoTest test y confirmar rojo.
+- [ ] Ejecutar apps/api/mvnw.cmd -f apps/api/pom.xml -Dtest=CorreoOutboxRecoveryTest,CorreoOutboxStartupTest,ModoMantenimientoTest test y confirmar rojo.
 - [ ] Añadir HOTEL_MODO_MANTENIMIENTO=false y CORREO_OUTBOX_ACTIVO=true en propiedades y Compose, sin secretos.
-- [ ] Ejecutar recuperación después de Flyway y antes de habilitar worker; con mantenimiento activo y outbox apagado, poner en cuarentena en una transacción y abortar arranque si quedan filas elegibles.
+- [ ] Ejecutar primero Flyway. Si hay marcador, requerir `HOTEL_MODO_MANTENIMIENTO=true` y `CORREO_OUTBOX_ACTIVO=false`, poner en cuarentena, leer de nuevo cero elegibles y recién entonces consumir el marcador. Si no hay marcador, no cuarentenar; reactivar bloqueados una vez por arranque. El worker solo puede quedar listo al finalizar el camino completo.
 - [ ] Registrar solo conteos seguros por estado. Si falla la verificación, mantener cerradas las mutaciones y worker apagado.
-- [ ] Repetir pruebas dirigidas y revisar el orden de recuperación, cuarentena y activación con reinicios sintéticos.
+- [ ] Repetir pruebas dirigidas y demostrar en reinicios sintéticos que no se envía Gmail antes de Flyway, recuperación, cuarentena/verificación cuando aplique y puerta lista.
 - [ ] Crear commit atómico: Protege el outbox al restaurar respaldos.
 
 ## Etapa 4 — Visibilidad administrativa
@@ -195,6 +211,7 @@
 - Respuesta: código de reserva, estado, intentos actual/máximo, creación/último/próximo intento y clasificación allowlist; cursor opaco estable por creado_en DESC e id DESC.
 
 - [ ] Escribir pruebas MockMvc con admin, huésped y anónimo; filtro por estado; defaults, límite 100, cursor siguiente, cursor inválido y orden estable.
+- [ ] Probar timestamps empatados, cursor de continuación determinista y `cursorSiguiente=null` al llegar a la última página.
 - [ ] Afirmar ausencia de email, nombre, asunto, cuerpo, id Gmail, token, Authorization, texto libre del proveedor y error HTTP crudo.
 - [ ] Ejecutar apps/api/mvnw.cmd -f apps/api/pom.xml -Dtest=CorreoOutboxAdminControllerTest test y confirmar rojo.
 - [ ] Implementar solo GET protegido por la regla existente /api/admin/**, DTO allowlist y validación de cursor/límite; no añadir mutaciones.
@@ -226,12 +243,12 @@
 
 **Archivos**
 
-- Modificar: docs/operations/correo.md, docs/operations/despliegue-respaldos.md y docs/plan.md.
+- Modificar: docs/operations/correo.md, docs/operations/despliegue-respaldos.md, docs/plan.md y docs/auditoria-producto/plan-mejora-integral-2026-10.md.
 - Evidencia: docs/evidence/round-213/ con verificación, conteos de pruebas y capturas.
 - Revisión visual de PaginaAdminIntegraciones en 1440 × 1000 y 390 × 844, con datos sintéticos.
 
 - [ ] Actualizar guía de correo: envío automático durable, aceptación frente a entrega, estados, límites, reinicio tras corregir entorno y no reintento ante resultado incierto.
-- [ ] Documentar restauración: activar mantenimiento y apagar worker, detener instancia, restaurar, arrancar con ambas banderas, verificar resumen/cero elegibles, conservar banderas si falla, detener y reiniciar modo normal.
+- [ ] Documentar restauración: activar mantenimiento y apagar worker, detener instancia, restaurar (el script deja el marcador lateral), arrancar con ambas banderas, comprobar cuarentena y cero elegibles antes de que la API consuma el marcador, conservar flags/marcador si falla, y solo después reiniciar en modo normal.
 - [ ] Confirmar que Compose y .env.example presentan defaults sin secretos; no afirmar conexión Gmail ni entrega real.
 - [ ] Ejecutar apps/api/mvnw.cmd -f apps/api/pom.xml test; desde apps/web ejecutar npm run test, npm run typecheck, npm run test:typecheck y npm run build.
 - [ ] Validar docker compose config y docker compose -f compose.production.yaml config con variables sintéticas requeridas.
@@ -239,7 +256,7 @@
 - [ ] Levantar el build local, recorrer la sección con respuestas sintéticas y capturar escritorio 1440 × 1000 y móvil 390 × 844; comprobar consola, teclado/foco y scrollWidth menor o igual que clientWidth.
 - [ ] Guardar comandos, resultados sin secretos y capturas en docs/evidence/round-213/; revisar diff y git diff --check.
 - [ ] Crear commit atómico de documentación/evidencia con identidad canónica.
-- [ ] Tras aprobación del plan y verificaciones verdes, integrar R213 en develop, repetir suite y build, hacer push normal a origin/develop bajo jdsalasca y comprobar en GitHub la autoría de cada commit.
+- [ ] Tras aprobación del plan y verificaciones verdes, integrar los commits del worktree a develop mediante cherry-pick, repetir suite y build, hacer push normal a origin/develop bajo jdsalasca y comprobar en GitHub la autoría de cada commit; eliminar el worktree y la rama ya integrada y ejecutar `git worktree prune`.
 
 ## Cobertura de especificación
 
@@ -249,7 +266,8 @@
 | Persistencia y datos personales | 1, 3 y 4 |
 | Alta transaccional y trabajador | 4 y 5 |
 | Estados, Gmail/OAuth, Retry-After, deadlines y reintentos | 2 y 5 |
-| Reinicio y restauración | 6 |
+| Fase persistida/CAS antes de HTTP y máximo de intentos | 2, 3 y 5 |
+| Reinicio, señal de restauración y cuarentena antes del worker | 5 y 6 |
 | API administrativa, rol, allowlist y cursor | 7 |
 | Integraciones, accesibilidad y responsive | 8 |
 | Mensaje, guía de correo y guía de despliegue | 4 y 9 |
@@ -257,4 +275,4 @@
 
 ## Puerta de ejecución
 
-Este archivo concreta la implementación pero no la autoriza por sí mismo. Esperar la revisión explícita del usuario. Después, ejecutar en worktree, tarea por tarea, preservar cambios ajenos, integrar a develop, verificar antes y después de integrar y publicar con la cuenta existente jdsalasca. El tema claro/oscuro sigue aplazado hasta la Etapa 9 del producto.
+Este archivo concreta la implementación pero no la autoriza por sí mismo. La revisión independiente detectó y cerró en el plan los huecos de CAS antes de HTTP, señal inequívoca de restauración, activación del worker solo tras recuperación, pruebas de los límites/cursores y actualización del plan maestro. Esperar la aprobación explícita del usuario para este plan revisado; hasta entonces no cambiar código. Después, ejecutar en worktree, tarea por tarea, preservar cambios ajenos, integrar a develop, verificar antes y después de integrar y publicar con la cuenta existente jdsalasca. El tema claro/oscuro sigue aplazado hasta la Etapa 9 del producto.
