@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, urlApi } from '../api/cliente';
-import { fechaCorta, hoyIso, monto as montoCompartido } from '../api/formato';
+import { fechaCorta, hoyIso, monto } from '../api/formato';
 import { useSesionHuesped } from '../api/useSesionHuesped';
 import { useActualizacionPeriodicaVisible } from '../api/useActualizacionPeriodicaVisible';
 import { HiloMensajes, type Hilo } from '../componentes/HiloMensajes';
@@ -23,11 +23,6 @@ type Reserva = {
   hora_entrada?: string | null;
   hora_salida?: string | null;
 };
-
-function monto(cents: number | null, moneda: string | null): string | null {
-  if (cents === null || moneda === null) return null;
-  return montoCompartido(cents, moneda);
-}
 
 function diaSiguienteIso(iso: string): string {
   const fecha = new Date(`${iso}T12:00:00`);
@@ -358,7 +353,7 @@ export function PaginaMisReservas() {
                 {Array.from(saldosPendientes, ([moneda, cents]) => (
                   <div className="mis-reservas-pagos__importe" key={moneda}>
                     <dt>Saldo pendiente · {moneda}</dt>
-                    <dd className="cifra">{montoCompartido(cents, moneda)}</dd>
+                    <dd className="cifra">{monto(cents, moneda)}</dd>
                   </div>
                 ))}
               </dl>

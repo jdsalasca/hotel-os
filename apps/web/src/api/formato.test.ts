@@ -1,10 +1,18 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { enlaceWhatsApp, fechaCorta, nombreCorto } from './formato';
+import { enlaceWhatsApp, fechaCorta, monto, nombreCorto } from './formato';
 
 describe('fechaCorta', () => {
   it('usa fecha española compacta con el mes abreviado', () => {
     expect(fechaCorta('2030-06-10')).toBe('10 jun 2030');
+  });
+});
+
+describe('monto', () => {
+  it('devuelve un importe explícito con el código de moneda y no inventa datos faltantes', () => {
+    expect(monto(20000, 'COP')).toBe('COP\u00a0200');
+    expect(monto(null as never, 'COP')).toBeNull();
+    expect(monto(20000, null as never)).toBeNull();
   });
 });
 
