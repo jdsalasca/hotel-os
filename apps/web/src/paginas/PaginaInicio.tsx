@@ -166,12 +166,17 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   const [cargandoCal, setCargandoCal] = useState(false);
   const peticionCal = useRef(0);
   /**
-   * Sin nada que vender el calendario mentiría un mes de Llenos: una sola lectura al
-   * abrir dice si el hotel publica. null es "aún no se sabe" y pinta como siempre;
-   * si falla, tampoco se bloquea nada.
+   * Una sola lectura al abrir decide si se ofrece la búsqueda. null significa que aún no
+   * se confirmó: mientras espera no aparecen controles de reserva. Si la lectura falla,
+   * se permite intentar la búsqueda como alternativa recuperable.
    */
   const [venta, setVenta] = useState<boolean | null>(null);
   const [ventaComprobada, setVentaComprobada] = useState(false);
+  const ventaConfirmada = ventaComprobada && venta === true;
+  const ventaNoDisponible = ventaComprobada && venta === false;
+  const ventaSinConfirmar = ventaComprobada && venta === null;
+  const verificandoVenta = !ventaComprobada;
+  const puedeBuscar = ventaComprobada && venta !== false;
 
   useEffect(() => {
     void api
@@ -256,7 +261,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   // El calendario es una sola petición por mes: si el huésped cambia de mes o de huéspedes antes
   // de que vuelva, la respuesta vieja se ignora en vez de pintar otro mes.
   useEffect(() => {
-    if (!ventaComprobada || venta === false) {
+    if (!puedeBuscar) {
       peticionCal.current++;
       setDias([]);
       setErrorCal(null);
@@ -287,7 +292,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   }, [mes, huespedes, venta, ventaComprobada]);
 
   async function buscarCon(llegadaIso: string, salidaIso: string, huespedesN: number) {
-    if (venta === false) return;
+    if (!puedeBuscar) return;
     // Como el calendario: si el huésped lanza otra búsqueda antes de que vuelva esta,
     // la tardía se ignora en vez de pintar el viaje anterior.
     const id = ++peticionBusqueda.current;
@@ -323,7 +328,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
     const anterior = restauracionPendiente.current;
     if (!anterior) return;
     restauracionPendiente.current = null;
-    if (venta === false) {
+    if (ventaNoDisponible) {
       navegar('/', { replace: true, state: null });
       return;
     }
@@ -334,7 +339,7 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
 
   async function buscar(evento: React.FormEvent) {
     evento.preventDefault();
-    if (venta === false) return;
+    if (!puedeBuscar) return;
     if (fechasInvalidas) {
       document.getElementById(llegadaInvalida ? 'llegada' : 'salida')?.focus();
       return;
@@ -557,21 +562,20 @@ function marcadoresDelMapa(
         />
         <div className="portada__interna">
           <p className="portada__ojal">Sáchica · Villa de Leyva · Boyacá</p>
-          <h1 className="portada__titulo">{nombreHotel}: reserva directa, sin intermediarios</h1>
-          <p className="portada__texto">
-            {venta === false
-              ? 'La reserva en línea no está disponible. Si ya tienes una, puedes gestionarla con tu código o tu cuenta de Google.'
-              : 'Consulta la disponibilidad, reserva tus fechas y gestiona tu reserva con tu código o tu cuenta de Google. Sin comisiones ni apps de terceros: lo que ves es lo que el hotel configuró.'}
+          <h1 className="portada__titulo">
+            {ventaConfirmada ? `${nombreHotel}: reserva directa, sin intermediarios` : nombreHotel}
+          </h1>
+          <p className="portada__texto" role={ventaConfirmada ? undefined : 'status'}>
+            {verificandoVenta
+              ? 'Comprobando disponibilidad para reservar…'
+              : ventaNoDisponible
+                ? 'La reserva en línea no está disponible en este momento.'
+                : ventaSinConfirmar
+                  ? 'No pudimos comprobar la disponibilidad. Puedes intentarlo con una búsqueda.'
+                  : 'Consulta la disponibilidad, reserva tus fechas y gestiona tu reserva con tu código o tu cuenta de Google. Sin comisiones ni apps de terceros: lo que ves es lo que el hotel configuró.'}
           </p>
           <p className="portada__acciones">
-            {venta === false ? (
-              <>
-                <span className="portada__estado" role="status">Reserva en línea no disponible</span>
-                <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
-                  Gestionar o consultar una reserva
-                </Link>
-              </>
-            ) : (
+            {puedeBuscar ? (
               <>
                 <a className="boton boton--primario" href="#titulo-buscar">
                   Ver disponibilidad
@@ -580,47 +584,47 @@ function marcadoresDelMapa(
                   Gestionar una reserva
                 </Link>
               </>
+            ) : (
+              <Link className="boton boton--secundario boton--claro" to="/mis-reservas">
+                Gestionar o consultar una reserva
+              </Link>
             )}
           </p>
         </div>
       </section>
 
-      {venta === false ? (
+      {ventaNoDisponible && ((contacto && (contacto.email || contacto.telefono)) || contactoError) ? (
         <div className="centrado">
-          <section className="seccion reserva-no-disponible" aria-labelledby="titulo-buscar">
-            <h2 id="titulo-buscar" className="seccion__titulo">
-              Reserva en línea no disponible
+          <section className="seccion reserva-no-disponible" aria-labelledby="titulo-contacto">
+            <h2 id="titulo-contacto" className="seccion__titulo">
+              Contacto del hotel
             </h2>
-            <Aviso tono="aviso" titulo="La reserva en línea no está disponible">
-              <p>Este sitio no puede confirmar nuevas reservas en este momento.</p>
-              {contacto && (contacto.email || contacto.telefono) ? (
-                <p className="reserva-no-disponible__contacto">
-                  {contacto.email ? (
-                    <>
-                      Escríbenos a{' '}
-                      <a href={`mailto:${contacto.email}`}>{contacto.email}</a>
-                    </>
-                  ) : null}
-                  {contacto.email && contacto.telefono ? ' o ' : null}
-                  {contacto.telefono ? (
-                    <>
-                      llámanos al{' '}
-                      <a href={`tel:${contacto.telefono.replace(/[\s-]/g, '')}`}>
-                        {contacto.telefono}
-                      </a>
-                    </>
-                  ) : null}
-                  .
-                </p>
-              ) : null}
-              {avisoErrorContacto}
-              <p>Si ya tienes una reserva, puedes entrar con Google o consultarla con su código y correo.</p>
-            </Aviso>
+            {contacto && (contacto.email || contacto.telefono) ? (
+              <p className="reserva-no-disponible__contacto">
+                {contacto.email ? (
+                  <>
+                    Escríbenos a{' '}
+                    <a href={`mailto:${contacto.email}`}>{contacto.email}</a>
+                  </>
+                ) : null}
+                {contacto.email && contacto.telefono ? ' o ' : null}
+                {contacto.telefono ? (
+                  <>
+                    llámanos al{' '}
+                    <a href={`tel:${contacto.telefono.replace(/[\s-]/g, '')}`}>
+                      {contacto.telefono}
+                    </a>
+                  </>
+                ) : null}
+                .
+              </p>
+            ) : null}
+            {avisoErrorContacto}
           </section>
         </div>
       ) : null}
 
-      {venta === false ? null : (
+      {puedeBuscar ? (
       <div className="centrado">
         <section className="seccion" aria-labelledby="titulo-buscar">
           <h2 id="titulo-buscar" className="seccion__titulo">
@@ -962,7 +966,7 @@ function marcadoresDelMapa(
           </div>
         ) : null}
       </div>
-      )}
+      ) : null}
 
       <div className="centrado">
         <section className="seccion" aria-labelledby="titulo-descubre">
@@ -1049,7 +1053,7 @@ function marcadoresDelMapa(
         </section>
       </div>
 
-      {venta === false ? null : (
+      {puedeBuscar ? (
       <div className="centrado">
         <section className="seccion" aria-labelledby="titulo-pasos">
           <h2 id="titulo-pasos" className="seccion__titulo">
@@ -1080,7 +1084,7 @@ function marcadoresDelMapa(
           </ol>
         </section>
       </div>
-      )}
+      ) : null}
 
       {mapaError ? (
         <div className="centrado">

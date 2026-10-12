@@ -11,7 +11,7 @@
  * asi que lo que no este aqui es una pagina que no existe y se anuncia como tal.
  */
 const TITULOS: Record<string, string> = {
-  '/': '',
+  '/': 'Inicio',
   '/reserva': 'Reserva tus fechas',
   '/consulta': 'Consulta tu reserva',
   '/mis-reservas': 'Mis reservas',
@@ -30,7 +30,6 @@ const TITULOS: Record<string, string> = {
 };
 
 const BASE = 'Hotel Eridu';
-const SUFIJO = ' · Reserva directa';
 
 /**
  * Solo coincidencia exacta. Las rutas de esta SPA son exactas y el wildcard atiende el
@@ -47,5 +46,5 @@ function tituloDe(ruta: string): string {
 /** El titulo completo de la pestana, tal como queda en el navegador. */
 export function tituloDeRuta(ruta: string): string {
   const propio = tituloDe(ruta);
-  return propio ? `${BASE} · ${propio}` : `${BASE}${SUFIJO}`;
+  return `${BASE} · ${propio}`;
 }

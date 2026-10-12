@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PaginaInicio } from './PaginaInicio';
 import { fechaCorta } from '../api/formato';
@@ -19,6 +19,7 @@ const estado = vi.hoisted(() => ({
   sinResultados: false,
   sinVenta: false,
   fallaVenta: false,
+  ventaPendiente: null as null | Promise<{ a_la_venta: boolean }>,
   fallosHotel: 0,
   llamadasHotel: 0,
   fallaLugares: false,
@@ -97,6 +98,7 @@ vi.mock('../api/cliente', () => {
     }
     if (url === '/api/hotel/venta') {
       if (estado.fallaVenta) throw new Error('venta caída');
+      if (estado.ventaPendiente) return estado.ventaPendiente;
       return { a_la_venta: !estado.sinVenta };
     }
     if (url === '/api/hotel') {
@@ -132,6 +134,7 @@ afterEach(() => {
   estado.sinResultados = false;
   estado.sinVenta = false;
   estado.fallaVenta = false;
+  estado.ventaPendiente = null;
   estado.fallosHotel = 0;
   estado.llamadasHotel = 0;
   estado.fallaLugares = false;
@@ -194,6 +197,7 @@ async function buscar() {
       <PaginaInicio />
     </MemoryRouter>,
   );
+  await screen.findByLabelText('Llegada');
   fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
   fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
   fireEvent.click(screen.getByText('Buscar disponibilidad'));
@@ -536,6 +540,45 @@ describe('distancias de sitios', () => {
 });
 
 describe('reserva en línea no disponible', () => {
+  it('no ofrece una reserva hasta conocer el estado de venta', async () => {
+    let resolverVenta!: (respuesta: { a_la_venta: boolean }) => void;
+    const ventaPendiente = new Promise<{ a_la_venta: boolean }>((resolve) => {
+      resolverVenta = resolve;
+    });
+    estado.ventaPendiente = ventaPendiente;
+
+    render(
+      <MemoryRouter>
+        <PaginaInicio />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Hotel Eridu' })).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toMatch(/comprobando disponibilidad/i);
+    expect(screen.getByRole('link', { name: 'Gestionar o consultar una reserva' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Ver disponibilidad' })).toBeNull();
+    expect(screen.queryByLabelText('Llegada')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Buscar disponibilidad' })).toBeNull();
+
+    await act(async () => {
+      resolverVenta({ a_la_venta: true });
+      await ventaPendiente;
+    });
+    expect(await screen.findByLabelText('Llegada')).toBeTruthy();
+  });
+
+  it('permite intentar la búsqueda si no se puede comprobar el estado de venta', async () => {
+    estado.fallaVenta = true;
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    expect(await screen.findByLabelText('Llegada')).toBeTruthy();
+    expect(
+      screen.getByText('No pudimos comprobar la disponibilidad. Puedes intentarlo con una búsqueda.'),
+    ).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Ver disponibilidad' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Buscar disponibilidad' })).toBeTruthy();
+  });
+
   it('explica la indisponibilidad sin atribuir una pausa y retira los controles de búsqueda', async () => {
     estado.sinVenta = true;
     render(
@@ -544,17 +587,14 @@ describe('reserva en línea no disponible', () => {
       </MemoryRouter>,
     );
 
-    const aviso = await screen.findByRole('heading', { name: 'Reserva en línea no disponible' });
-    expect(screen.getAllByRole('status').map((status) => status.textContent)).toContain(
-      'Reserva en línea no disponible',
-    );
-    expect(
-      screen.getByText('La reserva en línea no está disponible', { selector: 'strong' }),
-    ).toBeTruthy();
-    expect(screen.getByText('Este sitio no puede confirmar nuevas reservas en este momento.')).toBeTruthy();
+    const aviso = await screen.findByText('La reserva en línea no está disponible en este momento.');
+    expect(screen.getByRole('heading', { level: 1, name: 'Hotel Eridu' })).toBeTruthy();
+    expect(screen.getAllByText('La reserva en línea no está disponible en este momento.')).toHaveLength(1);
+    expect(screen.queryByRole('heading', { name: 'Reserva en línea no disponible' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Gestionar o consultar una reserva' })).toBeTruthy();
     expect(screen.queryByText(/pausad|vuelve a consultar|más adelante/i)).toBeNull();
     const collage = document.querySelector('.collage');
-    expect(aviso.closest('section')?.compareDocumentPosition(collage!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(aviso.compareDocumentPosition(collage!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(screen.queryByRole('heading', { name: 'Reservar es así de simple' })).toBeNull();
     expect(screen.queryByLabelText('Llegada')).toBeNull();
     expect(screen.queryByLabelText('Salida')).toBeNull();
@@ -606,8 +646,9 @@ describe('reserva en línea no disponible', () => {
         <PaginaInicio />
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Reserva en línea no disponible' });
+    await screen.findByText('La reserva en línea no está disponible en este momento.');
     expect(screen.queryByText(/hola@hotel\.test/)).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Contacto del hotel' })).toBeNull();
   });
 
   it('informa si no carga el contacto y permite recuperarlo al reintentar', async () => {
@@ -684,6 +725,7 @@ describe('búsqueda usable con teclado y lector de pantalla', () => {
   it('enfoca también el aviso cuando no hay habitaciones disponibles', async () => {
     estado.sinResultados = true;
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+    await screen.findByLabelText('Llegada');
     fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
     fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar disponibilidad' }));
@@ -694,6 +736,7 @@ describe('búsqueda usable con teclado y lector de pantalla', () => {
 
   it('no consulta fechas inválidas y enfoca la salida que debe corregirse', async () => {
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+    await screen.findByLabelText('Llegada');
     fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-12' } });
     const salida = screen.getByLabelText('Salida') as HTMLInputElement;
     fireEvent.change(salida, { target: { value: '2030-06-12' } });
@@ -724,6 +767,7 @@ describe('búsqueda usable con teclado y lector de pantalla', () => {
 
   it('rechaza más de 20 huéspedes con error junto al campo y sin consultar', async () => {
     render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+    await screen.findByLabelText('Llegada');
     fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
     fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
     const huespedes = screen.getByLabelText('Huéspedes') as HTMLInputElement;
@@ -774,6 +818,7 @@ describe('detalle de la oferta', () => {
         <PaginaInicio />
       </MemoryRouter>,
     );
+    await screen.findByLabelText('Llegada');
     fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
     fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar disponibilidad' }));
@@ -788,7 +833,8 @@ describe('detalle de la oferta', () => {
   // quiere esas fechas se queda sin nada que hacer salvo irse. La web ya conoce el contacto
   // del hotel (lo lee para el pie); ofrecerlo aquí es la diferencia entre insistir y escribir.
   describe('el estado vacío ofrece una salida real', () => {
-    const buscar = () => {
+    const buscar = async () => {
+      await screen.findByLabelText('Llegada');
       fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
       fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
       fireEvent.click(screen.getByRole('button', { name: 'Buscar disponibilidad' }));
@@ -797,7 +843,7 @@ describe('detalle de la oferta', () => {
     it('ofrece escribir o llamar al hotel cuando hay contacto', async () => {
       estado.sinResultados = true;
       render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
-      buscar();
+      await buscar();
 
       const vacio = await screen.findByText('No hay habitaciones disponibles para esas fechas');
       await waitFor(() => expect(document.querySelector('.resultados-busqueda__salida')).toBeTruthy());
@@ -816,7 +862,7 @@ describe('detalle de la oferta', () => {
       estado.sinResultados = true;
       estado.hotel = { nombre: 'Hotel Eridu', contacto_telefono: '+57 300 1234567' };
       render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
-      buscar();
+      await buscar();
 
       await waitFor(() => expect(document.querySelector('.resultados-busqueda__salida')).toBeTruthy());
       const salida = document.querySelector('.resultados-busqueda__salida') as HTMLElement;
@@ -829,7 +875,7 @@ describe('detalle de la oferta', () => {
       estado.sinResultados = true;
       estado.fallosHotel = 1;
       render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
-      buscar();
+      await buscar();
 
       await screen.findByText('No hay habitaciones disponibles para esas fechas');
       const aviso = await screen.findByRole('alert');
@@ -845,7 +891,7 @@ describe('detalle de la oferta', () => {
       estado.sinResultados = true;
       estado.hotel = { nombre: 'Hotel Eridu' };
       render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
-      buscar();
+      await buscar();
 
       const vacio = await screen.findByText('No hay habitaciones disponibles para esas fechas');
       expect(document.querySelector('.resultados-busqueda__salida')).toBeNull();
@@ -858,7 +904,7 @@ describe('detalle de la oferta', () => {
     it('la salida se imprime: es lo que el huésped se lleva al irse sin reservar', async () => {
       estado.sinResultados = true;
       render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
-      buscar();
+      await buscar();
 
       await waitFor(() => expect(document.querySelector('.resultados-busqueda__salida')).toBeTruthy());
       const salida = document.querySelector('.resultados-busqueda__salida') as HTMLElement;

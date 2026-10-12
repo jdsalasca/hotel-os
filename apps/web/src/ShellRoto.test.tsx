@@ -69,6 +69,6 @@ describe('el shell sobrevive a un fallo propio', () => {
     );
 
     expect(await screen.findByText('¿Cuándo quieres venir?')).toBeTruthy();
-    expect(screen.getByRole('link', { name: /reservar/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Inicio' })).toBeTruthy();
   });
 });

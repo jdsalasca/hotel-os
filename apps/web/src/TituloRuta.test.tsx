@@ -6,9 +6,9 @@ import { tituloDeRuta } from './tituloRuta';
 
 /**
  * El documento HTML traia un titulo fijo, asi que en la pestaña del navegador todas las
- * paginas de la SPA se llamaban igual. Quien abre /mis-reservas en una pestana nueva, o
- * guarda la pagina, se queda con "Hotel Eridu - Reserva directa" sin saber donde esta.
- * Ademas la ruta inexistente respondia 200 con el mismo titulo.
+ * páginas de la SPA se llamaban igual. Quien abre /mis-reservas en una pestaña nueva, o
+ * guarda la página, se queda con el nombre de la portada sin saber dónde está. Además,
+ * llamar «Reserva directa» a la portada afirmaba venta antes de consultar su estado.
  */
 describe('titulo por ruta', () => {
   afterEach(() => {
@@ -30,7 +30,7 @@ describe('titulo por ruta', () => {
     }) as unknown as typeof fetch;
   }
 
-  it('la portada conserva el titulo del hotel', async () => {
+  it('la portada se identifica como Inicio sin afirmar que vende reservas', async () => {
     stubDeHuesped();
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -38,8 +38,7 @@ describe('titulo por ruta', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() =>
-      expect(document.title).toContain('Hotel Eridu'));
+    await waitFor(() => expect(document.title).toBe('Hotel Eridu · Inicio'));
   });
 
   it('mis reservas se anuncia como tal y no como la portada', async () => {
@@ -51,7 +50,7 @@ describe('titulo por ruta', () => {
     );
 
     await waitFor(() => expect(document.title).toContain('Mis reservas'));
-    expect(document.title).not.toBe('Hotel Eridu · Reserva directa');
+    expect(document.title).not.toBe('Hotel Eridu · Inicio');
   });
 
   it('una ruta que no existe no se presenta como si fuera la portada', async () => {
@@ -78,7 +77,7 @@ describe('titulo por ruta', () => {
   });
 
   it('la portada conserva su titulo propio y las hojas no existen', () => {
-    expect(tituloDeRuta('/')).toBe('Hotel Eridu · Reserva directa');
+    expect(tituloDeRuta('/')).toBe('Hotel Eridu · Inicio');
     expect(tituloDeRuta('/admin/promociones')).toBe('Hotel Eridu · Página no encontrada');
   });
 

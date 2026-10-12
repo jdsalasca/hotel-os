@@ -200,7 +200,7 @@ export function App() {
             {enPanel ? (
               sesionPanel.haySesion === true ? (
                 <>
-                  <NavLink to="/" end>Reservar</NavLink>
+                  <NavLink to="/" end>Inicio</NavLink>
                   <Link
                     to="/mis-reservas"
                     aria-current={ruta === '/consulta' || ruta === '/mis-reservas' ? 'page' : undefined}
@@ -220,13 +220,13 @@ export function App() {
                 </>
               ) : (
                 <>
-                  <NavLink to="/" end>Reservar</NavLink>
+                  <NavLink to="/" end>Inicio</NavLink>
                   <NavLink to="/admin/entrar">Iniciar sesión</NavLink>
                 </>
               )
             ) : (
               <>
-                <NavLink to="/" end>Reservar</NavLink>
+                <NavLink to="/" end>Inicio</NavLink>
                 <Link
                   to="/mis-reservas"
                   aria-current={ruta === '/consulta' || ruta === '/mis-reservas' ? 'page' : undefined}

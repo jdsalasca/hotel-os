@@ -10,6 +10,34 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
+  it('mantiene el acceso a la portada como Inicio aunque no se vendan reservas', async () => {
+    window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const ruta = String(url);
+      if (ruta.endsWith('/api/hotel/venta')) {
+        return new Response('{"a_la_venta":false}', { status: 200 });
+      }
+      if (ruta.endsWith('/api/admin/sesion') || ruta.endsWith('/api/yo')) {
+        return new Response('{}', { status: 401 });
+      }
+      if (ruta.endsWith('/api/hotel')) return new Response('{}', { status: 200 });
+      if (ruta.endsWith('/api/lugares')) {
+        return new Response('{"hotel":{"ubicado":false},"lugares":[]}', { status: 200 });
+      }
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findByText('La reserva en línea no está disponible en este momento.');
+
+    const nav = container.querySelector('header nav[aria-label="Navegación principal"]');
+    expect(nav?.querySelector('a[href="/"]')?.textContent).toBe('Inicio');
+  });
+
   it('al navegar se vuelve arriba, no a mitad de página', async () => {
     const subir = vi.fn();
     window.scrollTo = subir as unknown as typeof window.scrollTo;
@@ -169,7 +197,7 @@ describe('App', () => {
     });
     expect(nav?.querySelector('a[href="/admin/reservas"]')).toBeNull();
     expect(nav?.querySelector('a[href="/admin/inventario"]')).toBeNull();
-    expect(nav?.querySelector('a[href="/"]')?.textContent).toContain('Reservar');
+    expect(nav?.querySelector('a[href="/"]')?.textContent).toBe('Inicio');
   });
 
   it('con sesión restaura la navegación completa del panel', async () => {
@@ -194,7 +222,7 @@ describe('App', () => {
     expect(nav?.querySelector('a[href="/admin/entrar"]')).toBeNull();
     // El dueño también es visitante: sin salida al sitio público no puede reservar ni
     // consultar sus reservas desde el panel.
-    expect(nav?.querySelector('a[href="/"]')?.textContent).toContain('Reservar');
+    expect(nav?.querySelector('a[href="/"]')?.textContent).toBe('Inicio');
     expect(nav?.querySelector('a[href="/mis-reservas"]')).not.toBeNull();
   });
 
