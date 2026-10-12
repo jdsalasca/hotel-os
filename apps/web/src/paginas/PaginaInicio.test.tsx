@@ -19,6 +19,8 @@ const estado = vi.hoisted(() => ({
   sinResultados: false,
   sinVenta: false,
   fallaVenta: false,
+  fallosHotel: 0,
+  llamadasHotel: 0,
   fallaLugares: false,
   llamadasLugares: 0,
   llamadasCalendario: [] as string[],
@@ -98,6 +100,11 @@ vi.mock('../api/cliente', () => {
       return { a_la_venta: !estado.sinVenta };
     }
     if (url === '/api/hotel') {
+      estado.llamadasHotel += 1;
+      if (estado.fallosHotel > 0) {
+        estado.fallosHotel -= 1;
+        throw new Error('hotel temporalmente no disponible');
+      }
       return estado.hotel ?? {
         nombre: 'Hotel Eridu',
         contacto_email: 'hola@hotel.test',
@@ -125,6 +132,8 @@ afterEach(() => {
   estado.sinResultados = false;
   estado.sinVenta = false;
   estado.fallaVenta = false;
+  estado.fallosHotel = 0;
+  estado.llamadasHotel = 0;
   estado.fallaLugares = false;
   estado.llamadasLugares = 0;
   estado.llamadasCalendario.length = 0;
@@ -601,6 +610,20 @@ describe('reserva en línea no disponible', () => {
     expect(screen.queryByText(/hola@hotel\.test/)).toBeNull();
   });
 
+  it('informa si no carga el contacto y permite recuperarlo al reintentar', async () => {
+    estado.sinVenta = true;
+    estado.fallosHotel = 1;
+    render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+
+    const aviso = await screen.findByRole('alert');
+    expect(aviso.textContent).toContain('No pudimos cargar los canales de contacto');
+    fireEvent.click(within(aviso).getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByRole('link', { name: 'hola@hotel.test' })).toBeTruthy();
+    expect(estado.llamadasHotel).toBe(2);
+    expect(screen.queryByText('No pudimos cargar los canales de contacto')).toBeNull();
+  });
+
   it('la portada deja una sola acción visible para gestionar reservas existentes', async () => {
     estado.sinVenta = true;
     render(
@@ -800,6 +823,22 @@ describe('detalle de la oferta', () => {
       expect(salida.textContent).toContain('llámanos al');
       expect(salida.textContent).not.toContain('Escríbenos a');
       expect(salida.querySelector('a[href^="mailto:"]')).toBeNull();
+    });
+
+    it('permite reintentar el contacto cuando no hay disponibilidad', async () => {
+      estado.sinResultados = true;
+      estado.fallosHotel = 1;
+      render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+      buscar();
+
+      await screen.findByText('No hay habitaciones disponibles para esas fechas');
+      const aviso = await screen.findByRole('alert');
+      expect(aviso.textContent).toContain('No pudimos cargar los canales de contacto');
+      fireEvent.click(within(aviso).getByRole('button', { name: 'Reintentar' }));
+
+      const salida = await screen.findByRole('link', { name: 'hola@hotel.test' });
+      expect(salida.getAttribute('href')).toBe('mailto:hola@hotel.test');
+      expect(estado.llamadasHotel).toBe(2);
     });
 
     it('sin contacto no inventa uno: solo recuerda que una reserva ya hecha se gestiona igual', async () => {

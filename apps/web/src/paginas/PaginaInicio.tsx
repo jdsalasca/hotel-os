@@ -199,6 +199,9 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
 
   /** Contacto público para el estado vacío: sin habitaciones, que al menos escriban. */
   const [contacto, setContacto] = useState<{ email: string; telefono: string } | null>(null);
+  const [contactoError, setContactoError] = useState(false);
+  const [contactoCargando, setContactoCargando] = useState(true);
+  const [intentoContacto, setIntentoContacto] = useState(0);
   /**
    * Dirección pública. Es administrable desde el panel y antes no salía en ningún sitio de
    * la web: el huésped veía un pin en el mapa y ninguna dirección escrita. Para un hotel
@@ -208,16 +211,47 @@ export function PaginaInicio({ nombreHotel = 'Hotel Eridu' }: { nombreHotel?: st
   const [direccion, setDireccion] = useState('');
 
   useEffect(() => {
+    let vigente = true;
+    setContactoCargando(true);
     void api
       .get<Record<string, string>>('/api/hotel')
       .then((h) => {
+        if (!vigente) return;
         const email = (h.contacto_email ?? '').trim();
         const telefono = (h.contacto_telefono ?? '').trim();
         setContacto(email || telefono ? { email, telefono } : null);
         setDireccion((h.direccion ?? '').trim());
+        setContactoError(false);
       })
-      .catch(() => setContacto(null));
-  }, []);
+      .catch(() => {
+        if (!vigente) return;
+        setContacto(null);
+        setContactoError(true);
+      })
+      .finally(() => {
+        if (vigente) setContactoCargando(false);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [intentoContacto]);
+
+  const avisoErrorContacto = contactoError ? (
+    <Aviso tono="error" titulo="No pudimos cargar los canales de contacto">
+      <p>Comprueba tu conexión y vuelve a intentarlo.</p>
+      <button
+        type="button"
+        className="boton boton--primario"
+        disabled={contactoCargando}
+        onClick={() => {
+          setContactoCargando(true);
+          setIntentoContacto((anterior) => anterior + 1);
+        }}
+      >
+        {contactoCargando ? 'Reintentando…' : 'Reintentar'}
+      </button>
+    </Aviso>
+  ) : null;
 
   // El calendario es una sola petición por mes: si el huésped cambia de mes o de huéspedes antes
   // de que vuelva, la respuesta vieja se ignora en vez de pintar otro mes.
@@ -579,6 +613,7 @@ function marcadoresDelMapa(
                   .
                 </p>
               ) : null}
+              {avisoErrorContacto}
               <p>Si ya tienes una reserva, puedes entrar con Google o consultarla con su código y correo.</p>
             </Aviso>
           </section>
@@ -772,6 +807,7 @@ function marcadoresDelMapa(
                     ) : null}. Quizá podamos ofrecerte algo fuera de la web.
                   </p>
                 ) : null}
+                {avisoErrorContacto}
               </div>
             ) : null}
             {buscado && !cargando && ofertas && ofertas.length > 0 ? (
