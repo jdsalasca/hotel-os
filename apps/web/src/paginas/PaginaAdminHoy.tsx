@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/cliente';
 import { hoyIso, monto } from '../api/formato';
+import { useActualizacionPeriodicaVisible } from '../api/useActualizacionPeriodicaVisible';
 import { useSesion } from '../api/useSesion';
-import { Cargando, Etiqueta, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
+import { Aviso, Cargando, Etiqueta, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 
 type Movimiento = {
   codigo: string;
@@ -47,31 +48,55 @@ export function PaginaAdminHoy() {
   const [fecha, setFecha] = useState(hoyIso());
   const [parte, setParte] = useState<ParteDia | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [falloActualizacion, setFalloActualizacion] = useState(false);
   const [cargando, setCargando] = useState(true);
+  const peticionActual = useRef(0);
+  const sondeoActual = useRef<number | null>(null);
+
+  async function leer(enSegundoPlano: boolean) {
+    if (!fecha || (enSegundoPlano && (sondeoActual.current !== null || cargando))) return;
+    const id = ++peticionActual.current;
+    const fechaConsultada = fecha;
+    if (enSegundoPlano) {
+      sondeoActual.current = id;
+    } else {
+      setCargando(true);
+      setError(null);
+      setFalloActualizacion(false);
+    }
+    try {
+      const respuesta = await api.get<ParteDia>(`/api/admin/ocupacion/dia?fecha=${fechaConsultada}`);
+      if (peticionActual.current === id) {
+        setParte(respuesta);
+        setFalloActualizacion(false);
+      }
+    } catch (e) {
+      if (enSegundoPlano && peticionActual.current === id) {
+        setFalloActualizacion(true);
+      }
+      // Un fallo de fondo no borra la información que recepción ya está consultando.
+      if (!enSegundoPlano && peticionActual.current === id) {
+        setParte(null);
+        setError(e instanceof Error ? e.message : 'No se pudo cargar el parte');
+      }
+    } finally {
+      if (sondeoActual.current === id) sondeoActual.current = null;
+      if (!enSegundoPlano && peticionActual.current === id) setCargando(false);
+    }
+  }
 
   useEffect(() => {
-    if (!fecha) return;
-    let vigente = true;
-    setCargando(true);
-    setError(null);
-    api
-      .get<ParteDia>(`/api/admin/ocupacion/dia?fecha=${fecha}`)
-      .then((r) => {
-        if (vigente) setParte(r);
-      })
-      .catch((e: Error) => {
-        if (vigente) {
-          setParte(null);
-          setError(e.message);
-        }
-      })
-      .finally(() => {
-        if (vigente) setCargando(false);
-      });
+    void leer(false);
     return () => {
-      vigente = false;
+      // Una respuesta de la fecha anterior no puede pisar el parte seleccionado ahora.
+      peticionActual.current += 1;
+      sondeoActual.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fecha]);
+
+  // El parte permanece abierto durante el turno; se refresca cada 30 s y se pausa con la pestaña oculta.
+  useActualizacionPeriodicaVisible(() => leer(true));
 
   if (sesion.haySesion === false) {
     return (
@@ -105,6 +130,11 @@ export function PaginaAdminHoy() {
         </div>
 
         {error ? <MensajeError texto={error} /> : null}
+        {falloActualizacion ? (
+          <Aviso tono="aviso" titulo="No pudimos actualizar el parte">
+            Los datos pueden estar desactualizados.
+          </Aviso>
+        ) : null}
         {cargando ? <Cargando texto="Cargando el parte" /> : null}
 
         {!cargando && !error && parte ? (
