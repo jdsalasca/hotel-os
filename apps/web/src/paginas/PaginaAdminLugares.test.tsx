@@ -138,6 +138,24 @@ describe('edición de lugares del mapa', () => {
     }]);
   });
 
+  it('el lugar se ubica en el mapa, sin salir a copiar coordenadas', async () => {
+    // El panel pedía teclear 5.635 y -73.525, o ir a Google Maps a copiarlas. El selector de
+    // mapa ya existe para el hotel: aquí se ofrece el mismo.
+    await montar();
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Plaza Mayor' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /ubicar en el mapa/i }));
+
+    // El mapa se abre con el punto que ya haya tecleado, o el centro del hotel.
+    expect(await screen.findByTitle(/elegir el punto/i)).toBeTruthy();
+    const antes = (screen.getByLabelText('Latitud') as HTMLInputElement).value;
+
+    // Moverse con los botones mueve el punto que se va a guardar.
+    fireEvent.click(screen.getByRole('button', { name: 'Norte' }));
+    const despues = (screen.getByLabelText('Latitud') as HTMLInputElement).value;
+    expect(Number(despues)).not.toBe(Number(antes));
+  });
+
   it('avisa que el mapa no saldrá si el hotel no tiene su punto en el GPS', async () => {
     // Situación real en producción: el hotel no está ubicado, pero el hotelero ya creó
     // lugares. Sin este aviso guarda todo y la web sigue sin mostrar nada, sin explicación.

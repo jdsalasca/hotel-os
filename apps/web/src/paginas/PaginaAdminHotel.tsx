@@ -4,6 +4,7 @@ import { api } from '../api/cliente';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, MensajeError, PuertaAdmin } from '../componentes/Estado';
 import { MONEDAS } from '../dominio/monedas';
+import { SelectorDePunto } from '../componentes/SelectorDePunto';
 
 type ConfigHotel = Record<string, string>;
 
@@ -79,91 +80,6 @@ const VACIO: ConfigHotel = Object.fromEntries(CAMPOS.map((campo) => [campo.clave
 
 /** Centro de la vista cuando el hotel aún no está ubicado: Boyacá, donde está el hotel. */
 const CENTRO_SIN_UBICAR = { latitud: 5.65, longitud: -73.52 };
-
-/**
- * Elegir el punto del hotel sobre el mapa en vez de teclear `5.635, -73.525`.
- *
- * El punto marcado ES la fuente de verdad: los botones lo mueven y el visor se recentra en él
- * en cada pulsación, así que lo que se guarda nunca se desincroniza de lo que se ve. El visor
- * trae sus propios controles de zoom y arrastre, pero si el hotelero los usa la vista se
- * desvía; la siguiente pulsación de un botón la vuelve a recentrar en el punto real.
- */
-function SelectorDePunto({
-  punto,
-  onElegir,
-}: {
-  punto: { latitud: number; longitud: number };
-  onElegir: (lat: number, lng: number) => void;
-}) {
-  const [paso, setPaso] = useState(0.02);
-  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${
-    punto.longitud - paso
-  }%2C${punto.latitud - paso * 0.66}%2C${punto.longitud + paso}%2C${
-    punto.latitud + paso * 0.66
-  }&layer=mapnik&marker=${encodeURIComponent(`${punto.latitud},${punto.longitud}`)}`;
-
-  return (
-    <div className="tarjeta pila">
-      <h2 className="t-base mb-0">Ubicación del hotel</h2>
-      <p className="campo__ayuda sin-margen">
-        El punto verde es lo que se guarda. Muévelo con los botones hasta reconocer la entrada
-        del hotel y pulsa <strong>Usar este punto</strong>.
-      </p>
-      <div className="pila gap-e1">
-        <iframe
-          className="mapa__marco"
-          title="Mapa para elegir el punto del hotel"
-          loading="lazy"
-          src={src}
-        />
-        <div className="acciones-lugar">
-          <button
-            className="boton boton--fantasma boton--chico"
-            type="button"
-            onClick={() => onElegir(Number((punto.latitud - paso / 4).toFixed(5)), punto.longitud)}
-          >
-            Sur
-          </button>
-          <button
-            className="boton boton--fantasma boton--chico"
-            type="button"
-            onClick={() => onElegir(Number((punto.latitud + paso / 4).toFixed(5)), punto.longitud)}
-          >
-            Norte
-          </button>
-          <button
-            className="boton boton--fantasma boton--chico"
-            type="button"
-            onClick={() => onElegir(punto.latitud, Number((punto.longitud - paso / 4).toFixed(5)))}
-          >
-            Oeste
-          </button>
-          <button
-            className="boton boton--fantasma boton--chico"
-            type="button"
-            onClick={() => onElegir(punto.latitud, Number((punto.longitud + paso / 4).toFixed(5)))}
-          >
-            Este
-          </button>
-          <button
-            className="boton boton--fantasma boton--chico"
-            type="button"
-            onClick={() => setPaso((p) => Number((p / 2).toFixed(5)))}
-          >
-            Acercar
-          </button>
-          <button
-            className="boton boton--secundario boton--chico"
-            type="button"
-            onClick={() => onElegir(punto.latitud, punto.longitud)}
-          >
-            Usar este punto
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /** Identidad operativa del hotel: lo que la web pública puede mostrar y nada más. */
 export function PaginaAdminHotel() {
@@ -310,6 +226,8 @@ export function PaginaAdminHotel() {
           </div>
           {eligiendoPunto ? (
             <SelectorDePunto
+              titulo="Ubicación del hotel"
+              ayuda="El punto verde es lo que se guarda. Muévelo con los botones hasta reconocer la entrada del hotel y pulsa Usar este punto."
               punto={{
                 latitud: Number(valores.latitud) || CENTRO_SIN_UBICAR.latitud,
                 longitud: Number(valores.longitud) || CENTRO_SIN_UBICAR.longitud,

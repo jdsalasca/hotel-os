@@ -4,6 +4,7 @@ import { api } from '../api/cliente';
 import { CATEGORIAS_LUGAR, etiquetaCategoriaLugar, type CategoriaLugar } from '../api/lugares';
 import { useSesion } from '../api/useSesion';
 import { Aviso, Cargando, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
+import { SelectorDePunto } from '../componentes/SelectorDePunto';
 
 type Lugar = {
   id: number;
@@ -46,6 +47,9 @@ export function PaginaAdminLugares() {
   const nombreRef = useRef<HTMLInputElement>(null);
   /** El hotel sin GPS no publica el mapa: la pantalla lo dice en vez de quedarse callada. */
   const [sinPunto, setSinPunto] = useState<boolean | null>(null);
+  /** Centro con el que se abre el mapa: el hotel, para partir de donde está el pueblo. */
+  const [centro, setCentro] = useState({ latitud: 5.65, longitud: -73.52 });
+  const [eligiendoPunto, setEligiendoPunto] = useState(false);
 
   async function cargar() {
     try {
@@ -66,6 +70,8 @@ export function PaginaAdminLugares() {
       const latOk = (c.latitud ?? '').trim().length > 0 && Number.isFinite(lat);
       const lngOk = (c.longitud ?? '').trim().length > 0 && Number.isFinite(lng);
       setSinPunto(!latOk || !lngOk);
+      // El mapa arranca donde está el hotel: es el sitio que quien ubica está viendo.
+      if (latOk && lngOk) setCentro({ latitud: lat, longitud: lng });
     } catch {
       setSinPunto(null);
     }
@@ -247,8 +253,32 @@ export function PaginaAdminLugares() {
             </div>
           </div>
           <p className="campo__ayuda sin-margen">
-            El punto exacto sale de Google Maps: clic derecho → las coordenadas se copian.
+            Puedes teclearlas, o ubicar el sitio en el mapa de abajo.
           </p>
+          <div className="acciones-lugar">
+            {/* Sin salir a copiar coordenadas: el mapa se abre aquí y se mueve con botones. */}
+            <button
+              className="boton boton--secundario boton--chico"
+              type="button"
+              disabled={editando === null && lugares === null}
+              onClick={() => setEligiendoPunto((v) => !v)}
+            >
+              {eligiendoPunto ? 'Cerrar el mapa' : 'Ubicar en el mapa'}
+            </button>
+          </div>
+          {eligiendoPunto ? (
+            <SelectorDePunto
+              titulo="Ubicación del lugar"
+              ayuda="El punto verde es lo que se guarda. Muévelo con los botones hasta reconocer el sitio y pulsa Usar este punto."
+              punto={{
+                latitud: Number(nuevo.latitud) || centro.latitud,
+                longitud: Number(nuevo.longitud) || centro.longitud,
+              }}
+              onElegir={(lat, lng) =>
+                setNuevo((actual) => ({ ...actual, latitud: String(lat), longitud: String(lng) }))
+              }
+            />
+          ) : null}
           <div className="acciones-lugar">
             <button className="boton boton--primario" type="submit" disabled={enviando}>
               {enviando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Agregar lugar'}
