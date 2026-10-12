@@ -14,8 +14,11 @@ casos. También se retiró la envoltura redundante de «Mis reservas».
   símbolo ambiguo (`$ 200`); después, ambas pasaron.
 - Suite frontend completa: **32 archivos, 253/253 pruebas aprobadas**.
 - `npx tsc --noEmit -p tsconfig.tests.json`: aprobado.
-- `npm run build`: aprobado; `tsc --noEmit` y Vite transformaron **76 módulos**. El build
-  tardó 3 min 51 s en este entorno.
+- `npm run build` antes de integrar: aprobado; `tsc --noEmit` y Vite transformaron **76
+  módulos** en 3 min 51 s.
+- Después del merge en `develop`: suite frontend **253/253**, chequeo de tipos de pruebas y
+  `npm run build` aprobados. El build transformó los mismos **76 módulos** y tardó 4 min 46 s;
+  el bundle principal quedó en 406,91 kB (116,48 kB gzip).
 - La salida de pruebas conserva avisos ya presentes: clave repetida `/admin/hotel` en una
   prueba del panel, `window.scrollTo()` no implementado por jsdom y el error deliberado
   `pum` del test del muro de errores. No impidieron las 253 aprobaciones.
