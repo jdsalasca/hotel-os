@@ -30,7 +30,7 @@ de la velocidad de la máquina.
 | Comprobación | Resultado |
 |---|---:|
 | `vitest run src/paginas/PaginaMisReservas.test.tsx` | **22/22** |
-| `vitest run --no-file-parallelism` | **240/240** en 32 archivos |
+| `vitest run --no-file-parallelism` | **251/251** en 32 archivos |
 | `npm run typecheck` | aprobado |
 | `npm run test:typecheck` | aprobado |
 | `npm run build` | aprobado; Vite transformó 76 módulos |
