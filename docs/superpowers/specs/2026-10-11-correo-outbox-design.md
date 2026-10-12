@@ -2,7 +2,7 @@
 
 - **Fecha inicial:** 2026-10-11
 - **Última revisión:** 2026-10-12 (recuperación, límites de reintento y validación del mensaje)
-- **Estado:** dirección general aprobada; esta especificación está **pendiente de revisión del usuario**. No implementar ni redactar el plan de implementación hasta que se apruebe este documento.
+- **Estado:** especificación aprobada por el usuario el 2026-10-12; el plan detallado de implementación queda pendiente de revisión. No implementar hasta que se apruebe también ese plan.
 - **Producto:** HOTEL-OS, reservas directas y panel administrativo.
 
 ## 1. Resultado buscado
@@ -11,17 +11,17 @@ Que cada reserva nueva conserve de forma durable la intención de enviar su avis
 
 La respuesta HTTP de reserva no espera a Gmail. El trabajador puede comenzar después del commit y antes de que la conexión HTTP haya terminado de responder: la garantía es que el envío ocurre fuera de la transacción y del camino síncrono, no que ocurra después de observar la respuesta en el navegador.
 
-## 2. Qué aprobó el usuario y qué sigue propuesto
+## 2. Qué aprobó el usuario y siguiente puerta
 
-La aprobación recibida cubre solo esta dirección:
+La dirección general y esta especificación detallada fueron aprobadas por el usuario el 2026-10-12:
 
 1. Crear la tarea de correo en SQLite junto con la reserva.
 2. Enviar en segundo plano con reintentos automáticos acotados.
 3. Hacer visible el estado solo para administración.
 
-Las decisiones de detalle de este documento son propuestas para revisión, no aprobaciones previas. En particular, siguen abiertas la interfaz de solo lectura, el tratamiento de datos del mensaje, los límites de espera, la recuperación tras restaurar un respaldo y la resolución operativa de un resultado incierto.
+Las decisiones de detalle de este documento quedan aprobadas como el alcance de R213. El paso pendiente es revisar y aprobar el plan detallado antes de escribir código.
 
-**No empezar cambios de código** hasta que el usuario apruebe esta especificación y luego revise el plan detallado por separado.
+**No empezar cambios de código** hasta que el usuario revise y apruebe el plan detallado por separado.
 
 ## 3. Evidencia del estado actual
 
@@ -213,15 +213,15 @@ El remitente pasa la misma validación de buzón simple; nombre visible del remi
 - Suite API, suite web, typechecks y builds pasan; la migración y restauración se verifican sobre SQLite temporal.
 - Gmail real no forma parte de la suite ni se declara verificado.
 
-## 13. Decisiones que el usuario debe revisar
+## 13. Decisiones aprobadas y puerta de ejecución
 
 La especificación recomienda este alcance: la consulta en administración es de solo lectura y no ofrece reenvío; cada reserva genera una sola tarea outbox transaccional; se usa una instancia, se procesa como máximo una tarea por sondeo de cinco segundos y cada tarea admite hasta cinco intentos con esperas base de 1, 5, 15 y 60 minutos; `Retry-After` válido de hasta 24 horas se respeta y uno mayor termina en `AGOTADO`; timeout de 20 segundos por petición, deadline de intento de 50 segundos y lease de 120 segundos; no se duplican datos personales en outbox; un POST Gmail de resultado incierto nunca se repite automáticamente.
 
-Las decisiones operativas propuestas son también explícitas: una reserva ausente queda `AGOTADO/RESERVA_NO_DISPONIBLE`; una dirección inválida queda `AGOTADO/DESTINATARIO_INVALIDO`; filas bloqueadas por configuración se reactivan una vez en cada reinicio solo si conservan intentos disponibles, sin reiniciar el contador (incluso un reinicio sin cambios puede provocar un intento); si el máximo ya se alcanzó, quedan `AGOTADO` con contador 5/5, preservan la clasificación segura del último resultado y no generan petición. La restauración exige `HOTEL_MODO_MANTENIMIENTO=true` y `CORREO_OUTBOX_ACTIVO=false`, detiene la instancia anterior, bloquea mutaciones hasta completar y verificar la cuarentena transaccional, y solo después reinicia en operación normal. La validación de direcciones usa el buzón ASCII simple descrito en la sección 11, sin nombres visibles, comentarios, listas ni dominios literales.
+Las decisiones operativas que forman el alcance aprobado son explícitas: una reserva ausente queda `AGOTADO/RESERVA_NO_DISPONIBLE`; una dirección inválida queda `AGOTADO/DESTINATARIO_INVALIDO`; filas bloqueadas por configuración se reactivan una vez en cada reinicio solo si conservan intentos disponibles, sin reiniciar el contador (incluso un reinicio sin cambios puede provocar un intento); si el máximo ya se alcanzó, quedan `AGOTADO` con contador 5/5, preservan la clasificación segura del último resultado y no generan petición. La restauración exige `HOTEL_MODO_MANTENIMIENTO=true` y `CORREO_OUTBOX_ACTIVO=false`, detiene la instancia anterior, bloquea mutaciones hasta completar y verificar la cuarentena transaccional, y solo después reinicia en operación normal. La validación de direcciones usa el buzón ASCII simple descrito en la sección 11, sin nombres visibles, comentarios, listas ni dominios literales.
 
 La principal decisión de privacidad es reconstruir el mensaje desde la reserva vigente en vez de guardar una instantánea personal. Se usa el correo guardado al momento del despacho y un cuerpo genérico para no repetir fechas o estado desactualizado. Congelar destinatario y contenido daría fidelidad al momento de reserva, pero duplicaría datos personales y exigiría decidir retención y presencia en respaldos.
 
-**Decisión que el usuario debe confirmar:** ¿la primera versión deja `RESULTADO_INCIERTO` solo visible y requiere conciliación fuera del panel, o incluye una acción administrativa auditada para registrar la resolución? La propuesta base es mantenerlo visible y no reintentar; cualquier acción administrativa deberá impedir que “reintentar” se interprete como seguro mientras el resultado externo siga incierto. La aprobación de este documento no aprueba todavía un plan ni cambios de código; el plan de implementación se redactará para revisión por separado.
+**Decisión aprobada el 2026-10-12:** RESULTADO_INCIERTO queda visible en el panel de solo lectura y exige conciliación fuera de la aplicación; nunca se reintenta automáticamente. La aprobación no autoriza cambios de código; el plan de implementación se revisará por separado.
 
 ### Referencias primarias
 
