@@ -283,6 +283,30 @@ describe('errores al consultar una reserva', () => {
     expect(await screen.findByText(
       'No encontramos una reserva con ese código y ese correo.',
     )).toBeTruthy();
+    expect(screen.getByText(
+      'Revisa el código y el correo usados al reservar. Corrige los campos de arriba y vuelve a consultar.',
+    )).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Ver mis reservas de esta cuenta' })).toBeNull();
+    expect((screen.getByLabelText('Código de reserva') as HTMLInputElement).value).toBe('H-ABC123');
+    expect((screen.getByLabelText('Correo electrónico') as HTMLInputElement).value).toBe('yo@hotel.test');
+  });
+
+  it('ofrece ver las reservas de la cuenta cuando la consulta anónima no encuentra el código', async () => {
+    estado.errorEstado = 404;
+    estado.errorMensaje = 'reserva no encontrada';
+    sesion({ huesped: 'yo@hotel.test' });
+    await montar();
+
+    await waitFor(() => {
+      expect((screen.getByLabelText('Correo electrónico') as HTMLInputElement).value).toBe('yo@hotel.test');
+    });
+    fireEvent.change(screen.getByLabelText('Código de reserva'), {
+      target: { value: 'H-ABC123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar reserva' }));
+
+    await screen.findByText('No encontramos una reserva con ese código y ese correo.');
+    expect(screen.getByRole('link', { name: 'Ver mis reservas de esta cuenta' }).getAttribute('href')).toBe('/mis-reservas');
   });
 
   it('muestra el mensaje seguro de conexión para los errores de red', async () => {

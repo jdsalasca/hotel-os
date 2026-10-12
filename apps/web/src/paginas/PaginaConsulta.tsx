@@ -43,6 +43,7 @@ export function PaginaConsulta() {
   }, [correoSesion, email]);
   const [comprobante, setComprobante] = useState<Comprobante | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reservaNoEncontrada, setReservaNoEncontrada] = useState(false);
   const [errorEmail, setErrorEmail] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
@@ -52,6 +53,7 @@ export function PaginaConsulta() {
   async function consultar(evento: React.FormEvent) {
     evento.preventDefault();
     setError(null);
+    setReservaNoEncontrada(false);
     setComprobante(null);
     setConfirmando(false);
     setCancelada(false);
@@ -72,6 +74,7 @@ export function PaginaConsulta() {
       setComprobante(r);
     } catch (e) {
       if (e instanceof ErrorApi && e.estado === 404) {
+        setReservaNoEncontrada(true);
         setError('No encontramos una reserva con ese código y ese correo.');
       } else if (e instanceof ErrorApi && e.estado === 0) {
         setError(e.message);
@@ -92,6 +95,7 @@ export function PaginaConsulta() {
     }
     setCancelando(true);
     setError(null);
+    setReservaNoEncontrada(false);
     try {
       await api.post(`/api/reservas/${comprobante.reserva.codigo}/cancelar`, { email });
       setComprobante({ ...comprobante, reserva: { ...comprobante.reserva, estado: 'CANCELADA' } });
@@ -127,6 +131,7 @@ export function PaginaConsulta() {
                 required
                 placeholder="H-XXXXXXXX"
                 className="cifra"
+                aria-describedby={reservaNoEncontrada ? 'ayuda-reserva-no-encontrada' : undefined}
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
               />
@@ -140,11 +145,11 @@ export function PaginaConsulta() {
                 autoComplete="email"
                 aria-invalid={errorEmail ? 'true' : undefined}
                 aria-describedby={
-                  errorEmail
-                    ? 'email-consulta-error'
-                    : correoSesion && email === correoSesion
-                      ? 'correo-sesion-ayuda'
-                      : undefined
+                  [
+                    errorEmail ? 'email-consulta-error' : null,
+                    correoSesion && email === correoSesion ? 'correo-sesion-ayuda' : null,
+                    reservaNoEncontrada ? 'ayuda-reserva-no-encontrada' : null,
+                  ].filter(Boolean).join(' ') || undefined
                 }
                 value={email}
                 onChange={(e) => {
@@ -164,6 +169,18 @@ export function PaginaConsulta() {
               ) : null}
             </div>
             {error ? <Aviso tono="error">{error}</Aviso> : null}
+            {reservaNoEncontrada ? (
+              <div className="pila gap-e2">
+                <p id="ayuda-reserva-no-encontrada" className="campo__ayuda">
+                  Revisa el código y el correo usados al reservar. Corrige los campos de arriba y vuelve a consultar.
+                </p>
+                {huesped.haySesion === true ? (
+                  <Link className="boton boton--secundario boton--chico no-estirar" to="/mis-reservas">
+                    Ver mis reservas de esta cuenta
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
             <button className="boton boton--primario" type="submit" disabled={buscando || !codigo || !email}>
               {buscando ? 'Buscando…' : 'Consultar reserva'}
             </button>
