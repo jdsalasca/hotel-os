@@ -37,4 +37,4 @@ En ambas vistas fueron visibles el encabezado y Booking.com. La consola del nave
 
 ## Integración
 
-La corrección de R245 se aplicó mediante cherry-pick a una rama de trabajo propia basada en `develop`. Se retiró un import no utilizado detectado por `npm run test:typecheck`. Publicación normal en `origin/develop`, autoría GitHub y limpieza del worktree propio: pendientes de cierre de esta ronda.
+La corrección llegó a `develop` mediante cherry-pick y fast-forward desde una rama propia basada en `develop`. Se retiró un import no utilizado detectado por `npm run test:typecheck`. La suite web 269/269, los dos chequeos de tipos, el build de 77 módulos y `git diff --check` pasaron otra vez después de integrar. El push normal publicó la serie `3b13e60`, `23f31c8` y `017ee60` en `origin/develop`; GitHub confirmó `author.login=jdsalasca` y `committer.login=jdsalasca` para cada commit. Se archivó el worktree propio, se eliminó la rama y se ejecutó `git worktree prune`; se conservaron los worktrees de los otros agentes.
