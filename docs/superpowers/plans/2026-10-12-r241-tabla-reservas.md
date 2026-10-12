@@ -67,5 +67,5 @@
 - [x] Ejecutar `npm run test`, `npm run typecheck`, `npm run test:typecheck` y `npm run build` en `apps/web`.
 - [x] Comparar el tamaño de `PaginaAdminReservas.tsx` con la línea base de 756 líneas físicas (719 con contenido); registrar también el tamaño nuevo del componente y explicar el desplazamiento, sin presentar una reducción neta del repositorio como beneficio.
 - [x] Ejecutar la aplicación local con respuestas sintéticas y revisar/capturar escritorio 1440×1000 y móvil 390×844. Confirmar tabla legible, no desbordamiento horizontal y consola limpia.
-- [x] Completar `docs/evidence/round-241/verificacion.md` y actualizar `docs/plan.md` con la verificación real, dejando integración/publicación pendientes.
-- [ ] Revisar el diff, crear un commit pequeño, cherry-pick a `develop`, repetir verificación, push a `origin/develop`, comprobar que GitHub atribuye el commit a `jdsalasca` y limpiar únicamente el worktree/branch R241.
+- [x] Completar `docs/evidence/round-241/verificacion.md` y actualizar `docs/plan.md` con la verificación e integración/publicación ya comprobadas.
+- [x] Revisar el diff, crear un commit pequeño, cherry-pick a `develop`, repetir verificación, push a `origin/develop`, comprobar que GitHub atribuye el commit a `jdsalasca` y limpiar únicamente el worktree/branch R241.

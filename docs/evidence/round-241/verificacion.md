@@ -44,3 +44,11 @@ La aplicación del worktree se abrió localmente en Chrome con respuestas sinté
 ## Alcance de la verificación
 
 Se verificó la tabla integrada, su visualización en escritorio/móvil y sus pruebas de contrato. No se modificaron reglas de dominio, endpoints, base de datos ni estilos.
+
+## Integración y publicación
+
+- Commit de la rama de trabajo `9f51a7c` cherry-picked a `develop` como `f382f7924de748bd4d3d756d139b57d30f31074f`.
+- Después de integrar: suite frontend 258/258; `typecheck`, `test:typecheck` y build (77 módulos), todos con código de salida 0.
+- `origin/develop` y GitHub apuntan a `f382f7924de748bd4d3d756d139b57d30f31074f`.
+- GitHub reporta `author.login=jdsalasca`; autor y committer son `JUAN DAVID SALAS CAMARGO <31742974+jdsalasca@users.noreply.github.com>`.
+- Worktree `r241-lista-reservas` y rama `codex/r241-lista-reservas` retirados; `git worktree prune` ejecutado. Los otros worktrees se conservaron.
