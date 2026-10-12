@@ -1,4 +1,4 @@
-# Ronda 234 — El chat responde solo
+# Ronda 236 — El chat responde solo
 
 ## El problema
 
@@ -62,7 +62,7 @@ Test Files  32 passed (32)
 Type Errors  no errors
 ```
 
-### Navegador real (Chromium, stack `hotelr234`, 40 mensajes sintéticos)
+### Navegador real (Chromium, stack `hotelr236`, 40 mensajes sintéticos)
 
 El usuario abre la conversación y sube a releer algo antiguo:
 
