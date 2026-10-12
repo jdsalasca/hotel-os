@@ -49,6 +49,8 @@ export function PaginaMisReservas() {
   const sesion = useSesionHuesped();
   const [reservas, setReservas] = useState<Reserva[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Reintentando la carga de la lista; desactiva el botón para no lanzar dos peticiones. */
+  const [reintentando, setReintentando] = useState(false);
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState<string | null>(null);
   const [moviendo, setMoviendo] = useState<string | null>(null);
@@ -152,8 +154,7 @@ export function PaginaMisReservas() {
       });
       setMoviendo(null);
       setNuevas({ llegada: '', salida: '' });
-      const datos = await api.get<{ reservas: Reserva[] }>('/api/mis-reservas');
-      setReservas(datos.reservas);
+      await cargarReservas();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cambiar las fechas');
     } finally {
@@ -169,8 +170,7 @@ export function PaginaMisReservas() {
     try {
       await api.post(`/api/mis-reservas/${codigo}/huespedes`, { huespedes });
       setAbriendoGrupo(null);
-      const datos = await api.get<{ reservas: Reserva[] }>('/api/mis-reservas');
-      setReservas(datos.reservas);
+      await cargarReservas();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cambiar el número de huéspedes');
     } finally {
@@ -202,13 +202,30 @@ export function PaginaMisReservas() {
 
   useActualizacionPeriodicaVisible(actualizarMensajesNuevos, sesion.haySesion === true);
 
+  /**
+   * Carga las reservas de esta cuenta. Es la misma ruta que usa el efecto inicial y el que
+   * se refresca después de mover fechas o cambiar el grupo: extraerla permite reintentar sin
+   * recurrir a `location.reload()`, que perdería el chat abierto o el formulario a medias.
+   *
+   * El error solo se limpia cuando llegan datos. Limpiarlo al empezar hacía que el aviso y su
+   * botón desaparecieran durante el reintento, y si ese reintento fallaba el huésped se quedaba
+   * sin nada en pantalla durante un rato.
+   */
+  async function cargarReservas() {
+    try {
+      const datos = await api.get<{ reservas: Reserva[] }>('/api/mis-reservas');
+      setReservas(datos.reservas);
+      setError(null);
+    } finally {
+      // Actualiza los mensajes aunque falle la lista, igual que hacía el efecto antes del
+      // reintento. Una falla temporal de la lista no debe ocultar nuevas respuestas del hotel.
+      void actualizarMensajesNuevos();
+    }
+  }
+
   useEffect(() => {
     if (sesion.haySesion !== true) return;
-    api
-      .get<{ reservas: Reserva[] }>('/api/mis-reservas')
-      .then((datos) => setReservas(datos.reservas))
-      .catch((e: Error) => setError(e.message));
-    void actualizarMensajesNuevos();
+    cargarReservas().catch((e: Error) => setError(e.message));
   }, [sesion.haySesion]);
 
   if (sesion.haySesion === null) return <Cargando texto="Comprobando sesión" />;
@@ -282,7 +299,27 @@ export function PaginaMisReservas() {
           </button>
         </div>
 
-        {error ? <MensajeError texto={error} /> : null}
+        {error ? (
+          <div className="mis-reservas-error">
+            <MensajeError texto={error} />
+            {/* La carga se cae y la lista se queda sin datos: sin salida aquí, la única
+                forma de reintentar es recargar la página y perder el chat abierto o el
+                formulario a medias. Mismo patrón que R221 aplicó en el panel. */}
+            <button
+              className="boton boton--secundario boton--chico"
+              type="button"
+              disabled={reintentando}
+              onClick={() => {
+                setReintentando(true);
+                cargarReservas()
+                  .catch((e: Error) => setError(e.message))
+                  .finally(() => setReintentando(false));
+              }}
+            >
+              {reintentando ? 'Reintentando…' : 'Reintentar'}
+            </button>
+          </div>
+        ) : null}
         {reservas === null && !error ? <Cargando /> : null}
 
         {reservas && reservas.length === 0 ? (

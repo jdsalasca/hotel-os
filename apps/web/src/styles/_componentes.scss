@@ -256,6 +256,17 @@
   }
 }
 
+// --- Error de carga con salida ---
+// El aviso y su botón de reintento van juntos: separados, el botón parece flotar sin relación
+// con el error. En columna para que en móvil el objetivo táctil sea cómodo.
+.mis-reservas-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $e-3;
+  margin-block-end: $e-4;
+}
+
 // --- Estados vacío y carga ---
 .vacio {
   @include pila($e-2);

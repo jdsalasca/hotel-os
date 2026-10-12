@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { fechaCorta, hoyIso, monto as montoCompartido } from '../api/formato';
 import { PaginaMisReservas } from './PaginaMisReservas';
@@ -25,6 +25,9 @@ type Fila = {
 };
 
 const estado = vi.hoisted(() => ({
+  fallaCarga: false,
+  esperarCarga: false,
+  liberarCarga: null as null | (() => void),
   postes: [] as { url: string; cuerpo: unknown }[],
   fallaMover: false,
   fallaGrupo: false,
@@ -34,7 +37,19 @@ const estado = vi.hoisted(() => ({
 vi.mock('../api/cliente', () => ({
   api: {
     get: (url: string) => {
-      if (url === '/api/mis-reservas') return Promise.resolve({ reservas: estado.lista });
+      if (url === '/api/mis-reservas') {
+        // La primera carga puede fallar a proposito para probar el reintento.
+        if (estado.fallaCarga) {
+          estado.fallaCarga = false;
+          return Promise.reject(new Error('la consulta se cayó'));
+        }
+        if (estado.esperarCarga) {
+          return new Promise<{ reservas: Fila[] }>((resolve) => {
+            estado.liberarCarga = () => resolve({ reservas: estado.lista });
+          });
+        }
+        return Promise.resolve({ reservas: estado.lista });
+      }
       if (url === '/api/hotel') {
         return Promise.resolve({ hora_entrada: '15:00', hora_salida: '11:00' });
       }
@@ -108,6 +123,9 @@ afterEach(() => {
   estado.fallaMover = false;
   estado.fallaGrupo = false;
   estado.lista.length = 0;
+  estado.fallaCarga = false;
+  estado.esperarCarga = false;
+  estado.liberarCarga = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -497,5 +515,68 @@ describe('estado vacio de Mis reservas', () => {
       .toContain('boton--primario');
     expect(screen.getByRole('link', { name: 'Consultar otra reserva' }).className)
       .toContain('boton--secundario');
+  });
+});
+
+describe('reintentar la carga de Mis reservas', () => {
+  // Si /api/mis-reservas falla, la pagina se quedaba con el mensaje de error y nada mas:
+  // la lista seguia null y la unica salida era recargar la pagina a mano, perdiendo el chat
+  // abierto o el formulario a medias. R221 hizo esto mismo en el panel; aqui faltaba.
+  beforeEach(() => {
+    estado.fallaCarga = false;
+    estado.lista.length = 0;
+  });
+
+  it('ofrece reintentar y recupera la lista', async () => {
+    estado.fallaCarga = true;
+    estado.lista.push(filaInicial());
+    sesionConectada();
+    render(<MemoryRouter><PaginaMisReservas /></MemoryRouter>);
+
+    const aviso = await screen.findByText('la consulta se cayó');
+    expect(aviso).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull());
+    expect(await screen.findByText('H-MIA1')).toBeTruthy();
+    expect(screen.queryByText('la consulta se cayó')).toBeNull();
+  });
+
+  it('mantiene visible el error y deshabilita el botón mientras la petición está pendiente', async () => {
+    estado.fallaCarga = true;
+    estado.esperarCarga = true;
+    estado.lista.push(filaInicial());
+    sesionConectada();
+    render(<MemoryRouter><PaginaMisReservas /></MemoryRouter>);
+    await screen.findByText('la consulta se cayó');
+
+    const boton = screen.getByRole('button', { name: 'Reintentar' }) as HTMLButtonElement;
+    fireEvent.click(boton);
+    expect(boton.disabled).toBe(true);
+    expect(boton.textContent).toContain('Reintentando');
+    expect(screen.getByText('la consulta se cayó')).toBeTruthy();
+    expect(estado.liberarCarga).toBeTruthy();
+
+    await act(async () => {
+      estado.liberarCarga?.();
+    });
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull());
+    expect(await screen.findByText('H-MIA1')).toBeTruthy();
+  });
+
+  it('si el reintento tambien falla, el aviso se queda y se puede volver a intentar', async () => {
+    // El get siempre rechaza: el boton no desaparece y el mensaje sigue siendo visible.
+    const api = await import('../api/cliente');
+    vi.spyOn(api.api, 'get').mockRejectedValue(new Error('sigue caida'));
+    sesionConectada();
+    render(<MemoryRouter><PaginaMisReservas /></MemoryRouter>);
+
+    await screen.findByText('sigue caida');
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(await screen.findByText('sigue caida')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeTruthy();
+    vi.mocked(api.api.get).mockRestore();
   });
 });
