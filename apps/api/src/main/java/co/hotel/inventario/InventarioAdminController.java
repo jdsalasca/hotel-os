@@ -29,6 +29,7 @@ public class InventarioAdminController {
 
   public record TipoReq(String codigo, String nombre, Integer capacidadMax) {}
   public record HabitacionReq(String codigo, Long roomTypeId, String nombre) {}
+  public record HabitacionesLoteReq(Long roomTypeId, java.util.List<String> codigos) {}
   public record EstadoReq(String estado) {}
   public record PlanReq(String codigo, String nombre, String moneda, Integer descuentoPct) {}
   public record DescuentoReq(Integer descuentoPct) {}
@@ -61,6 +62,25 @@ public class InventarioAdminController {
 
   @GetMapping("/api/admin/habitaciones")
   public List<Habitacion> listarHabitaciones() { return inventario.listarHabitaciones(); }
+
+  /**
+   * Alta en lote: el hotel pega la lista de códigos y las habitaciones quedan registradas de una
+   * vez. Responde 200 con las creadas y las rechazadas: cada rechazo lleva su motivo, así un
+   * código repetido no tira abajo el resto del alta.
+   */
+  @PostMapping("/api/admin/habitaciones/lote")
+  public ResponseEntity<?> crearHabitacionesEnLote(@RequestBody HabitacionesLoteReq req) {
+    if (req == null) return ResponseEntity.badRequest().body(Map.of("error", "cuerpo requerido"));
+    if (req.roomTypeId() == null)
+      return ResponseEntity.badRequest().body(Map.of("error", "roomTypeId requerido"));
+    return ok(() -> {
+      var r = inventario.crearHabitacionesEnLote(req.roomTypeId(), req.codigos());
+      return Map.of(
+        "creadas", r.creadas().stream().map(h -> Map.of("id", h.id(), "codigo", h.codigo())).toList(),
+        "rechazadas", r.rechazadas().stream()
+          .map(x -> Map.of("codigo", x.codigo(), "motivo", x.motivo())).toList());
+    });
+  }
 
   @PostMapping("/api/admin/habitaciones/{id}/estado")
   public ResponseEntity<?> cambiarEstado(@PathVariable long id, @RequestBody EstadoReq req) {

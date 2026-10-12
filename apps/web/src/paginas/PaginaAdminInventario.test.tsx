@@ -16,6 +16,7 @@ const estado = vi.hoisted(() => ({
   retenerCalendario: false,
   publicaciones: [] as { url: string; cuerpo: unknown }[],
   errorPublicacion: null as Error | null,
+  lote: null as { creadas: { id: number; codigo: string }[]; rechazadas: { codigo: string; motivo: string }[] } | null,
 }));
 
 function diferida() {
@@ -73,6 +74,7 @@ vi.mock('../api/cliente', () => ({
       if (url === '/api/admin/bloqueos' && estado.errorPublicacion) {
         return Promise.reject(estado.errorPublicacion);
       }
+      if (url === '/api/admin/habitaciones/lote') return Promise.resolve(estado.lote ?? { creadas: [], rechazadas: [] });
       return Promise.resolve({});
     },
     put: () => Promise.resolve({}),
@@ -99,6 +101,7 @@ afterEach(() => {
   estado.retenerCalendario = false;
   estado.publicaciones.length = 0;
   estado.errorPublicacion = null;
+  estado.lote = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -116,6 +119,93 @@ async function montar() {
     expect(screen.getByLabelText('Plan', { selector: '#tar-plan' })).toBeTruthy();
   });
 }
+
+describe('alta de habitaciones en lote', () => {
+  async function abrirPasoHabitaciones() {
+    await montar();
+    // El número del paso va en aria-hidden: el nombre accesible es el título del paso.
+    fireEvent.click(screen.getByRole('button', { name: 'Habitaciones' }));
+    return screen.findByLabelText('Tipo de las habitaciones');
+  }
+
+  it('registra de una vez la lista que el hotelero pega', async () => {
+    const tipo = await abrirPasoHabitaciones();
+    fireEvent.change(tipo, { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText(/Códigos de las habitaciones/i), {
+      target: { value: '101, 102\n103\n\n102' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /registrar todas/i }));
+
+    await waitFor(() => {
+      const envio = estado.publicaciones.find((p) => p.url === '/api/admin/habitaciones/lote');
+      expect(envio).toBeTruthy();
+      // Una sola petición. Los vacíos no viajan; los repetidos sí, para que el
+      // servidor los rechace uno a uno y no de golpe.
+      expect(envio?.cuerpo).toEqual({ roomTypeId: 1, codigos: ['101', '102', '103', '102'] });
+    });
+  });
+
+  it('el resultado dice cuántas quedaron creadas y por qué se rechazó cada una', async () => {
+    estado.lote = {
+      creadas: [{ id: 9, codigo: '101' }],
+      rechazadas: [{ codigo: '102', motivo: 'ya existe una habitación con el código 102' }],
+    };
+    const tipo = await abrirPasoHabitaciones();
+    fireEvent.change(tipo, { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText(/Códigos de las habitaciones/i), {
+      target: { value: '101, 102' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /registrar todas/i }));
+
+    // El hotelero ve el resultado sin tener que recordar lo que escribió.
+    expect(await screen.findByText(/quedó 1/i)).toBeTruthy();
+    expect(await screen.findByText(/ya existe una habitación con el código 102/i)).toBeTruthy();
+    // El tipo se queda elegido: un hotel da de alta todas las dobles y luego todas las
+    // suites, y no tiene que reseleccionar en medio.
+    expect((screen.getByLabelText('Tipo de las habitaciones') as HTMLSelectElement).value).toBe('1');
+    // La lista se vacía, lista para el siguiente grupo.
+    expect((screen.getByLabelText(/Códigos de las habitaciones/i) as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('avisa de los códigos repetidos sin gastar una petición', async () => {
+    estado.habitaciones = [{ id: 1, codigo: '102', roomTypeId: 1, nombre: '102', estado: 'ACTIVA' }];
+    const tipo = await abrirPasoHabitaciones();
+    fireEvent.change(tipo, { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText(/Códigos de las habitaciones/i), {
+      target: { value: '101, 102' },
+    });
+
+    expect(await screen.findByText(/Ya están registradas: 102/i)).toBeTruthy();
+  });
+
+  it('no manda un lote vacío', async () => {
+    const tipo = await abrirPasoHabitaciones();
+    fireEvent.change(tipo, { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText(/Códigos de las habitaciones/i), {
+      target: { value: '   \n  ' },
+    });
+
+    // Sin códigos no hay nada que registrar: el botón queda bloqueado y no viaja ninguna
+    // petición. Avisar con un error después de que el hotelero pulse es peor que no dejarle.
+    const boton = screen.getByRole('button', { name: /registrar todas/i });
+    expect(boton.hasAttribute('disabled')).toBe(true);
+
+    fireEvent.submit(boton.closest('form') as HTMLFormElement);
+    expect(estado.publicaciones.find((p) => p.url === '/api/admin/habitaciones/lote')).toBeFalsy();
+  });
+});
+
+describe('la página se llama como la llama el resto del panel', () => {
+  it('el título dice Habitaciones, igual que la navegación y el enlace del panel', async () => {
+    await montar();
+    // El panel enlaza "Crear habitaciones" y la nav dice "Habitaciones": si la página se
+    // titula "Inventario", el hotelero no reconoce la pantalla a la que lo mandaron.
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(h1.textContent?.trim()).toMatch(/habitaciones/i);
+    expect(h1.textContent?.trim()).not.toMatch(/inventario/i);
+  });
+});
 
 describe('prioridad del alta inicial del inventario', () => {
   it('muestra el asistente antes del calendario cuando aún no hay habitaciones', async () => {

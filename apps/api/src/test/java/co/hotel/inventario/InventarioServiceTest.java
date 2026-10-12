@@ -87,6 +87,40 @@ class InventarioServiceTest {
   }
 
   @Test
+  @DisplayName("el alta en lote crea las habitaciones de una vez y separa las rechazadas")
+  void altaEnLoteCreaYRechazaPorCodigo() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    svc.crearHabitacion("101", tipo.id(), "Ya existente");
+
+    var r = svc.crearHabitacionesEnLote(tipo.id(), List.of("101", "102", "103", "102", ""));
+
+    // 101 ya existía y 102 va dos veces: el hotelero ve el motivo, no un fallo opaco.
+    assertEquals(List.of("102", "103"), r.creadas().stream().map(Habitacion::codigo).toList());
+    assertEquals(2, r.rechazadas().size());
+    assertEquals(List.of("101", "102"), r.rechazadas().stream()
+      .map(InventarioService.RechazadaLote::codigo).toList());
+    assertTrue(r.rechazadas().get(0).motivo().contains("101"));
+    // Lo que sí se pudo crear no se pierde por el rechazo de un código.
+    assertEquals(3, svc.listarHabitaciones().size());
+  }
+
+  @Test
+  @DisplayName("un lote sin códigos válidos se rechaza entero")
+  void altaEnLoteSinCodigosSeRechaza() {
+    RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);
+    var ex = assertThrows(DatosInvalidosException.class,
+      () -> svc.crearHabitacionesEnLote(tipo.id(), List.of("", "   ")));
+    assertTrue(ex.getMessage().toLowerCase().contains("código"));
+  }
+
+  @Test
+  @DisplayName("un lote sobre un tipo inexistente se rechaza")
+  void altaEnLoteSobreTipoInexistenteSeRechaza() {
+    assertThrows(DatosInvalidosException.class,
+      () -> svc.crearHabitacionesEnLote(999L, List.of("101")));
+  }
+
+  @Test
   @DisplayName("un código de habitación repetido se rechaza: el inventario no puede duplicarse")
   void codigoDeHabitacionRepetidoSeRechaza() {
     RoomType tipo = svc.crearTipo("DOBLE", "Habitación doble", 2);

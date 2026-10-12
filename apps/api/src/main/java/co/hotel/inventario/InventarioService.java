@@ -64,6 +64,48 @@ public class InventarioService {
     }
   }
 
+  /** Un código del lote que no se pudo crear, con el motivo que el hotelero debe leer. */
+  public record RechazadaLote(String codigo, String motivo) {}
+
+  /**
+   * Resultado del alta en lote: qué quedó creado y qué se rechazó, cada rechazo con su motivo.
+   *
+   * El éxito es parcial a propósito. Un hotel con doce habitaciones pega la lista y si el 103
+   * estaba repetido no quiere enterarse de que los otros once también se perdido: se crea todo lo
+   * válido y se le cuenta exactamente qué quedó fuera y por qué.
+   */
+  public record ResultadoLote(List<Habitacion> creadas, List<RechazadaLote> rechazadas) {}
+
+  /**
+   * Alta de habitaciones en lote: pega la lista y el hotel las registra de una vez.
+   *
+   * Los códigos repetidos dentro de la misma lista se marcan tal cual, para que el hotelero vea
+   * su propio error en vez de un fallo opaco. Cada habitación se crea en su propia transacción
+   * (la de {@link #crearHabitacion}), así que un rechazo no arrastra a las demás.
+   */
+  public ResultadoLote crearHabitacionesEnLote(long tipoId, List<String> codigos) {
+    if (inventario.tipoPorId(tipoId).isEmpty())
+      throw new DatosInvalidosException("tipo de habitación no encontrado");
+    if (codigos == null)
+      throw new DatosInvalidosException("código de habitación requerido");
+
+    var creadas = new java.util.ArrayList<Habitacion>();
+    var rechazadas = new java.util.ArrayList<RechazadaLote>();
+    for (String bruto : codigos) {
+      String codigo = bruto == null ? "" : bruto.trim();
+      if (codigo.isEmpty()) continue;
+      try {
+        // Sin nombre: el código ya identifica la habitación y el hotelero no quiere teclearlo dos veces.
+        creadas.add(crearHabitacion(codigo, tipoId, codigo));
+      } catch (DatosInvalidosException e) {
+        rechazadas.add(new RechazadaLote(codigo, e.getMessage()));
+      }
+    }
+    if (creadas.isEmpty() && rechazadas.isEmpty())
+      throw new DatosInvalidosException("escribe al menos un código de habitación");
+    return new ResultadoLote(List.copyOf(creadas), List.copyOf(rechazadas));
+  }
+
   private static boolean mensajeContiene(Exception e, String fragmento) {
     for (Throwable t = e; t != null; t = t.getCause())
       if (t.getMessage() != null && t.getMessage().contains(fragmento)) return true;

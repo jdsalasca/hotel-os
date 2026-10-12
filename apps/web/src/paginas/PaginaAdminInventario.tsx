@@ -12,6 +12,22 @@ type Plan = { id: number; codigo: string; nombre: string; moneda: string; descue
 type Noche = { fecha: string; precioCents: number; minEstancia: number | null; maxEstancia: number | null; cerrado: boolean };
 type FilaPrevia = { fecha: string; valida: boolean; motivo?: string; precioCents?: number; cerrado?: boolean; nueva?: boolean };
 type PreviaLote = { lista: boolean; filas: FilaPrevia[] };
+type ResultadoLoteHabitaciones = {
+  creadas: { id: number; codigo: string }[];
+  rechazadas: { codigo: string; motivo: string }[];
+};
+
+/**
+ * Separa los códigos que el hotel pega. Acepta saltos de línea y comas porque la lista real
+ * viene de una libreta, no de un formulario. Los repetidos se conservan a propósito: que el
+ * servidor los rechace uno a uno es más claro que callárselos aquí en silencio.
+ */
+function leerCodigos(texto: string): string[] {
+  return texto
+    .split(/[\s,;]+/)
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+}
 
 /** Días ISO para el rango: 1 lunes … 7 domingo, como los valida el backend. */
 const DIAS_SEMANA = [
@@ -78,6 +94,11 @@ export function PaginaAdminInventario() {
 
   const [nuevoTipo, setNuevoTipo] = useState({ codigo: '', nombre: '', capacidadMax: 2 });
   const [nuevaHabitacion, setNuevaHabitacion] = useState({ codigo: '', roomTypeId: '', nombre: '' });
+  // Alta en lote: el hotel pega su lista real de códigos. Un hotel de doce habitaciones no se
+  // da de alta con doce formularios.
+  const [loteHabitaciones, setLoteHabitaciones] = useState({ roomTypeId: '', texto: '' });
+  const [loteResultado, setLoteResultado] = useState<ResultadoLoteHabitaciones | null>(null);
+  const [avisoLote, setAvisoLote] = useState<string | null>(null);
   const [bloqueo, setBloqueo] = useState({ roomId: '', desde: '', hasta: '', motivo: '' });
   const [seleccionCalendario, setSeleccionCalendario] = useState<RangoCalendario | null>(null);
   const [mensajeSeleccion, setMensajeSeleccion] = useState(
@@ -422,6 +443,21 @@ export function PaginaAdminInventario() {
     { n: 4, titulo: 'Plan tarifario', deshabilitado: false },
   ];
   const puedeAvanzar = paso < 4 && !PASOS[paso]?.deshabilitado;
+  // Códigos del lote que ya existen en el hotel. Se resuelve con lo que ya está cargado:
+  // no vale la pena una petición para avisar de algo que el navegador ya sabe.
+  const codigosRepetidos = (() => {
+    const existentes = new Set(
+      (habitaciones ?? []).map((h) => h.codigo.trim().toUpperCase()),
+    );
+    const vistos = new Set<string>();
+    const repetidos = new Set<string>();
+    for (const codigo of leerCodigos(loteHabitaciones.texto)) {
+      const clave = codigo.toUpperCase();
+      if (existentes.has(clave) || vistos.has(clave)) repetidos.add(codigo);
+      vistos.add(clave);
+    }
+    return [...repetidos];
+  })();
   const ocupadasMes = nochesCalendario.filter((noche) => noche.estado === 'OCUPADA').length;
   const bloqueadasMes = nochesCalendario.filter((noche) => noche.estado === 'BLOQUEADA').length;
   const noVendiblesMes = nochesCalendario.filter(
@@ -497,6 +533,7 @@ export function PaginaAdminInventario() {
       </form>
       ) : null}
       {paso === 2 ? (
+      <>
       <form
         className="tarjeta pila"
         onSubmit={(e) => {
@@ -539,6 +576,105 @@ export function PaginaAdminInventario() {
           Crear habitación
         </button>
       </form>
+
+      {/* Un hotel de doce habitaciones no se da de alta con doce formularios: la lista real
+          viene copiada de una libreta. Va plegado para que el alta de a una no estorbe. */}
+      <details className="tarjeta pila mt-e6">
+        <summary className="referencia__resumen">Registrar varias habitaciones de una vez</summary>
+        <form
+          className="pila"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const codigos = leerCodigos(loteHabitaciones.texto);
+            if (!loteHabitaciones.roomTypeId || codigos.length === 0) {
+              setLoteResultado(null);
+              setAvisoLote('Elige un tipo y escribe al menos un código de habitación.');
+              return;
+            }
+            setAvisoLote(null);
+            void accion(async () => {
+              const r = await api.post<ResultadoLoteHabitaciones>('/api/admin/habitaciones/lote', {
+                roomTypeId: Number(loteHabitaciones.roomTypeId),
+                codigos,
+              });
+              // `accion` recarga; el resultado se guarda porque `cargar()` no lo sabe.
+              setLoteResultado(r);
+              // Se vacía solo la lista, no el tipo: un hotel da de alta todas las dobles y
+              // luego todas las suites, y no tiene que reseleccionar en medio.
+              if (r.creadas.length > 0) setLoteHabitaciones({ ...loteHabitaciones, texto: '' });
+            });
+          }}
+        >
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="lote-tipo">Tipo de las habitaciones</label>
+            <select
+              id="lote-tipo"
+              value={loteHabitaciones.roomTypeId}
+              onChange={(e) => {
+                setLoteResultado(null);
+                setLoteHabitaciones({ ...loteHabitaciones, roomTypeId: e.target.value });
+              }}
+            >
+              <option value="">Selecciona un tipo</option>
+              {tipos?.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nombre} (máx. {t.capacidadMax})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="campo">
+            <label className="campo__etiqueta" htmlFor="lote-codigos">Códigos de las habitaciones</label>
+            <textarea
+              id="lote-codigos"
+              rows={5}
+              placeholder={'101, 102\n103\n201-A'}
+              value={loteHabitaciones.texto}
+              onChange={(e) => {
+                setLoteResultado(null);
+                setLoteHabitaciones({ ...loteHabitaciones, texto: e.target.value });
+              }}
+            />
+            <p className="campo__ayuda sin-margen">
+              Uno por línea o separados por comas, como los tengas anotados.
+            </p>
+          </div>
+          {/* Aviso local: la lista de habitaciones ya está cargada, así que no hace falta
+              gastar una petición para saber que un código ya existe. */}
+          {codigosRepetidos.length > 0 ? (
+            <p className="campo__ayuda sin-margen">
+              Ya están registradas: {codigosRepetidos.join(', ')}.
+            </p>
+          ) : null}
+          {avisoLote ? <MensajeError texto={avisoLote} /> : null}
+          {loteResultado ? (
+            <div className="tarjeta pila">
+              <p className="sin-margen">
+                {loteResultado.creadas.length === 1
+                  ? 'Quedó 1 habitación creada.'
+                  : `Quedaron ${loteResultado.creadas.length} habitaciones creadas.`}
+              </p>
+              {loteResultado.rechazadas.length > 0 ? (
+                <ul className="pila gap-e1 sin-margen">
+                  {loteResultado.rechazadas.map((r) => (
+                    <li key={`${r.codigo}-${r.motivo}`} className="campo__ayuda sin-margen">
+                      {r.codigo}: {r.motivo}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+          <button
+            className="boton boton--primario no-estirar"
+            type="submit"
+            disabled={!loteHabitaciones.roomTypeId || leerCodigos(loteHabitaciones.texto).length === 0}
+          >
+            Registrar todas
+          </button>
+        </form>
+      </details>
+      </>
       ) : null}
       {paso === 3 ? (
       <form
@@ -679,7 +815,7 @@ export function PaginaAdminInventario() {
   return (
     <main id="contenido" className="centrado">
       <section className="seccion">
-        <h1 className="seccion__titulo">Inventario y disponibilidad</h1>
+        <h1 className="seccion__titulo">Habitaciones y disponibilidad</h1>
         <p className="seccion__intro">
           Todo lo que registres aquí es lo que el hotel ofrece. Sin inventario cargado, la web pública
           no muestra habitaciones.
