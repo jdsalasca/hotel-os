@@ -1,0 +1,17 @@
+
+> hotel-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.3 C:/Users/jdsal/Documents/Programming-personal/hotel-os/apps/web
+
+Not implemented: Window's scrollTo() method
+
+ Test Files  32 passed (32)
+      Tests  249 passed (249)
+   Start at  04:02:32
+   Duration  40.48s (tests 52%, environment 30%, import 12%, transform 5%)
+
+Environment  jsdom was created 32 times · 77.46s total, 30% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments

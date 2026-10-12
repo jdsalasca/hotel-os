@@ -32,15 +32,29 @@ Se abrió el servidor local del worktree en Chrome y se usaron datos sintéticos
 
 El build lanzado en node:22-alpine desde el montaje de Windows permaneció en la fase transforming con CPU sostenida durante más de cuatro minutos. El mismo comportamiento se reprodujo sobre el checkout limpio de develop, por lo que no se atribuyó al cambio de R237. Se detuvieron únicamente los dos contenedores efímeros creados para esos builds. El build completo pasó en el host con Node 24.21.0 y quedó registrado arriba.
 
+## Integración y verificación posterior
+
+La captura previa se conservó primero en el commit `5a34362`; el cambio funcional se integró a `develop` con cherry-pick del commit `93b65aa`.
+
+- Después de integrar: `mvn -f apps/api/pom.xml -Dtest=PreparacionTest test`, 3/3, `BUILD SUCCESS` (backend-preparacion-postintegracion.log).
+- Después de integrar: `npm test`, 32/32 archivos y 249/249 pruebas (frontend-tests-postintegracion.log).
+- Después de integrar: `npm run test:typecheck`, sin errores (frontend-test-typecheck-postintegracion.log).
+- Después de integrar: `npm run build`, TypeScript limpio y 76 módulos transformados por Vite (frontend-build-postintegracion.log).
+- La suite API completa, ejecutada antes del cherry-pick sobre el mismo árbol de código, terminó con 485 pruebas, 0 fallos, 0 errores y 1 omitida.
+
 ## Archivos de evidencia
 
 - backend-contacto-red.log
 - backend-preparacion-current.log
 - backend-api-full-current.log
+- backend-preparacion-postintegracion.log
 - frontend-admin-panel-current.log
 - frontend-tests-current.log
 - frontend-test-typecheck-current.log
 - frontend-build-current.log
+- frontend-tests-postintegracion.log
+- frontend-test-typecheck-postintegracion.log
+- frontend-build-postintegracion.log
 - backend-preparacion.log y frontend-tests.log (historial anterior, conservado y señalado arriba)
 - escritorio.png
 - movil.png
