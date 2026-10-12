@@ -286,9 +286,23 @@ export function PaginaMisReservas() {
         {reservas === null && !error ? <Cargando /> : null}
 
         {reservas && reservas.length === 0 ? (
+          /* Entrar con Google y no tener nada es el primer paso de mucho tráfico nuevo: sin
+             salidas aquí, la página dice que esperes y ahí se acaba todo. Las dos salidas
+             cubren los dos casos reales — quien todavía no reserva — y quien ya lo hizo con
+             otro correo, que con esta cuenta nunca verá su reserva. */
           <Vacio
             titulo="Todavía no has reservado"
             detalle="Cuando reserves con esta cuenta, la reserva aparecerá aquí sin necesidad de guardar el código."
+            accion={
+              <>
+                <Link className="boton boton--primario" to="/">
+                  Ver disponibilidad
+                </Link>{' '}
+                <Link className="boton boton--secundario" to="/consulta">
+                  Consultar otra reserva
+                </Link>
+              </>
+            }
           />
         ) : null}
 
@@ -581,9 +595,11 @@ export function PaginaMisReservas() {
           </div>
         ) : null}
 
-        <p className="mt-e6">
-          <Link to="/">Reservar otra vez</Link>
-        </p>
+        {reservas?.length !== 0 ? (
+          <p className="mt-e6">
+            <Link to="/">Reservar otra vez</Link>
+          </p>
+        ) : null}
       </section>
     </main>
   );

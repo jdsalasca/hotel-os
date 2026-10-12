@@ -1,0 +1,44 @@
+
+> hotel-web@0.1.0 test
+> vitest run PaginaMisReservas.test.tsx --no-file-parallelism
+
+
+ RUN  v5.0.3 C:/Users/jdsal/wt/hotel-r230b/apps/web
+
+ ❯ src/paginas/PaginaMisReservas.test.tsx (19 tests | 1 failed) 2025ms
+   ❯ estado vacio de Mis reservas (3)
+     × ofrece ver disponibilidad y consultar otra reserva 47ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/paginas/PaginaMisReservas.test.tsx > estado vacio de Mis reservas > ofrece ver disponibilidad y consultar otra reserva
+AssertionError: expected <a href="/" data-discover="true"></a> to be null
+
+- Expected:
+null
+
++ Received:
+<a
+  data-discover="true"
+  href="/"
+>
+  Reservar otra vez
+</a>
+
+ ❯ src/paginas/PaginaMisReservas.test.tsx:476:71
+    474|     const consulta = screen.getByRole('link', { name: 'Consultar otra …
+    475|     expect(consulta.getAttribute('href')).toBe('/consulta');
+    476|     expect(screen.queryByRole('link', { name: 'Reservar otra vez' })).…
+       |                                                                       ^
+    477|   });
+    478|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 18 passed (19)
+   Start at  22:11:44
+   Duration  5.18s (tests 41%, environment 39%, import 12%, transform 7%)
+
+EXPECTED RED · exit=1

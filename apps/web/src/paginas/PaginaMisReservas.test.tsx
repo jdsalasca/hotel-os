@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { fechaCorta, hoyIso, monto as montoCompartido } from '../api/formato';
@@ -452,5 +452,50 @@ describe('cambio de huespedes propio', () => {
     });
     const fila = screen.getByText('H-MIA1').closest('tr');
     expect(fila?.textContent).toContain('1');
+  });
+});
+
+describe('estado vacio de Mis reservas', () => {
+  // Entrar con Google y no ver nada es el primer paso de mucho trafico nuevo, y la pantalla
+  // no ofrecia ninguna accion: decia que las reservas aparecerian aqui y ahi acababa todo.
+  // Un estado vacio sin salida es una pared, y el nav no cubre las dos salidas utiles.
+  beforeEach(() => {
+    estado.lista.length = 0;
+  });
+
+  it('ofrece ver disponibilidad y consultar otra reserva', async () => {
+    sesionConectada();
+    render(<MemoryRouter><PaginaMisReservas /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText('Todavía no has reservado')).toBeTruthy());
+
+    const disponibilidad = screen.getByRole('link', { name: 'Ver disponibilidad' });
+    expect(disponibilidad.getAttribute('href')).toBe('/');
+    // Segunda salida: la reserva pudo hacerse con otro correo, no con la cuenta de Google.
+    const consulta = screen.getByRole('link', { name: 'Consultar otra reserva' });
+    expect(consulta.getAttribute('href')).toBe('/consulta');
+    expect(screen.queryByRole('link', { name: 'Reservar otra vez' })).toBeNull();
+  });
+
+  it('con reservas no aparece el estado vacio ni sus salidas', async () => {
+    estado.lista.push(filaInicial());
+    sesionConectada();
+    render(<MemoryRouter><PaginaMisReservas /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText('H-MIA1')).toBeTruthy());
+
+    expect(screen.queryByText('Todavía no has reservado')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Ver disponibilidad' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Reservar otra vez' })).toBeTruthy();
+  });
+
+  it('la salida principal destaca sobre la secundaria', async () => {
+    sesionConectada();
+    render(<MemoryRouter><PaginaMisReservas /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText('Todavía no has reservado')).toBeTruthy());
+
+    // La salida principal manda visualmente; la secundaria no compite con ella.
+    expect(screen.getByRole('link', { name: 'Ver disponibilidad' }).className)
+      .toContain('boton--primario');
+    expect(screen.getByRole('link', { name: 'Consultar otra reserva' }).className)
+      .toContain('boton--secundario');
   });
 });

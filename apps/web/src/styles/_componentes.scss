@@ -270,6 +270,25 @@
     font-weight: $peso-medio;
     color: $tinta;
   }
+
+  // Acción del estado vacío. Centrada como el texto del recuadro: en móvil cada botón
+  // ocupa el ancho completo y se apila, que es lo cómodo para el pulgar; desde 40rem van
+  // en una línea al ancho de su contenido. `wrap` hace el apilado sin `column`, así el
+  // cambio de una a otra línea depende solo del ancho, no de dos reglas que se contradigan.
+  &__accion {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: $e-2;
+    width: 100%;
+    margin-block-start: $e-3;
+
+    .boton { width: 100%; }
+
+    @media (min-width: 40rem) {
+      .boton { width: auto; }
+    }
+  }
 }
 
 .cargando {
@@ -466,6 +485,7 @@
   }
 
   &__salir {
+    flex: 0 0 auto;
     padding: $e-2 $e-3;
     border: 0;
     border-radius: $radio-sm;
@@ -473,6 +493,7 @@
     color: $tinta-suave;
     font-family: $fuente-texto;
     font-size: $texto-sm;
+    white-space: nowrap;
     cursor: pointer;
     @include focusable;
 

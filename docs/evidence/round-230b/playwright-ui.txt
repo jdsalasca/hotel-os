@@ -1,0 +1,21 @@
+Herramienta: Playwright CLI, navegador real
+URL: http://127.0.0.1:30200/mis-reservas
+Datos: respuestas sintéticas; qa@example.test; huésped «Invitada QA»; reservas=[]
+
+Escritorio (1440 × 1000)
+- document.documentElement.scrollWidth: 1440
+- .vacio: x=168, ancho=1104 px
+- botones «Ver disponibilidad» y «Consultar otra reserva»: en una fila; borde inferior y=503, dentro del viewport
+- captura: escritorio-1440x1000.png
+
+Móvil (390 × 844)
+- document.documentElement.scrollWidth: 390
+- .vacio: x=16, ancho=358 px
+- botones de acción: 308 px de ancho; bordes inferiores y=609,5 y=662,7, dentro del viewport; apilados
+- botón «Cerrar sesión»: 104,3 × 35 px; una línea
+- captura: movil-390x844.png
+
+Consola
+- 0 advertencias
+- 1 error HTTP esperado: GET /api/admin/sesion → 401 al comprobar la sesión administrativa; el navegador no registró excepciones JavaScript
+- Mensaje informativo de React DevTools omitido por no afectar la página

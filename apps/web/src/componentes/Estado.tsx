@@ -26,11 +26,12 @@ export function MensajeError({ texto, titulo }: { texto: string; titulo?: string
   );
 }
 
-export function Vacio({ titulo, detalle }: { titulo: string; detalle?: string }) {
+export function Vacio({ titulo, detalle, accion }: { titulo: string; detalle?: string; accion?: ReactNode }) {
   return (
     <div className="vacio">
       <p className="vacio__titulo">{titulo}</p>
       {detalle ? <p>{detalle}</p> : null}
+      {accion ? <p className="vacio__accion">{accion}</p> : null}
     </div>
   );
 }
