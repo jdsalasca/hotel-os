@@ -42,8 +42,7 @@ describe('HiloMensajes', () => {
     try {
       const conRespuesta = {
         mensajes: [
-          HILO.mensajes[0],
-          HILO.mensajes[1],
+          ...HILO.mensajes,
           { id: 3, autor: 'HUESPED', texto: 'Y servicio de traslado', en: '2026-10-08T10:09:00', visto: false },
         ],
       };
