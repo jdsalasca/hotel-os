@@ -754,6 +754,24 @@ function marcadoresDelMapa(
               <div className="vacio" role="status" aria-live="polite" aria-atomic="true">
                 <p className="vacio__titulo">No hay habitaciones disponibles para esas fechas</p>
                 <p>Prueba otras fechas. Si el hotel aún no ha publicado tarifas para este periodo, tampoco hay precios que mostrar.</p>
+                {/* Quien quiere esas fechas se queda sin nada que hacer salvo irse. Con contacto
+                    del hotel se lo damos aquí; sin él, el aviso no promete una salida que no existe. */}
+                {contacto && (contacto.email || contacto.telefono) ? (
+                  <p className="resultados-busqueda__salida">
+                    {contacto.email ? (
+                      <>
+                        Escríbenos a <a href={`mailto:${contacto.email}`}>{contacto.email}</a>
+                      </>
+                    ) : null}
+                    {contacto.email && contacto.telefono ? ' o ' : null}
+                    {contacto.telefono ? (
+                      <>
+                        llámanos al{' '}
+                        <a href={`tel:${contacto.telefono.replace(/[\s-]/g, '')}`}>{contacto.telefono}</a>
+                      </>
+                    ) : null}. Quizá podamos ofrecerte algo fuera de la web.
+                  </p>
+                ) : null}
               </div>
             ) : null}
             {buscado && !cargando && ofertas && ofertas.length > 0 ? (

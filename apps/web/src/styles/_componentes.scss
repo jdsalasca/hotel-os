@@ -239,6 +239,23 @@
   > .aviso { margin-block-end: $e-4; }
 }
 
+// Salida del estado vacío: el contacto que ya conocemos, presentado como alternativa y no
+// como disculpa. Sin `no-imprimir` —si busca desde el ordenador y se va, sigue en el papel.
+.resultados-busqueda__salida {
+  @include pila($e-1);
+  margin-block-start: $e-2;
+  color: $tinta;
+
+  a {
+    color: $tinta;
+    font-weight: $peso-medio;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+
+    &:hover { color: $teja-oscuro; }
+  }
+}
+
 // --- Estados vacío y carga ---
 .vacio {
   @include pila($e-2);

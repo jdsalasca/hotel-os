@@ -761,6 +761,73 @@ describe('detalle de la oferta', () => {
     expect(estadoVacio?.getAttribute('aria-live')).toBe('polite');
   });
 
+  // Fechas agotadas es el caso normal de un hotel pequeño en temporada, y el huésped que
+  // quiere esas fechas se queda sin nada que hacer salvo irse. La web ya conoce el contacto
+  // del hotel (lo lee para el pie); ofrecerlo aquí es la diferencia entre insistir y escribir.
+  describe('el estado vacío ofrece una salida real', () => {
+    const buscar = () => {
+      fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '2030-06-10' } });
+      fireEvent.change(screen.getByLabelText('Salida'), { target: { value: '2030-06-12' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Buscar disponibilidad' }));
+    };
+
+    it('ofrece escribir o llamar al hotel cuando hay contacto', async () => {
+      estado.sinResultados = true;
+      render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+      buscar();
+
+      const vacio = await screen.findByText('No hay habitaciones disponibles para esas fechas');
+      await waitFor(() => expect(document.querySelector('.resultados-busqueda__salida')).toBeTruthy());
+      const salida = document.querySelector('.resultados-busqueda__salida') as HTMLElement;
+
+      expect(salida.textContent).toContain('Escríbenos a');
+      expect(salida.textContent).toContain('llámanos al');
+      const correo = within(salida).getByRole('link', { name: 'hola@hotel.test' });
+      expect(correo.getAttribute('href')).toBe('mailto:hola@hotel.test');
+      const telefono = within(salida).getByRole('link', { name: '+57 300 1234567' });
+      expect(telefono.getAttribute('href')).toBe('tel:+573001234567');
+      expect(vacio).toBeTruthy();
+    });
+
+    it('con solo correo o solo teléfono, ofrece el que haya', async () => {
+      estado.sinResultados = true;
+      estado.hotel = { nombre: 'Hotel Eridu', contacto_telefono: '+57 300 1234567' };
+      render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+      buscar();
+
+      await waitFor(() => expect(document.querySelector('.resultados-busqueda__salida')).toBeTruthy());
+      const salida = document.querySelector('.resultados-busqueda__salida') as HTMLElement;
+      expect(salida.textContent).toContain('llámanos al');
+      expect(salida.textContent).not.toContain('Escríbenos a');
+      expect(salida.querySelector('a[href^="mailto:"]')).toBeNull();
+    });
+
+    it('sin contacto no inventa uno: solo recuerda que una reserva ya hecha se gestiona igual', async () => {
+      estado.sinResultados = true;
+      estado.hotel = { nombre: 'Hotel Eridu' };
+      render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+      buscar();
+
+      const vacio = await screen.findByText('No hay habitaciones disponibles para esas fechas');
+      expect(document.querySelector('.resultados-busqueda__salida')).toBeNull();
+      // El aviso sigue siendo un estado, no un enlace roto: sin contacto no se promete nada.
+      expect(vacio.closest('.resultados-busqueda')).toBeTruthy();
+      expect(document.querySelector('a[href^="mailto:"]')).toBeNull();
+      expect(document.querySelector('a[href^="tel:"]')).toBeNull();
+    });
+
+    it('la salida se imprime: es lo que el huésped se lleva al irse sin reservar', async () => {
+      estado.sinResultados = true;
+      render(<MemoryRouter><PaginaInicio /></MemoryRouter>);
+      buscar();
+
+      await waitFor(() => expect(document.querySelector('.resultados-busqueda__salida')).toBeTruthy());
+      const salida = document.querySelector('.resultados-busqueda__salida') as HTMLElement;
+      // Sin `no-imprimir`: si busca desde el ordenador y se va, el contacto sigue en el papel.
+      expect(salida.className).not.toContain('no-imprimir');
+    });
+  });
+
   it('al volver a cambiar fechas restaura la búsqueda y vuelve a consultar', async () => {
     render(
       <MemoryRouter initialEntries={[{
