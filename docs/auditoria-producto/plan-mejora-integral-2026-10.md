@@ -188,7 +188,7 @@ Las páginas públicas consultan `/api/yo` y `/api/admin/sesion` de forma anóni
 
 ### P2 — componentes y hoja de estilos grandes aumentan el radio de cambio
 
-En la referencia medida: `PaginaAdminInventario.tsx` 1.333 líneas; `PaginaInicio.tsx` 1.101; `PaginaAdminReservas.tsx` 756; `PaginaMisReservas.tsx` 555; `_componentes.scss` 1.440. La búsqueda no halló estilos inline activos; el proyecto ya usa SCSS y clases, lo que sirve como base.
+La referencia histórica midió: `PaginaAdminInventario.tsx` 1.333 líneas; `PaginaInicio.tsx` 1.101; `PaginaAdminReservas.tsx` 756; `PaginaMisReservas.tsx` 555; `_componentes.scss` 1.440. En R241, el `develop` de partida (`d48d12f`) tiene 756 líneas físicas en la página de reservas (719 con contenido); después de extraer tabla y acciones quedan 644 líneas físicas (613 con contenido). El componente extraído ocupa 134 líneas físicas (125 con contenido); por tanto, se reduce el archivo monolítico, no el total de código.
 
 - Evidencia: conteo de líneas en el checkout `571e201` y lectura de los componentes/estilos.
 - Interpretación: deuda de separación y revisión, no prueba de una falla para el huésped.
@@ -333,7 +333,7 @@ Las etapas describen entregas acumulativas. Una etapa puede dividirse en rondas 
 
 1. `PaginaInicio.tsx`: extraer secciones de portada, presentación de disponibilidad, galería y pequeñas consultas encapsuladas; mantener el componente como composición.
 2. `PaginaAdminInventario.tsx`: separar búsqueda/edición de habitación, calendario, reglas y paneles sin mover reglas de negocio al SCSS.
-3. `PaginaAdminReservas.tsx`: extraer ficha, acciones y estados de pago/mensajes con contratos explícitos de props.
+3. `PaginaAdminReservas.tsx`: **R241 extrajo en worktree** la tabla y las acciones por fila con contratos explícitos; falta integrar/publicar esa entrega. Después queda separar ficha, pago y mensajes con rondas y pruebas propias.
 4. `PaginaMisReservas.tsx`: separar formulario, listado y estados una vez que la ronda R203 que lo toca esté integrada y revisada.
 5. `_componentes.scss`: dividir por componente y dominio usando `@use`/convención ya elegida; conservar tokens compartidos y nombres de clases actuales durante el primer movimiento.
 
@@ -433,6 +433,8 @@ Las etapas describen entregas acumulativas. Una etapa puede dividirse en rondas 
 | R210 — copiar y conservar el código | El huésped copia el código; si falla el portapapeles, puede copiar la selección manual. La acción tiene un objetivo táctil de 44 px. Hay [pruebas del flujo](../../apps/web/src/paginas/PaginaReserva.test.tsx), una [prueba del objetivo táctil](../../apps/web/src/componentes/CodigoReserva.test.tsx) y [evidencia visual, teclado y fallback](../evidence/round-210/evidencia.md). | **Cerrada:** navegador local con fixture sintética, capturas completas de escritorio/móvil, foco y anuncio accesible verificados, fallback comprobado y 10/10 pruebas dirigidas. |
 | R211 (`4d3bcc3`) — navegación de habitaciones | “Inventario” pasó a “Habitaciones” en navegación, tarjeta y texto de acceso; la ruta técnica se conservó. [Evidencia visual y funcional](../evidence/round-211/evidencia.md). | Cerrada para el alcance de etiquetas de navegación. |
 | R212 — estado del correo | El mensaje de solicitud ahora coincide con `PENDIENTE`; prueba RED/GREEN, suite de API y empaquetado. [Evidencia](../evidence/round-212/verificacion.md). | Cerrada para la veracidad del texto. No resuelve la fiabilidad de entrega registrada en R209. |
+
+**Ronda R241 validada en worktree — tabla de reservas:** `PaginaAdminReservas.tsx` bajó de 756 a 644 líneas físicas (719 a 613 con contenido), con tabla controlada extraída de 134 líneas físicas (125 con contenido); el contrato conserva las transiciones que autoriza el servidor. Suite frontend 258/258, tipos y build aprobados. Revisión visual sintética a 1440×1000 y 390×844, sin desbordamiento ni mensajes de error/advertencia. [Verificación y capturas](../evidence/round-241/verificacion.md). La integración a `develop` y publicación aún no se han ejecutado.
 
 **Siguiente tarea compartida: R213 — outbox durable para avisos.** El usuario aprobó el alcance funcional el 2026-10-12: guardar la tarea con la reserva, procesarla con reintentos limitados y mostrar su estado solo a administración. La revisión independiente cerró en el [plan detallado](../superpowers/plans/2026-10-12-r213-correo-outbox.md) los bloqueos de CAS previo a OAuth/Gmail, señal persistente de restauración distinta de mantenimiento y puerta de activación después de Flyway/recuperación/verificación. **Estado:** los detalles técnicos revisados y el plan esperan aprobación explícita; no comenzar implementación antes de recibirla. La entrega real de Gmail requiere configuración autorizada y no se simula como éxito.
 
