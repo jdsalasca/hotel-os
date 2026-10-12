@@ -1,237 +1,227 @@
 # R213 — Outbox durable para avisos de reserva
 
 - **Fecha:** 2026-10-11
-- **Estado:** revisión técnica interna completada; versión revisada pendiente de aprobación del usuario. La dirección de usar SQLite y un trabajador con reintentos limitados fue aprobada. No hay plan de implementación ni cambios de código todavía.
-- **Producto:** HOTEL-OS, reserva directa y panel administrativo.
+- **Estado:** dirección general aprobada; esta especificación está **pendiente de revisión del usuario**. No implementar ni redactar el plan de implementación hasta que se apruebe este documento.
+- **Producto:** HOTEL-OS, reservas directas y panel administrativo.
 
-## 1. Propósito
+## 1. Resultado buscado
 
-Evitar que una reserva directa quede sin una notificación recuperable cuando Gmail no está configurado, responde con error o la aplicación se reinicia durante el envío. La reserva y la intención de avisar deben persistir juntas; el envío externo debe poder reintentarse y su resultado debe ser visible al personal autorizado.
+Que cada reserva nueva conserve de forma durable la intención de enviar su aviso, aunque Gmail falle o la aplicación se reinicie. La reserva y la tarea de correo se guardan juntas en SQLite; un trabajador las procesa fuera del camino síncrono de la petición; administración puede consultar el resultado sin acceder al contenido personal del mensaje.
 
-La reserva sigue siendo la operación principal: una caída de Gmail nunca libera inventario ni revierte una reserva ya confirmada por el servidor. El estado del correo no se presenta al huésped como prueba de entrega.
+La respuesta HTTP de reserva no espera a Gmail. El trabajador puede comenzar después del commit y antes de que la conexión HTTP haya terminado de responder: la garantía es que el envío ocurre fuera de la transacción y del camino síncrono, no que ocurra después de observar la respuesta en el navegador.
 
-## 2. Evidencia del estado actual
+## 2. Qué aprobó el usuario y qué sigue propuesto
 
-- ReservaService ejecuta alta, inventario, historial e idempotencia dentro de SqliteTransactionExecutor. Después de cerrar esa transacción llama a avisarPorCorreo.
-- avisarPorCorreo invoca Gmail en la petición web. Si falla, escribe un log y deja intacta la reserva; no guarda una tarea que pueda sobrevivir un reinicio.
-- El reintento HTTP idempotente no llama de nuevo a avisarPorCorreo. Esto evita un correo repetido en el reintento de reserva, pero tampoco recupera el aviso fallido.
-- CorreoService envía mediante Gmail API y devuelve ResultadoEnvio. El worker debe reutilizar esa integración y no afirmar éxito si no recibe aceptación del proveedor.
-- HttpClienteOta reintenta fallos de red y respuestas 5xx para sus POST. El POST de Gmail que envía el mensaje no tiene garantía de idempotencia documentada por la API; una respuesta perdida puede ser ambigua. R213 debe evitar ocultar reintentos de envío dentro del cliente HTTP y mostrar esa ambigüedad al administrador.
-- La base es SQLite, WAL, transacción IMMEDIATE y una instancia de aplicación con un escritor. La solución debe funcionar con esa operación sin añadir un broker ni cambiar de base de datos.
-- CorreoAdminController ya es exclusivo de administración por la regla de seguridad /api/admin/**. PaginaAdminIntegraciones es el panel existente más próximo para mostrar el estado de correo e integraciones.
+La aprobación recibida cubre solo esta dirección:
 
-Referencias técnicas: ReservaService, CorreoService, ResultadoEnvio, HttpClienteOta, SqliteTransactionExecutor, SqliteDataSources, CorreoAdminController y PaginaAdminIntegraciones. Gmail documenta el envío como un POST a `users.messages.send` y devuelve un `Message` cuando tiene éxito: [método de envío](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send). La [guía oficial de errores](https://developers.google.com/workspace/gmail/api/guides/handle-errors) identifica `rateLimitExceeded` y `userRateLimitExceeded` como errores HTTP 403 que requieren backoff; la clasificación no puede basarse únicamente en la clase HTTP. Google también recomienda reintentar errores 5xx. R213 se aparta de ese consejo general únicamente para la operación `messages.send`: el POST no tiene garantía documentada de idempotencia y un 5xx o timeout puede dejar incierto si el mensaje fue aceptado; esos resultados requieren revisión manual antes de repetir el envío. Para `Retry-After`, seguir la sintaxis de segundos o fecha HTTP de [RFC 9110 §10.2.3](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3).
+1. Crear la tarea de correo en SQLite junto con la reserva.
+2. Enviar en segundo plano con reintentos automáticos acotados.
+3. Hacer visible el estado solo para administración.
 
-### Hallazgos de precisión que el plan debe resolver
+Las decisiones de detalle de este documento son propuestas para revisión, no aprobaciones previas. En particular, siguen abiertas la interfaz de solo lectura, el tratamiento de datos del mensaje, los límites de espera, la recuperación tras restaurar un respaldo y la resolución operativa de un resultado incierto.
 
-- La implementación actual sí manda el aviso al huésped después de confirmar la transacción de reserva (`ReservaService.avisarPorCorreo`), para toda alta nueva que alcanza ese método; una reserva repetida por idempotencia no lo vuelve a mandar. La sección «Qué NO hace este sistema» de `docs/operations/correo.md` hoy contradice ese código al afirmar que el correo solo se envía desde el panel. Corregirla dentro de R213 y describir el outbox como el mecanismo durable del aviso automático.
-- `HttpClienteOta.post` repite en secreto los POST ante errores de red, 429 y 5xx; `CorreoService` usa ese mismo camino para OAuth y Gmail. La respuesta actual de Gmail 2xx sin `id` termina como éxito con el texto `sin-id`. R213 debe dar a `CorreoService` un transporte de un solo intento para OAuth y Gmail, dejar que el outbox sea la única capa de reintentos, exponer fase/status/cuerpo JSON estructurado y cabeceras allowlist, y exigir un `id` no vacío antes de afirmar aceptación.
-- El validador de reserva existente rechaza espacios y saltos de línea, pero no tiene límite explícito de longitud; el endpoint administrativo de correo de prueba solo comprueba que haya un `@`. Añadir un validador compartido y usarlo en `ReservaService`, `CorreoService`, `CorreoAdminController /prueba` y los reenvíos con dirección corregida. Acepta una sola dirección, máximo 254 octetos ASCII para el mailbox, sin controles/CRLF ni lista de destinatarios. El límite de 254 octetos usa el forward-path SMTP máximo de 256 octetos, incluidos los delimitadores angulares (RFC 5321 §4.5.3.1.3: https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.3.1.3). Aplicarlo antes de persistir o redactar encabezados; probar direcciones múltiples y entradas con CRLF. No registrar la dirección completa.
-- Gmail devuelve los 403 con causas distintas que se distinguen por `error.errors[].reason`; la documentación confirma backoff para `rateLimitExceeded` y `userRateLimitExceeded`. HTTP 429 también puede corresponder al límite diario de envío y durar varias horas. Un 403 desconocido no se reintenta a ciegas; un 429 explícito sí puede reintentarse, respetando el plazo que indique la respuesta. El manual de Gmail no autoriza a inferir entrega al destinatario desde el 2xx.
-- El email actual incluye «Estado: Pendiente de confirmación», pero un outbox puede entregar el mensaje horas o días después. Para que una recuperación no mande una afirmación obsoleta, el texto debe decir que la solicitud se recibió y que el estado vigente se consulta en la web; no presentar «Pendiente» como un estado actual. Este ajuste limitado del texto sí queda dentro de R213.
-- El respaldo local documentado tiene retención predeterminada de 30 días; la sincronización externa mostrada usa `rclone sync` y también se menciona una rotación mensual en otro destino, pero no hay un TTL externo definido en el repositorio. Los 30 días de payload en la base activa no son una promesa de borrado total. La guía debe decir que los respaldos conservan la copia hasta vencer su propia rotación, y el despliegue real del worker queda condicionado a identificar y comprobar ese plazo externo.
+**No empezar cambios de código** hasta que el usuario apruebe esta especificación y luego revise el plan detallado por separado.
 
-## 3. Opciones evaluadas
+## 3. Evidencia del estado actual
 
-### A. Reintentar dentro de la petición de reserva
+- ReservaService completa la transacción de alta y después llama a avisarPorCorreo. Si el proveedor falla, la reserva queda, pero no queda una tarea persistente que permita recuperar el aviso.
+- El reintento de una reserva con la misma clave idempotente no vuelve a enviar el correo. Evita duplicados por reintento HTTP, pero no recupera un envío perdido.
+- CorreoService usa HttpClienteOta para OAuth y Gmail. Ese transporte puede repetir POST ante fallos de red, 429 y 5xx, y sigue redirecciones; al ocultar las cabeceras de respuesta, no sirve como frontera de reintento auditable para messages.send.
+- CorreoService acepta hoy una respuesta Gmail 2xx sin id como éxito con el marcador sin-id.
+- docs/operations/correo.md afirma que las reservas no envían correo automático, aunque el servicio actual sí lo intenta.
+- El mensaje actual indica que la reserva está pendiente. Una tarea asíncrona podría llegar después de un cambio o cancelación y mostrar información ya desactualizada.
+- La configuración de correo se liga al proceso al arrancar. Corregir variables de entorno no se detecta solo porque el trabajador vuelva a sondear; hace falta reiniciar la aplicación.
+- Reserva y líneas de reserva se almacenan en SQLite. La solución propuesta no necesita un broker ni otra base de datos.
 
-Es el cambio más pequeño, pero mantiene al huésped esperando a Gmail y pierde el aviso si el proceso cae después de guardar la reserva. No cumple la necesidad de recuperación durable.
+Fuentes primarias para el comportamiento externo: [método Gmail messages.send](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send), [errores y límites de Gmail](https://developers.google.com/workspace/gmail/api/guides/handle-errors) y [sintaxis Retry-After, RFC 9110 §10.2.3](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3). Gmail documenta que los 403 deben clasificarse por su reason estructurado, que algunos 429 de envío pueden durar varias horas y que se puede aplicar backoff. La respuesta de aceptación de la API no acredita entrega en la bandeja del huésped.
 
-### B. Outbox transaccional en SQLite con despachador programado — recomendada
+## 4. Opciones consideradas
 
-Guardar el mensaje pendiente en la misma transacción que la reserva. Un worker procesa filas en segundo plano, con reintentos limitados, espera creciente, recuperación por lease y una vista administrativa de estado. No añade infraestructura y aprovecha la base y la política de concurrencia actuales.
-
-### C. Cola externa
-
-Un broker permitiría desacoplar el envío y escalar varios workers, pero añade operación, credenciales, despliegue y otra frontera de consistencia. No corrige por sí sola la incertidumbre de un POST aceptado por Gmail cuya respuesta se perdió. No se justifica para la instancia SQLite prevista.
-
-## 4. Invariantes del diseño
-
-1. Una reserva nueva y su evento de correo se confirman o revierten en la misma transacción SQLite.
-2. Un reintento de la misma clave de reserva no agrega un segundo evento ni envía el correo desde el hilo HTTP.
-3. El trabajador nunca mantiene una transacción abierta mientras espera OAuth o Gmail.
-4. Cada reclamación incrementa un token de fencing. Solo la reclamación vigente puede cambiar el estado principal; una respuesta tardía se anota en el historial, pero no sobrescribe la decisión más nueva.
-5. El número de intentos automáticos es finito. Cada fila termina en aceptación del proveedor, bloqueo de configuración, revisión manual, cierre explícito o expiración, con razón y hora observables.
-6. ACEPTADO significa que Gmail respondió éxito; no significa que el destinatario lo recibió, abrió o no sufrió un rebote.
-7. No se promete entrega exactamente una vez. Si Gmail acepta el mensaje y la respuesta se pierde, un nuevo envío podría duplicarlo. Esa situación debe aparecer como RESULTADO_INCIERTO y requerir decisión administrativa antes de reenviar.
-8. Cada intento y acción administrativa tiene un registro persistente append-only, sin cuerpo ni dirección de correo completa.
-9. La administración puede ver estado y tomar una acción explícita, pero nunca recibe cuerpo, destinatario completo, secretos OAuth ni tokens en la respuesta de listado del API.
-10. Las pruebas usan correos `.test` y no llaman a Gmail real.
-
-## 5. Componentes propuestos
-
-### Persistencia
-
-- Añadir una migración Flyway V22 para una tabla de outbox, con referencia a la reserva y al evento anterior cuando sea una corrección/reenvío, clave de evento única, tipo de aviso, origen, generación, estado, payload necesario para enviar, contador de intentos, fechas de creación/próximo intento, lease/token de fencing, resultado del proveedor y último error saneado.
-- Añadir una bitácora append-only relacionada con cada evento. Cada fila es inmutable y registra un hecho (`INTENTO_INICIADO`, resultado, vencimiento de lease, reenvío, corrección o cierre manual); no se actualiza una fila de inicio para ponerle resultado. Un intento abierto se cierra lógicamente con un nuevo hecho de vencimiento/resultado incierto. Guardar actor cuando corresponda, token de reclamación, hora UTC, fase (`TOKEN_OAUTH` o `GMAIL_SEND`), clasificación, status HTTP, `reason` allowlist de Gmail, id de mensaje recibido y código de motivo seguro. No guardar cabeceras crudas, cuerpo, dirección completa, texto libre de administración, OAuth ni tokens. El estado actual del outbox sí es una proyección mutable y se actualiza con compare-and-set.
-- La migración crea triggers SQLite que rechazan `UPDATE` y `DELETE` en la bitácora; su limpieza nunca forma parte de la retención del payload. El repository solo ofrece inserción y consultas.
-- Índice para recuperar eventos por estado y vencimiento. Restricciones de CHECK para estados e intentos no negativos. La tabla no sustituye ni modifica las migraciones anteriores.
-- El evento inicial es único por reserva, tipo y generación inicial. Una corrección o reenvío administrativo crea una generación hija inmutable y enlazada; nunca edita ni reemplaza el payload ni borra su historial.
-- Preservar el comportamiento actual: crear exactamente un evento en toda alta nueva que hoy invoca el aviso, tanto de origen `WEB` como `OTRO` del panel; un reintento idempotente no crea otro. Una futura decisión de producto puede cambiar destinatarios/orígenes, pero R213 no cambia esa regla de audiencia.
-- Guardar una instantánea mínima del destinatario, asunto y contenido que se necesita para enviar el aviso generado al crear la reserva. Validar tamaños antes de persistir. Un reintento de esa generación conserva su contenido original. El payload se oculta en todas las respuestas administrativas; al vencer su retención, se borra sin borrar el historial no personal.
-- La fila de estado debe incluir `version_reclamacion` monotónica, `fase_actual` (`TOKEN_OAUTH` / `GMAIL_SEND` / null), `lease_until`, `proximo_intento`, `intentos_automaticos`, `generacion`, `evento_padre_id`, `vence_payload_en` y la clave de idempotencia de acción manual (o su hash). La pareja `(reserva_id, tipo, generación=0)` hace único el aviso inicial; una clave manual repetida devuelve el mismo hijo, no crea otro.
-- `vence_payload_en` se fija al crear el aviso inicial (`creado_en + 30 días`) y todas las generaciones hijas heredan exactamente ese plazo. Un reenvío/corrección no reinicia la retención ni puede prolongar la presencia del payload de esa reserva en la base activa.
-
-### Alta de reserva
-
-- Sustituir el envío sincrónico de ReservaService por la creación del evento outbox dentro de la transacción actual, después de insertar reserva, habitación e historial.
-- Si el insert del outbox falla, toda la transacción de alta se revierte. No queda una reserva sin una intención durable de aviso.
-- Usar la dirección ya normalizada y validada por `ReservaService`; no crear una cabecera `To` desde texto que admita controles o una lista de destinatarios. Al generar el mensaje, validar también remitente y asunto para impedir CRLF en encabezados.
-- El contenido persistido confirma que la solicitud fue recibida y enlaza a la consulta del estado vigente; no incluye una afirmación temporal como «Estado: Pendiente de confirmación». Este cambio es necesario porque la entrega asíncrona puede ocurrir después de que el hotel actualice la reserva.
-- Si la reserva se encontró por idempotencia, devolverla como hoy y no insertar ni enviar otro aviso.
-- Una vez persistida, la petición termina sin esperar a OAuth ni a Gmail.
-
-### Worker
-
-- Añadir un servicio de despacho con reloj inyectable para pruebas y una tarea Spring programada con intervalo y tamaño de lote acotados.
-- No reclamar ni iniciar una fase externa si el tiempo restante hasta `vence_payload_en` es menor al peor camino HTTP acotado (40 s con la configuración actual). Marcar EXPIRADO y borrar payload de toda la cadena antes de ese límite; una acción manual que no pueda completar antes del vencimiento responde 410 y no crea generación hija.
-- Reclamar una fila y registrar el inicio del intento en una transacción breve; asignar lease de dos minutos y token de fencing creciente. El transporte del correo hace como máximo una llamada OAuth y, si esta responde con token válido, una llamada Gmail. Con el timeout actual de 20 s por llamada, el camino HTTP acotado dura hasta unos 40 s; el lease deja unos 80 s de margen para transacciones, programación y pausas breves. Si cambia cualquier timeout o se añade una fase, recalcular el lease y probar el peor caso con reloj controlado. No hay sleep/reintento dentro del intento: la fecha persistida del outbox programa la próxima ejecución. Envío y llamadas HTTP ocurren fuera de la transacción.
-- `intentos_automaticos` incrementa una vez al reclamar; puede incluir fallo de token OAuth antes del envío. Si falta configuración detectada antes de reclamar, el evento se bloquea sin incrementar. El límite de cinco es por generación; una generación hija inicia su propio conteo, pero conserva el vencimiento de su evento inicial.
-- Antes de cada llamada externa, escribir `fase_actual` y el hecho de inicio de esa fase en una transacción corta que compruebe lease/fencing. Si el token OAuth termina y la reclamación sigue vigente, cambiar a `GMAIL_SEND` y registrar ese inicio antes de invocar el POST. Nunca mantener abierta SQLite durante la llamada.
-- Guardar resultado e historial en una transacción breve con condición de estado, token de fencing y vencimiento vigentes. Si el worker responde tarde, no sobrescribe la fila reclamada después; su resultado tardío se agrega a la bitácora para orientar revisión.
-- El worker no toma otro lote si su ejecución anterior sigue activa. La serialización de SQLite y el soporte de una instancia son parte del contrato actual.
-- La tarea programada tiene un solo ejecutor y un guard que impide ejecuciones superpuestas; el lease/fencing sigue siendo la protección persistente ante reinicio. El tamaño del lote y la cadencia deben ser configurables con valores predeterminados acotados, y probarse con el peor tiempo por intento.
-- Si el proceso cae durante `TOKEN_OAUTH`, al vencer el lease se registra el hecho y se agenda REINTENTO: aún no se había iniciado `messages.send`. Si cae después de marcar `GMAIL_SEND`, al vencer el lease pasa a RESULTADO_INCIERTO y no se vuelve a enviar a ciegas; la administración revisa el proveedor antes de decidir. Un resultado tardío agrega un hecho, pero el fencing impide que cambie el estado vigente.
-- OAuth y `users.messages.send` usan transporte de un solo intento sin reintentos ni seguimiento de redirecciones. Un intento del outbox puede ejecutar como máximo un POST de token y, tras recibir token válido, un POST de Gmail al host esperado. El error OAuth se clasifica por separado porque ocurre antes del envío y no tiene el efecto lateral de mandar el mensaje. Un 401, `invalid_grant`, `invalid_client` o respuesta exitosa sin `access_token` bloquea configuración; un fallo OAuth de red, 429 o 5xx previo al POST agenda el siguiente intento acotado en el outbox. Un OAuth 4xx desconocido no se categoriza como rate limit.
-- Clasificar la respuesta Gmail usando status y `error.errors[].reason` del JSON. El cliente permite acceder a status, cuerpo estructurado y solo cabeceras allowlist (por ejemplo `Retry-After`) sin registrar ni exponer cabeceras crudas. No traducir todo 4xx a permanente ni inferir que todo 5xx fue rechazado sin ambigüedad. El `Retry-After` sigue la sintaxis HTTP estándar: segundos decimales o fecha HTTP; se parsea con límite de tamaño/rango y el vencimiento es el mayor entre ese plazo y el backoff propio. Si el valor es inválido se conserva el backoff y se registra solo un código de clasificación.
-
-### Panel y API administrativa
-
-- Contrato de lectura: `GET /api/admin/correo/outbox?estado=&limite=&cursor=` devuelve estado de configuración, conteos por estado y una página de eventos. `limite` predeterminado 25 y máximo 100; cursor estable ordenado por `creado_en DESC, id DESC`. Cada resumen incluye id opaco, código de reserva, origen, tipo, generación, estado, hora de creación/último intento/próximo intento/vencimiento de payload, conteo automático/manual, código de fallo allowlist y destinatario enmascarado. No incluye asunto, cuerpo, email completo, nombre del huésped, respuesta cruda del proveedor, token ni cabeceras.
-- Mostrar el estado como una sección de correo en PaginaAdminIntegraciones, aprovechando navegación existente: configuración real, pendientes, en espera, bloqueados, resultados inciertos, aceptados por proveedor y agotados. Indicar hora del último intento y próximo reintento cuando existan.
-- `POST /api/admin/correo/outbox/{id}/reenvios` crea una generación hija, nunca edita la original; exige `Idempotency-Key`, código de motivo y confirmación explícita cuando el origen sea incierto. El actor se deriva en el servidor del principal autenticado y nunca se acepta desde el cuerpo de la solicitud. En `RESULTADO_INCIERTO` el panel advierte que Gmail pudo haber aceptado el mensaje y exige marcar que el operador revisó la carpeta Enviados antes de continuar. Un destinatario corregido solo se admite en una generación hija con una dirección única validada. Permitir reintento sin cambio solo desde `AGOTADO`/`RESULTADO_INCIERTO`; bloquear si ya existe un descendiente activo.
-- `POST /api/admin/correo/outbox/{id}/cierre` permite cerrar sin reenvío solo estados de revisión manual (`RESULTADO_INCIERTO`, `AGOTADO`, `REQUIERE_CORRECCION`), con motivo categórico obligatorio y registro append-only. El nuevo estado `CERRADO_MANUALMENTE` significa únicamente que el hotel decidió no reintentar; no implica que el correo se haya enviado o entregado.
-- Las dos acciones requieren autenticación `ROLE_ADMIN`, sesión/CSRF e idempotencia. El listado no revela el email completo; el destino nuevo se acepta solo en la solicitud autenticada de corrección y nunca se copia a logs/bitácora. Una transacción IMMEDIATE valida estado de origen, límite de generaciones y ausencia de hijo activo antes de crear una única acción.
-- Límite operativo propuesto para aprobación: no más de tres reenvíos manuales nuevos por reserva en 24 horas, contando todas sus generaciones; los clicks repetidos con la misma clave idempotente no consumen el límite. Este límite protege contra bucles del operador y errores de doble pulsación.
-- El panel debe explicar que el sistema no prueba entrega en la bandeja del destinatario. Sin configuración autorizada, muestra pendiente de configuración y no una prueba de envío.
-
-## 6. Estados y política de reintentos
-
-Estados propuestos: PENDIENTE, ENVIANDO, REINTENTO, BLOQUEADO_CONFIGURACION, REQUIERE_CORRECCION, RESULTADO_INCIERTO, ACEPTADO, AGOTADO, CERRADO_MANUALMENTE y EXPIRADO.
-
-- PENDIENTE: aún no se ha reclamado.
-- ENVIANDO: reclamado con lease vigente.
-- REINTENTO: el proveedor rechazó explícitamente con un error temporal; queda fecha de próximo intento.
-- BLOQUEADO_CONFIGURACION: faltan datos, hay credenciales inválidas o un permiso/configuración conocida impide enviar. Si la falta se detecta antes de reclamar, no consume intento; si OAuth descubre la credencial inválida después de reclamar, ese intento queda registrado y contado. Cuando se corrige la configuración, el mismo evento vuelve a PENDIENTE con su contador existente.
-- REQUIERE_CORRECCION: el destinatario guardado no supera el validador de una sola dirección antes del POST, o el proveedor entrega un código de error que permite atribuir el rechazo a formato de dirección. Solo una generación hija con la dirección corregida puede iniciar otro envío. No significa que Gmail haya comprobado que un buzón existe.
-- RESULTADO_INCIERTO: no se obtuvo respuesta concluyente luego de enviar el POST. Se detiene el reenvío automático para evitar duplicado silencioso; el panel pide revisar Gmail antes de tomar una decisión.
-- ACEPTADO: Gmail respondió éxito y entregó un `id` válido; guardar el id y `aceptado_en` UTC local, además de `internalDate` de Gmail solo cuando venga en la respuesta. No decir entregado. Un HTTP 2xx sin `id` válido no usa un marcador inventado ni cuenta como ACEPTADO: queda RESULTADO_INCIERTO y no se reenvía automáticamente.
-- AGOTADO: se alcanzó el máximo automático o hubo un rechazo permanente/desconocido que no debe repetirse automáticamente. Se conserva el motivo seguro y se permite una decisión administrativa explícita.
-- EXPIRADO: venció el plazo de 30 días heredado de la reserva inicial; se borraron los payloads de todas sus generaciones y el evento ya no se puede reenviar.
-- CERRADO_MANUALMENTE: un administrador eligió no volver a enviar; no afirma éxito ni entrega. Es terminal y queda la razón categórica en la bitácora.
-
-Política inicial propuesta: máximo cinco intentos automáticos por generación; esperas de 1, 5, 15 y 60 minutos entre fallos temporales. Son reintentables como rechazo explícito HTTP 429 y HTTP 403 cuyo `reason` Gmail sea `rateLimitExceeded` o `userRateLimitExceeded`; un 403 `dailyLimitExceeded`, `domainPolicy`, de permisos u otro motivo no incluido en la allowlist se bloquea o termina en AGOTADO según su razón segura, nunca se reintenta como rate limit por inferencia. Un 401 OAuth, `invalid_grant`, `invalid_client`, `unauthorized_client` o respuesta 2xx sin token válido bloquea configuración hasta corregir credenciales. Un OAuth 429/5xx o fallo de red antes del POST programa REINTENTO; un OAuth 4xx no reconocido va a AGOTADO con código seguro para revisión, sin reintento automático. Un 4xx de Gmail que pruebe inequívocamente una dirección inválida pasa a REQUIERE_CORRECCION; los demás 4xx permanentes pasan a AGOTADO con razón segura y revisión manual, sin reintento automático. No inferir que un error Gmail describe un buzón inexistente ni que la sintaxis válida garantiza entrega. Un error de transporte/timeout después de marcar `GMAIL_SEND`, HTTP 5xx de `messages.send` o respuesta 2xx sin `id` válido es RESULTADO_INCIERTO: por el riesgo de que Gmail ya haya aceptado el mensaje, no se repite automáticamente. Fallos transitorios del canje OAuth se distinguen del POST porque ocurren antes de mandar correo y pueden reintentarse sin riesgo de enviar el mensaje dos veces.
-
-Si Gmail entrega `Retry-After`, interpretar segundos o fecha HTTP (RFC 9110 §10.2.3) y respetarlo como espera mínima; si falta o es inválido, usar el backoff anterior. Si pide esperar más allá del vencimiento del payload, pasa a AGOTADO para revisión en vez de enviar antes del plazo indicado. Nunca guardar la cabecera cruda. La clasificación retiene solo status y razones allowlist saneadas suficientes para explicar la decisión.
-
-### Transiciones permitidas
-
-| Estado actual | Evento/condición | Estado siguiente | Efecto externo |
+| Opción | Ventaja | Límite | Decisión propuesta |
 |---|---|---|---|
-| PENDIENTE | Configuración incompleta al procesar | BLOQUEADO_CONFIGURACION | Ningún POST a Gmail; no consume intento. |
-| PENDIENTE / REINTENTO vencido | Reclamación compare-and-set exitosa | ENVIANDO | Registra inicio y lease antes de salir de SQLite. |
-| BLOQUEADO_CONFIGURACION | La configuración ya está completa, queda intento y no venció el payload | PENDIENTE | El worker lo reevalúa; conserva generación y contador. Si no queda intento, AGOTADO; si venció, EXPIRADO. |
-| ENVIANDO | Gmail 2xx con `id` válido | ACEPTADO | Elimina el payload activo en la misma actualización. |
-| ENVIANDO | Rechazo temporal explícito y seguro de repetir | REINTENTO | Guarda vencimiento persistente y resultado del intento. |
-| ENVIANDO | Credencial/configuración corregible | BLOQUEADO_CONFIGURACION | Detiene el intento automático hasta corregir entorno. |
-| ENVIANDO / TOKEN_OAUTH | Lease vencido | REINTENTO | El envío Gmail no había empezado; aplica backoff y límite normal. |
-| ENVIANDO / GMAIL_SEND | Resultado ambiguo del POST o lease vencido | RESULTADO_INCIERTO | No vuelve a enviar automáticamente. |
-| ENVIANDO | Rechazo permanente o error desconocido | AGOTADO / REQUIERE_CORRECCION | Espera decisión administrativa; no repite el POST. |
-| Estado de revisión manual | Cierre explícito del administrador | CERRADO_MANUALMENTE | No envía; no declara aceptación ni entrega. |
-| Evento recuperable | Se alcanza `vence_payload_en` heredado de la reserva inicial | EXPIRADO | Borra payload de todas las generaciones activas; no se puede reenviar. |
+| Mantener el envío en la petición | Menor cambio | La petición espera al proveedor y no hay recuperación durable tras una caída | No cumple el objetivo |
+| Outbox en SQLite | Reserva e intención se guardan juntas; aprovecha la base e infraestructura existentes | Un resultado de Gmail puede quedar incierto; requiere operación de recuperación | Recomendada |
+| Cola externa | Permite separar y escalar workers | Añade servicio, operación y otra frontera de consistencia; no elimina la incertidumbre de Gmail | Fuera de esta ronda |
 
-Toda transición de estado principal comprueba estado y `version_reclamacion` anterior dentro de una transacción breve. Un resultado de una reclamación antigua solo agrega un hecho tardío a la bitácora y no modifica la proyección vigente.
+## 5. Alcance propuesto
 
-El reenvío manual debe mostrar advertencia, quedar auditado y conservar la cantidad de acciones manuales por separado de los intentos automáticos. No se reinicia ni borra la historia anterior. Una generación nueva enlaza al evento anterior y conserva su propia instantánea; así es posible corregir email sin alterar el mensaje ni los intentos anteriores. Cerrar sin reenvío es otra decisión explícita y no pone el evento en ACEPTADO.
+### Incluye
 
-## 7. Privacidad y retención
+- Una fila de outbox por reserva nueva que hoy llama a avisarPorCorreo, tanto si el origen es WEB como OTRO.
+- Inserción transaccional junto con reserva, línea e historial; una repetición idempotente no crea otra fila.
+- Un trabajador único y programado, con reclamación persistente, lease y protección contra ejecuciones superpuestas.
+- Un solo POST a Gmail por ciclo visible del trabajador; los reintentos ocurren únicamente mediante una nueva tarea programada del outbox.
+- Clasificación persistente de aceptación, reintento, bloqueo de configuración, incertidumbre o agotamiento.
+- Consulta paginada, protegida por rol administrativo, y una sección de solo lectura en Integraciones.
+- Actualización del mensaje al huésped, guía operativa, restauración y pruebas automatizadas con Gmail simulado.
 
-El correo y el contenido de confirmación son datos personales. Al llegar a ACEPTADO se eliminan destinatario, asunto y cuerpo de la base activa; permanecen metadatos mínimos de resultado vinculados a la reserva. Para estados recuperables, el payload de cada reserva tiene un plazo lógico máximo de 30 días en la base activa, contado desde la creación de su evento inicial. Las generaciones hijas heredan la misma fecha de vencimiento; corregir o reintentar no la reinicia. Al vencer se marca EXPIRADO en toda la cadena y se borra el payload de todos sus eventos, manteniendo código de reserva, estado y timestamps mínimos. Tras restaurar una copia, la purga por `vence_payload_en` debe finalizar antes de habilitar el worker; si no finaliza, el scheduler sigue deshabilitado.
+### No incluye en la propuesta inicial
 
-La eliminación lógica del payload no borra inmediatamente páginas SQLite/WAL ni snapshots ya creados. Los respaldos `.backup` pueden conservarlo hasta vencer su rotación; la copia diaria local documentada usa 30 días, mientras que la rotación mensual externa no define un TTL. La UI y la documentación describen 30 días como disponibilidad máxima del payload en la base activa, no como borrado físico total. Antes de habilitar el worker en producción, el hotel debe identificar y comprobar la retención externa; si no hay un TTL verificable, la documentación debe declararlo sin prometer borrado total. Al restaurar, la purga lógica por `vence_payload_en` se completa antes de activar el scheduler; si falla, el worker queda deshabilitado y la salud informa degradación. Las pruebas no borran archivos de backup existentes.
+- Reenvío, corrección de correo o cierre manual desde la interfaz.
+- Cola externa, varios workers, cambios de reserva o canales OTA.
+- Mensajes de chat, tema oscuro/claro o rediseño general de navegación.
+- Confirmaciones de entrega, lectura, rebotes o procesamiento exactamente una vez.
+- Acceso de lectura a Gmail para intentar conciliar automáticamente el contenido de Enviados.
 
-Errores persistidos y logs se sanean con las utilidades existentes y se limitan en longitud. No se guardan cuerpos HTTP del proveedor, valores Authorization, secretos, refresh tokens ni access tokens.
+La interfaz se propone como solo lectura para mantener acotado el primer cambio. Un evento incierto quedaría visible y requeriría una decisión operativa fuera de esa vista. El usuario puede pedir que se incluya una acción administrativa de resolución antes de aprobar la especificación.
 
-## 8. Casos de fallo y respuesta esperada
+## 6. Persistencia y datos personales
 
-| Caso | Resultado esperado |
+Añadir una migración Flyway posterior a la versión vigente —se espera V22, por confirmar al planear— con una tabla de outbox que contenga solo los metadatos necesarios:
+
+- id, reservation_id, tipo de aviso y unicidad por reserva/tipo;
+- estado, fase, número máximo y número actual de ciclos;
+- creación, último intento, próximo intento, lease y versión de reclamación;
+- clasificación segura del último resultado y, si existe, el id de mensaje de Gmail.
+- estado y resultado más reciente únicamente; esta versión no agrega una bitácora append-only de cada cambio.
+
+**Propuesta de privacidad:** no duplicar en outbox el email, nombre, asunto ni cuerpo. El trabajador recupera la reserva vigente al enviar y usa su email actual. El mensaje se simplifica a una constancia genérica de recepción con el código y un enlace para consultar el estado vigente; no copia fechas, nombre ni un estado temporal. Si la reserva se canceló antes del despacho, el texto sigue siendo solo una constancia de que se recibió una solicitud y el enlace presenta el estado vigente. Si falta la reserva o el email no es utilizable, no se envía: pasa a `AGOTADO` con la clasificación allowlist `RESERVA_NO_DISPONIBLE` o `DESTINATARIO_INVALIDO`, respectivamente, sin llamar a OAuth ni a Gmail ni consumir un ciclo adicional. La migración propone una FK con `ON DELETE RESTRICT`; la clasificación de reserva ausente cubre corrupción o datos legados inconsistentes.
+
+Esta elección evita crear una segunda copia de datos personales, pero implica que un cambio de email antes del despacho dirige el aviso a la dirección actualmente guardada. Si el usuario prefiere congelar destinatario y contenido al crear la reserva, esa alternativa exige definir retención del payload y presencia en respaldos antes de escribir código; no está implícita en esta propuesta.
+
+La tabla no guarda cuerpos HTTP, cabeceras crudas, tokens OAuth, autorización, email completo ni mensajes de error libres. La API administrativa tampoco los expone. La fila conserva `reservation_id` como relación, con borrado restringido mientras exista el aviso. Si una reserva aun así no está disponible al procesar el evento, se aplica `AGOTADO/RESERVA_NO_DISPONIBLE`. La retención de la fila sigue a la reserva y la retención existente de la base; esta ronda no promete borrado físico ni vencimiento distinto en respaldos.
+
+## 7. Flujo transaccional y trabajador
+
+### Al crear la reserva
+
+1. Dentro de la transacción actual, guardar reserva, línea, historial y tarea AVISO_RESERVA.
+2. Si falla la inserción del outbox, revertir la creación completa.
+3. Si se encuentra la reserva por idempotencia, responder como hoy sin insertar otra tarea.
+4. Finalizar la operación HTTP sin canjear OAuth ni llamar a Gmail.
+
+### Al procesar la tarea
+
+1. Reclamar una sola fila mediante una transacción corta, incrementando versión de reclamación y lease, pero no el contador de ciclos. No se reclaman lotes que puedan esperar en memoria más tiempo que el lease.
+2. Leer la reserva y la configuración; ninguna llamada de red ocurre mientras SQLite está en transacción.
+3. Registrar la fase TOKEN_OAUTH y luego GMAIL_SEND antes de sus respectivas llamadas externas. Incrementar el contador de ciclo una sola vez, justo antes de la primera llamada externa y después de validar configuración, reserva y destinatario; si no se hace una llamada externa, no se consume ciclo.
+4. Usar transporte específico de Google sin reintentos ocultos ni seguimiento de redirecciones; no alterar la política HTTP de los conectores OTA.
+5. Guardar la clasificación del resultado con una actualización condicional por estado, lease y versión. Una respuesta tardía de una reclamación antigua no cambia el estado vigente.
+6. Ejecutar un solo worker dentro de una instancia de la aplicación, con prevención de solapamiento. El intervalo de sondeo propuesto es cinco segundos y el lote máximo es una fila por ciclo; esta versión no habilita réplicas activas ni workers externos sobre la misma base SQLite.
+
+### Presupuesto de tiempos propuesto
+
+- El transporte específico de Google permite como máximo una petición OAuth y un POST a Gmail por ciclo, con timeout de 20 segundos para cada petición y sin reintentos de transporte ni redirecciones.
+- El deadline total de procesamiento es 50 segundos desde la reclamación, incluidos trabajo local y persistencia. Si vence antes de iniciar `GMAIL_SEND`, se registra `REINTENTO`; si ya inició ese POST, se registra `RESULTADO_INCIERTO`.
+- El lease propuesto es de 120 segundos: supera el deadline total en 70 segundos para dar margen a persistir y recuperar el estado. Los valores deben ser configurables para las pruebas, sin cambiar los límites de producción.
+- Un lease vencido en `TOKEN_OAUTH` vuelve a ser elegible para reintento; como el ciclo y la fase se persisten antes de la llamada OAuth, ese ciclo cuenta aunque el proceso caiga antes de recibir respuesta. Un lease vencido en `GMAIL_SEND` se convierte en `RESULTADO_INCIERTO`, limpia la reclamación e incrementa la versión para que la respuesta tardía no pueda sobrescribir el estado.
+- Si la respuesta Gmail sigue pendiente al expirar el lease, no se reclama otro envío: la recuperación terminal a incierto y la actualización condicional por versión impiden un segundo POST automático.
+
+Tras caída normal con la misma base: lease vencido durante TOKEN_OAUTH puede reintentarse porque todavía no inició el envío; lease vencido durante GMAIL_SEND pasa a RESULTADO_INCIERTO para no duplicar a ciegas.
+
+## 8. Estados y política de reintentos propuesta
+
+| Estado | Significado |
 |---|---|
-| Migración o insert outbox falla al crear | Rollback completo de la nueva reserva; error normal de la operación, sin inventario reservado a medias. |
-| Correo sin configurar | Reserva y evento quedan persistidos; evento bloqueado sin consumir intentos; pantalla administrativa lo señala. |
-| Configuración arreglada después de un bloqueo | El mismo evento vuelve a PENDIENTE y se puede reclamar; conserva generación y payload. |
-| Gmail responde éxito con id | Evento ACEPTADO, id y fecha almacenados; el huésped no espera dentro del POST de reserva. |
-| Gmail responde 429 o error temporal reconocido | Evento en REINTENTO, backoff persistido; la reserva no cambia. |
-| Gmail responde 403 `rateLimitExceeded` / `userRateLimitExceeded` | Evento en REINTENTO con backoff; un 403 de otra razón sigue la clasificación específica y no se trata automáticamente como temporal. |
-| Validador detecta dirección inválida o el proveedor identifica inequívocamente su formato | REQUIERE_CORRECCION; no se manda POST y solo una nueva generación con dirección validada puede volver a enviar. La sintaxis válida no prueba que el buzón exista. |
-| Gmail rechaza otro contenido de forma permanente | AGOTADO con razón segura; no hay reintento automático ni se modifica el payload original. |
-| Gmail responde error permanente de configuración/permisos | BLOQUEADO_CONFIGURACION con razón segura; no consume intentos ciegos y espera corrección. |
-| Se pierde la respuesta del POST, responde 5xx o el 2xx no incluye `id` | RESULTADO_INCIERTO, sin reenvío automático; administración revisa proveedor antes de decidir. |
-| Proceso cae durante TOKEN_OAUTH | Tras vencer lease se agenda REINTENTO porque no comenzó `messages.send`. |
-| Proceso cae después de marcar GMAIL_SEND | Tras vencer el lease el evento pasa a RESULTADO_INCIERTO; no se reenvía automáticamente porque Gmail pudo haberlo aceptado. |
-| Se intenta cerrar un resultado incierto | CERRADO_MANUALMENTE con razón categórica y actor; no se inventa un estado de entrega. |
-| Clic repetido en reenvío/corrección | La misma `Idempotency-Key` devuelve el mismo hijo; no crea otro envío. |
-| Reserva repetida por idempotencia mientras el correo sigue pendiente | Devuelve el código original y no crea otro evento ni adelanta su intento. |
-| Respuesta tardía del worker tras vencer/reasignarse el lease | Se agrega a la bitácora con el token viejo; fencing impide que sobrescriba el estado vigente o una generación hija. |
-| Alta manual `OTRO` del panel | Se crea un evento igual que para `WEB`, porque el comportamiento actual avisa después de toda alta nueva; la prueba fija esa paridad. |
-| Reenvío manual/corrección | Solo administrador autenticado, generación hija, confirmación y auditoría; aviso de posible duplicado para estado incierto. |
-| Restauración de respaldo antiguo | La purga por edad corre antes de iniciar el worker; un payload vencido no se puede reenviar por restauración. |
+| PENDIENTE | Tarea guardada, aún no reclamada |
+| ENVIANDO | Reclamada con lease vigente; la fase queda registrada |
+| REINTENTO | Rechazo temporal conocido; espera hasta una fecha persistida |
+| BLOQUEADO_CONFIGURACION | Configuración o credenciales requieren corrección; no hay nuevo envío mientras siga el bloqueo |
+| ACEPTADO | Gmail respondió 2xx con id no vacío; no demuestra entrega |
+| RESULTADO_INCIERTO | Gmail pudo aceptar el POST, pero el resultado local no es concluyente; no se reenvía automáticamente |
+| AGOTADO | Se consumieron los ciclos permitidos o hubo rechazo permanente/espera excesiva; requiere revisión |
 
-## 9. Verificación de aceptación
+### Reintentos
 
-### Backend
+Propuesta inicial: máximo de cinco ciclos por tarea que llegan a realizar una llamada externa, tanto si el primer llamado es OAuth como si se usa un token vigente y se llama directamente a Gmail. El contador se incrementa inmediatamente antes de esa llamada. Esperas base entre ciclos: 1, 5, 15 y 60 minutos. La cifra y la secuencia son propuestas, no decisiones aprobadas. Un fallo OAuth temporal consume el ciclo y puede reintentarse; un agotamiento del lease durante Gmail no se reintenta automáticamente porque el resultado es incierto. Falta de configuración, reserva ausente o destinatario inválido se resuelven antes de la primera llamada y no consumen ciclo.
 
-- Prueba de integración con SQLite que demuestre atomicidad: reserva y outbox aparecen juntas; provocar un fallo del outbox revierte ambas.
-- Reintento idempotente produce un solo evento y cero envío directo desde la petición HTTP.
-- El texto del aviso describe recepción de la solicitud y enlace al estado vigente; no afirma que la solicitud siga pendiente cuando Gmail la entregue.
-- Worker reclama, persiste lease y estado final; al simular caída, el lease vencido mueve la fila a RESULTADO_INCIERTO y bloquea un segundo envío automático.
-- Probar caída en ambas fases: `TOKEN_OAUTH` se puede reintentar; `GMAIL_SEND` queda incierto. Cubrir caída entre recibir token y marcar la fase de Gmail.
-- Probar correo sin configurar, HTTP 429, 403 temporal y 403 permanente según `reason`, HTTP 5xx/timeout ambiguo, rechazo permanente, éxito con id, 2xx sin id, límite de intentos y `Retry-After` válido/ausente/malformado.
-- Probar OAuth `invalid_grant`/`invalid_client`, error OAuth desconocido, 429/5xx previo al envío y respuesta 2xx sin access token; distinguirlos de resultados del POST Gmail.
-- Probar `Retry-After` como segundos y HTTP-date, rango excesivo, valor malformado y backoff resultante; no reducir el plazo del proveedor.
-- Probar dirección única, longitud máxima, CR/LF, controles y múltiples destinatarios en alta, correo de prueba y corrección manual; los datos inválidos no llegan a crear cabeceras ni payload. Probar que remitente/asunto rechazan CR/LF y que el cuerpo generado queda dentro del límite documentado.
-- Probar que el POST Gmail send ejecuta como máximo una llamada por intento visible y no tiene reintentos invisibles dentro de HttpClienteOta.
-- Probar que un intento completo ejecuta como máximo una llamada OAuth y un POST Gmail, y que un fallo OAuth programa retry sin haber llamado a Gmail.
-- Probar que una respuesta de redirección en `users.messages.send` no dispara otro request ni reenvía la autorización a otro host.
-- Probar lease y fencing con resultado tardío, caída durante ENVIANDO, reenvío concurrente y duración superior al peor tiempo HTTP calculado.
-- Probar historial append-only para intento automático, acción manual, fallo abierto recuperado y resultado tardío; sin cuerpo ni email en sus respuestas.
-- Probar la ausencia de UPDATE/DELETE en la bitácora, la creación idempotente de hijo, límite propuesto de tres reenvíos manuales nuevos por reserva cada 24 horas y cierre manual sin afirmación de envío.
-- Probar `WEB` y `OTRO`, idempotencia y corrección de destinatario con una generación hija sin alterar payload/historia original.
-- Probar expiración desde la hora de alta original, heredada por hijos, en base activa y restauración de copia antigua antes de que el worker reclame eventos; rechazar reclamaciones cuando no quede margen para completar el peor tiempo HTTP antes de vencer.
-- Probar que un fallo de la tarea de purga tras restaurar mantiene deshabilitado el worker y degrada el indicador operativo hasta completar la purga.
-- Prueba de seguridad: acceso anónimo/rol no administrador rechazado y ausencia de destinatario/cuerpo/token en respuestas.
-- Ejecutar suite API completa, empaquetado y arranque con SQLite temporal y Gmail desactivado. Una prueba simulada no cuenta como envío real.
+- Gmail 429 y Gmail 403 con reason explícito rateLimitExceeded o userRateLimitExceeded: REINTENTO.
+- Gmail 401 o 403 con reason de credencial/permisos, como authError o domainPolicy: BLOQUEADO_CONFIGURACION.
+- Gmail 403 con otra razón, otros 4xx permanentes o reason desconocido: AGOTADO; nunca tratar cualquier 403 como límite de cuota ni como error de configuración sin evidencia.
+- Fallo de red, 429 o 5xx de OAuth antes del envío: reintento acotado. OAuth 401, invalid_grant, invalid_client o respuesta 2xx sin access_token: BLOQUEADO_CONFIGURACION. Un 4xx OAuth desconocido queda AGOTADO con clasificación segura.
+- Timeout o pérdida de conexión después de iniciar GMAIL_SEND, respuesta Gmail 5xx, redirección o Gmail 2xx sin id no vacío: RESULTADO_INCIERTO; no hacer otro POST automáticamente.
+- Falta de configuración detectada antes de llamar a OAuth: BLOQUEADO_CONFIGURACION sin consumir ciclo.
+- Tras corregir variables de entorno se debe reiniciar la aplicación. En el siguiente arranque, una vez cargada la configuración, el trabajador cambia las filas `BLOQUEADO_CONFIGURACION` a `PENDIENTE` sin crear otra fila ni alterar el contador de ciclos; luego las procesa normalmente. Si las credenciales todavía fallan en OAuth, vuelve a `BLOQUEADO_CONFIGURACION`. El sondeo por sí solo no recarga HotelProperties; las filas bloqueadas no consumen más ciclos mientras esperan el reinicio.
 
-### Interfaz
+### Retry-After
 
-- Pruebas de PaginaAdminIntegraciones para estados de carga, error, ausencia de correo configurado, conteos, estados de entrega y confirmación de reenvío.
-- Incluir los estados RESULTADO_INCIERTO, AGOTADO, REQUIERE_CORRECCION, CERRADO_MANUALMENTE y EXPIRADO; la interfaz explica que «aceptado por Gmail» no equivale a «entregado».
-- Estilos solo en SCSS central; controles táctiles y semántica accesible coherentes con componentes del panel.
-- Verificación visual con capturas en escritorio y móvil, sin datos reales, además de cero errores de consola.
+RFC 9110 admite segundos enteros no negativos o una fecha HTTP. Propuesta:
 
-### Operación
+1. Parsear ambos formatos sin guardar ni exponer la cabecera cruda.
+2. Si el valor es válido y no excede 24 horas, programar el mayor entre ese plazo y la espera base.
+3. Si falta o está malformado, usar la espera base.
+4. Si pide más de 24 horas, no enviar antes del plazo del proveedor: pasar a AGOTADO con un código seguro de espera excesiva para revisión.
+5. El máximo de cinco ciclos se conserva incluso cuando uno de ellos queda programado a muchas horas.
 
-- Documentar nuevos valores opcionales de intervalo/límite si se exponen como configuración. Los valores predeterminados deben permitir arrancar sin configuración de correo.
-- Actualizar la guía operativa para explicar que los 30 días son retención lógica del outbox activo y que las copias pueden preservar payload hasta su rotación; documentar y verificar TTL local/externo y purga previa al worker tras restaurar.
-- Corregir la sección actual «Qué NO hace este sistema»: el código ya avisa por correo al crear una reserva. Documentar que el envío pasa al worker y que el estado operativo se consulta solo en administración.
-- Antes de habilitar el worker real, registrar evidencia del TTL de respaldos externos y de la política de las rotaciones mensuales; una configuración externa sin TTL deja bloqueada la habilitación de producción.
-- Arranque real en perfil de pruebas con migraciones, worker inactivo para Gmail no configurado y estado visible en API/panel.
-- La entrega real de Gmail queda pendiente de una configuración y autorización del hotel; no forma parte de las pruebas locales ni del criterio de este código.
+Gmail indica que ciertos límites diarios pueden producir 429 durante varias horas; por eso el sistema no acorta una espera válida del proveedor. El umbral de 24 horas es una propuesta para balancear espera y utilidad del aviso, pendiente de aprobación.
 
-## 10. Fuera de alcance
+## 9. Restauración de respaldos
 
-- Tema oscuro/claro: se mantiene en Etapa 9, según el plan general.
-- Incorporar nuevos proveedores, mensajería instantánea, colas externas o múltiples instancias.
-- Alterar reservas existentes, editar silenciosamente un evento original, o cambiar el origen que genera el correo en relación con el comportamiento actual.
-- Confirmar lectura, llegada a bandeja de entrada, rebotes o reputación del dominio; requieren capacidades del proveedor y configuración posterior.
-- Garantía de entrega exactamente una vez. El protocolo HTTP de Gmail documenta un POST de envío y no se presupone deduplicación del proveedor. Se hace explícito el riesgo de duplicado tras una respuesta ambigua.
-- Cambiar el contenido del aviso más allá de sustituir el estado posiblemente obsoleto por una constancia de recepción con enlace al estado vigente; no afirmar que la reserva está confirmada.
+Una caída y reinicio con la base actual no equivalen a restaurar una copia antigua: los efectos externos de Gmail no vuelven atrás cuando se restaura SQLite.
 
-## 11. Archivos candidatos
+Procedimiento propuesto para restaurar una base que ya contiene la tabla del outbox. Durante toda la ventana de migración y cuarentena la aplicación debe estar en modo de mantenimiento: no acepta altas ni otras mutaciones de reservas, no permite envíos de correo de prueba y el worker permanece desactivado. Las lecturas de salud y solo las operaciones estrictamente necesarias para el procedimiento pueden seguir disponibles.
 
-La implementación debe confirmar nombres y límites al escribir el plan, pero se prevé tocar únicamente:
+1. Activar el modo de mantenimiento, bloquear escrituras de reservas, detener el worker y mantener CORREO_OUTBOX_ACTIVO=false.
+2. Restaurar la copia y arrancar la API en modo de mantenimiento, todavía con el worker inactivo, para aplicar migraciones vigentes. Una solicitud de alta o un envío de correo de prueba durante esta ventana responde temporalmente no disponible (503) y no crea reserva, outbox ni hace llamadas a Google.
+3. Ejecutar una operación de cuarentena única dentro de SQLite: todas las filas recuperadas en PENDIENTE, ENVIANDO, REINTENTO o BLOQUEADO_CONFIGURACION pasan a RESULTADO_INCIERTO, reciben la clasificación RESPALDO_RESTAURADO_REVISAR, y limpian lease y próximo intento. Las filas ACEPTADO, RESULTADO_INCIERTO y AGOTADO conservan su estado.
+4. Comprobar que la consulta de elegibles devuelve cero filas recuperadas anteriores a la restauración. Guardar en el registro operativo el conteo por estado antes y después de la cuarentena.
+5. Retirar el modo de mantenimiento y habilitar las altas de reservas; reactivar el worker solo después de completar y verificar la cuarentena. Desde ese momento las tareas nuevas se procesan normalmente; las filas inciertas recuperadas no se reenvían automáticamente.
 
-- API: migración V22, paquete correo (repositorio, worker, servicio de outbox, historial de intentos y controlador), ReservaService, CorreoService/HttpClienteOta/Respuesta, validador compartido de direcciones/cabeceras, AppConfig y sus pruebas.
-- Web: PaginaAdminIntegraciones, su prueba, App si la ruta actual exige cambios y los SCSS centralizados del panel.
-- Documentación: plan general, evidencia R213 y manual operativo de correo.
+Esta decisión es deliberadamente conservadora: una fila pudo no haberse enviado y aun así quedará incierta. El personal puede revisar Enviados por código, destinatario y ventana temporal y contactar al huésped por otro canal cuando no haya certeza. La búsqueda manual no actualiza el estado de la app en la propuesta de solo lectura; no se añade permiso Gmail de lectura ni un botón de resolución. Por tanto, RESULTADO_INCIERTO puede permanecer visible. Una transición administrativa auditada para registrar conciliación es una ampliación que el usuario debe aprobar antes de planear.
 
-Cualquier cambio a esquemas previos, envío en tiempo real desde la petición, exposición de payload personal, retención física prometida o excepción a la regla de origen requiere justificarlo antes del código.
+Una copia anterior a la creación de la tabla no contiene tareas de outbox; esas reservas históricas no se regeneran automáticamente. No se envían correos retroactivos al aplicar la migración.
+
+## 10. Consulta administrativa
+
+Propuesta de API de solo lectura bajo /api/admin/**:
+
+- GET /api/admin/correo/outbox?estado=&limite=&cursor=
+- límite predeterminado 25 y máximo 100; cursor opaco estable ordenado por creado_en DESC e id DESC.
+- devolver código de reserva, estado, ciclo actual/máximo, marcas de creación/último/próximo intento y clasificación allowlist.
+- no devolver email, nombre, asunto, cuerpo, id de Gmail, token, Authorization, texto libre ni respuesta original de Google.
+- una sección independiente en PaginaAdminIntegraciones muestra carga, error, vacío, paginación y todos los estados. ACEPTADO debe decir “Aceptado por Gmail; no confirma entrega”.
+- estados se identifican con texto y no solo color. Controles accesibles con teclado, foco visible y avisos anunciados.
+
+Cursor en lugar de offset para ordenar páginas de forma determinista sin permitir offsets enormes. El endpoint requiere rol administrador; huéspedes y anónimos no pueden consultarlo.
+
+## 11. Validación y privacidad al generar el mensaje
+
+R213 cambia el transporte del correo y pasa la dirección de reserva al trabajador. El límite propuesto de 254 octetos se basa en el máximo del forward-path SMTP (RFC 5321 §4.5.3.1.3: https://www.rfc-editor.org/rfc/rfc5321.html#section-4.5.3.1.3). La política operativa completa y sus casos están especificados a continuación.
+
+La regla de dirección se aplica antes de crear encabezados o hacer cualquier petición HTTP: una sola dirección ASCII de hasta 254 octetos; rechazar Unicode, listas de destinatarios, controles y CR/LF; no registrar el valor completo. Aplicar la misma regla al alta de reserva, al envío de prueba administrativo y al despacho desde outbox. El alta inválida se rechaza antes de persistir reserva/outbox; una reserva histórica con dirección inválida termina como `AGOTADO/DESTINATARIO_INVALIDO`, sin llamada OAuth ni POST Gmail.
+
+Remitente y asunto también deben rechazar CR/LF. Los errores de Google se reducen a estados y códigos allowlist; ningún mensaje crudo del proveedor, token o cabecera aparece en logs o API. Las pruebas usan servidores HTTP locales y dominios .test; no se usan credenciales reales ni se manda correo real.
+
+## 12. Criterios de aceptación para el futuro plan
+
+### API y base de datos
+
+- Prueba SQLite demuestra que reserva y outbox se confirman juntas y que un fallo del insert revierte reserva, línea e historial.
+- Una reserva repetida por idempotencia conserva una sola tarea y no hace llamadas de red.
+- Gmail sin configuración no impide guardar la reserva.
+- Gmail 2xx con id, 2xx sin id, 401, 429, 403 por cuota, credencial/permisos o reason desconocido, rechazo permanente, timeout, 5xx, redirección y OAuth fallido producen los estados definidos.
+- OAuth 2xx sin token no llama a Gmail; 401/invalid_grant/invalid_client bloquean configuración; un arreglo de variables requiere reiniciar y recupera la misma fila.
+- Configuración ausente se bloquea antes de OAuth, sin llamada HTTP ni ciclo. Reserva ausente o dirección inválida en una reserva persistida termina en `AGOTADO` con `RESERVA_NO_DISPONIBLE` o `DESTINATARIO_INVALIDO`, sin consumir ciclo ni hacer petición HTTP.
+- Validación de email: 254 octetos ASCII válidos; 255 octetos, Unicode, más de un destinatario, controles y CR/LF inválidos. Los mismos casos cubren alta y `/prueba`; un dato inválido no crea encabezados ni hace HTTP. Una reserva histórica inválida llega a `AGOTADO/DESTINATARIO_INVALIDO` y produce cero POST Gmail. Remitente o asunto con CR/LF se rechazan antes de OAuth/Gmail; logs y excepciones no incluyen la dirección completa.
+- El transporte hace como máximo un POST Gmail por ciclo, no sigue redirecciones y no modifica los reintentos usados por OTAs.
+- Cada llamada OAuth/Gmail respeta timeout de 20 segundos, el ciclo el deadline de 50 segundos y el lease es de 120 segundos; duraciones cortas inyectables en pruebas. Un servidor local que bloquea OAuth acaba en `REINTENTO` con cero POST Gmail; uno que bloquea Gmail acaba en `RESULTADO_INCIERTO` con exactamente un POST. Respuesta tardía después del lease no sobrescribe el estado ni dispara otro POST. Máximo de ciclos, esperas persistidas, Retry-After como segundos/fecha/ausente/malformado/>24h, lease vencido en ambas fases y ausencia de solapamiento cubiertos.
+- Tras reiniciar con configuración corregida, filas bloqueadas pasan a `PENDIENTE` conservando su contador; credenciales aún inválidas las vuelven a bloquear. La restauración rechaza altas durante mantenimiento, pone en cuarentena solo filas recuperadas y permite procesar una nueva reserva tras levantar el modo.
+- Un resultado incierto o una fila recuperada de respaldo antiguo no causa reenvío automático.
+- Seguridad administrativa de lista, paginación por cursor, límite 100 y ausencia de PII/secretos comprobados.
+- Ninguna operación de correo cambia precio, estado, disponibilidad o inventario de reserva.
+
+### Interfaz y operación
+
+- PaginaAdminIntegraciones prueba carga/error/vacío, todos los estados, cursor/paginación y error independiente del estado OTA.
+- Estilos SCSS centralizados; teclado, foco visible, lectura por tecnología asistiva y ausencia de desbordamiento móvil verificados.
+- Evidencia visual real de escritorio 1440 × 1000 y móvil 390 × 844, con datos sintéticos y consola sin errores atribuibles a la página.
+- docs/operations/correo.md describe el envío automático, estados, diferencias entre aceptación/entrega y reinicio requerido al corregir entorno.
+- docs/operations/despliegue-respaldos.md contiene pausa, restauración, cuarentena, conteo de filas y reanudación; la prueba sintética confirma que las filas antiguas quedan inciertas y que solo las nuevas son elegibles.
+- Suite API, suite web, typechecks y builds pasan; la migración y restauración se verifican sobre SQLite temporal.
+- Gmail real no forma parte de la suite ni se declara verificado.
+
+## 13. Decisiones que el usuario debe revisar
+
+La recomendación de esta especificación es aprobar el alcance de solo lectura, sin reenvío/corrección desde el panel, con estas reglas: cinco ciclos y backoff 1/5/15/60 minutos; Retry-After válido hasta 24 horas se respeta; un plazo mayor termina en AGOTADO; no se copia el contenido del correo a outbox; credenciales corregidas requieren reinicio; y tras restaurar una copia antigua todas las filas no terminales recuperadas se ponen en cuarentena como RESULTADO_INCIERTO antes de reactivar el worker.
+
+También requieren revisión explícita: validar una sola dirección ASCII de hasta 254 octetos en reserva, envío de prueba y despacho; mapear una reserva ausente a `AGOTADO/RESERVA_NO_DISPONIBLE`; usar una instancia y una fila por ciclo; sondear cada cinco segundos; aplicar timeout de 20 segundos por petición, deadline de ciclo de 50 segundos y lease de 120 segundos; reactivar filas de configuración como `PENDIENTE` tras reinicio sin reiniciar su contador; y detener altas y envíos de prueba durante la cuarentena de restauración.
+
+La decisión más relevante de privacidad es reconstruir el mensaje desde la reserva vigente en vez de guardar una instantánea personal. Eso significa que se usa el email actual al momento de despacho; el cuerpo propuesto es genérico para no repetir fechas o estado desactualizado. La alternativa de congelar destinatario/contenido da fidelidad al momento de reserva, pero duplica PII y requiere una política explícita de retención y respaldos.
+
+Al aprobar o comentar este documento, el usuario también puede pedir una acción administrativa auditada para resolver RESULTADO_INCIERTO. Sin esa ampliación, la vista seguirá siendo de solo lectura y las filas que no puedan conciliarse permanecerán inciertas, sin reenvío automático.
+
+### Referencias primarias
+
+- Gmail API, envío: https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send
+- Gmail API, errores y límites: https://developers.google.com/workspace/gmail/api/guides/handle-errors
+- IETF, HTTP Semantics, Retry-After: https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3
