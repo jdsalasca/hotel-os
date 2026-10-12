@@ -95,6 +95,14 @@ const CAMPOS_RESUMEN_FICHA: {
 
 const VACIO: ConfigHotel = Object.fromEntries(CAMPOS.map((campo) => [campo.clave, '']));
 
+/** Un cero es una coordenada válida; solo el campo vacío o no numérico usa el centro inicial. */
+function coordenadaParaSelector(valor: string | undefined, respaldo: number): number {
+  const texto = valor?.trim();
+  if (!texto) return respaldo;
+  const numero = Number(texto);
+  return Number.isFinite(numero) ? numero : respaldo;
+}
+
 /** Centro de la vista cuando el hotel aún no está ubicado: Boyacá, donde está el hotel. */
 const CENTRO_SIN_UBICAR = { latitud: 5.65, longitud: -73.52 };
 
@@ -317,8 +325,8 @@ export function PaginaAdminHotel() {
               titulo="Ubicación del hotel"
               ayuda="El punto verde es lo que se guarda. Muévelo con los botones hasta reconocer la entrada del hotel y pulsa Usar este punto."
               punto={{
-                latitud: Number(valores.latitud) || CENTRO_SIN_UBICAR.latitud,
-                longitud: Number(valores.longitud) || CENTRO_SIN_UBICAR.longitud,
+                latitud: coordenadaParaSelector(valores.latitud, CENTRO_SIN_UBICAR.latitud),
+                longitud: coordenadaParaSelector(valores.longitud, CENTRO_SIN_UBICAR.longitud),
               }}
               onElegir={(lat, lng) => setValores({ ...valores, latitud: String(lat), longitud: String(lng) })}
             />

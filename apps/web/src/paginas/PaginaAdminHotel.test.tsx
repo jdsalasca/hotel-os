@@ -117,6 +117,28 @@ describe('estado de la ficha del hotel', () => {
 });
 
 describe('elegir el punto del hotel en el mapa', () => {
+  it('conserva cero como coordenada válida al abrir el selector', async () => {
+    estado.get.mockResolvedValue({ latitud: '0', longitud: '0' });
+    montar();
+
+    await screen.findByRole('textbox', { name: 'Nombre del hotel' });
+    fireEvent.click(screen.getByRole('button', { name: /ubicar en el mapa/i }));
+
+    const mapa = await screen.findByTitle('Mapa para elegir el punto: ubicación del hotel');
+    expect(mapa.getAttribute('src')).toContain('marker=0%2C0');
+  });
+
+  it('usa el centro de referencia solo cuando las coordenadas están vacías', async () => {
+    estado.get.mockResolvedValue({ latitud: '', longitud: '' });
+    montar();
+
+    await screen.findByText(/el mapa no aparece en tu web/i);
+    fireEvent.click(screen.getByRole('button', { name: /ubicar en el mapa/i }));
+
+    const mapa = await screen.findByTitle('Mapa para elegir el punto: ubicación del hotel');
+    expect(mapa.getAttribute('src')).toContain('marker=5.65%2C-73.52');
+  });
+
   it('mover el punto cambia lo que se guarda, sin depender de arrastrar el visor', async () => {
     estado.get.mockResolvedValue({ latitud: '', longitud: '' });
     montar();
