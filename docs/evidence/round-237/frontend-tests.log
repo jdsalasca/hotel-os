@@ -1,0 +1,1908 @@
+
+> hotel-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.3 C:/Users/jdsal/AppData/Local/Temp/opencode/hotel-r237/apps/web
+
+ ❯ src/paginas/PaginaAdminPanel.test.tsx (10 tests | 4 failed) 7956ms
+   ❯ la web pública sin salida (7)
+     × avisa en el panel que los huéspedes no tienen forma de contactar al hotel 1404ms
+     × junta los pendientes en un solo aviso, con su enlace cada uno 1240ms
+     × en singular cuando sólo falta una cosa 1115ms
+     × una lectura que falla no cuenta como pendiente 1037ms
+Not implemented: Window's scrollTo() method
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/paginas/PaginaAdminPanel.test.tsx > la web pública sin salida > avisa en el panel que los huéspedes no tienen forma de contactar al hotel
+TestingLibraryElementError: Unable to find an element with the text: /los huéspedes no pueden contactarte/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <main
+      class="centrado"
+      id="contenido"
+    >
+      <section
+        class="seccion"
+      >
+        <h1
+          class="seccion__titulo"
+        >
+          Panel del hotel
+        </h1>
+        <p
+          class="seccion__intro"
+        >
+          Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
+        </p>
+        <form
+          class="tarjeta pila mb-e4"
+        >
+          <h2
+            class="t-lg mb-0"
+          >
+            Mi cuenta
+          </h2>
+          <p
+            class="campo__ayuda sin-margen"
+          >
+            Así te saluda la cabecera. Con Google se pone solo; con contraseña lo pones aquí.
+          </p>
+          <div
+            class="campo"
+          >
+            <label
+              class="campo__etiqueta"
+              for="cuenta-nombre"
+            >
+              Nombre visible
+            </label>
+            <input
+              autocomplete="nickname"
+              id="cuenta-nombre"
+              maxlength="80"
+              type="text"
+              value="Dueño"
+            />
+          </div>
+          <p
+            class="sin-margen"
+          >
+            <button
+              class="boton boton--secundario boton--chico"
+              type="submit"
+            >
+              Guardar nombre
+            </button>
+          </p>
+        </form>
+        <section
+          aria-label="Pon tu hotel a punto"
+          class="tarjeta pila mb-e6"
+        >
+          <div
+            class="aviso aviso--error"
+            role="alert"
+          >
+            <strong>
+              No se pudo cargar la preparación del hotel
+            </strong>
+            <div>
+              <p>
+                No pudimos comprobar si quedan pasos pendientes. Inténtalo de nuevo.
+              </p>
+              <button
+                class="boton boton--primario"
+                type="button"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        </section>
+        <div
+          class="rejilla"
+        >
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Reservas
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Buscar, ver detalle, abonos, cambios y cancelaciones.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--primario"
+                data-discover="true"
+                href="/admin/reservas"
+              >
+                Abrir reservas
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Hoy en el hotel
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Llegadas, salidas y quién duerme en casa, para la recepción.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/hoy"
+              >
+                Ver el día
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Habitaciones
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Tipos, servicios, calendario, tarifas y bloqueos.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/inventario"
+              >
+                Gestionar habitaciones
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Hotel y mapa
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Datos, ubicación GPS y sitios que ve el huésped en la web.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/hotel"
+              >
+                Datos del hotel
+              </a>
+
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/lugares"
+              >
+                Lugares
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Actividad
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Quién hizo qué en el panel, con rastro no falsificable.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/auditoria"
+              >
+                Ver actividad
+              </a>
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <main
+        class="centrado"
+        id="contenido"
+      >
+        <section
+          class="seccion"
+        >
+          <h1
+            class="seccion__titulo"
+          >
+            Panel del hotel
+          </h1>
+          <p
+            class="seccion__intro"
+          >
+            Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
+          </p>
+          <form
+            class="tarjeta pila mb-e4"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Mi cuenta
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Así te saluda la cabecera. Con Google se pone solo; con contraseña lo pones aquí.
+            </p>
+            <div
+              class="campo"
+            >
+              <label
+                class="campo__etiqueta"
+                for="cuenta-nombre"
+              >
+                Nombre visible
+              </label>
+              <input
+                autocomplete="nickname"
+                id="cuenta-nombre"
+                maxlength="80"
+                type="text"
+                value="Dueño"
+              />
+            </div>
+            <p
+              class="sin-margen"
+            >
+              <button
+                class="boton boton--secundario boton--chico"
+                type="submit"
+              >
+                Guardar nombre
+              </button>
+            </p>
+          </form>
+          <section
+            aria-label="Pon tu hotel a punto"
+            class="tarjeta pila mb-e6"
+          >
+            <div
+              class="aviso aviso--error"
+              role="alert"
+            >
+              <strong>
+                No se pudo cargar la preparación del hotel
+              </strong>
+              <div>
+                <p>
+                  No pudimos comprobar si quedan pasos pendientes. Inténtalo de nuevo.
+                </p>
+                <button
+                  class="boton boton--primario"
+                  type="button"
+                >
+                  Reintentar
+                </button>
+              </div>
+            </div>
+          </section>
+          <div
+            class="rejilla"
+          >
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Reservas
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Buscar, ver detalle, abonos, cambios y cancelaciones.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--primario"
+                  data-discover="true"
+                  href="/admin/reservas"
+                >
+                  Abrir reservas
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Hoy en el hotel
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Llegadas, salidas y quién duerme en casa, para la recepción.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/hoy"
+                >
+                  Ver el día
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Habitaciones
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Tipos, servicios, calendario, tarifas y bloqueos.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/inventario"
+                >
+                  Gestionar habitaciones
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Hotel y mapa
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Datos, ubicación GPS y sitios que ve el huésped en la web.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/hotel"
+                >
+                  Datos del hotel
+                </a>
+
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/lugares"
+                >
+                  Lugares
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Actividad
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Quién hizo qué en el panel, con rastro no falsificable.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/auditoria"
+                >
+                  Ver actividad
+                </a>
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ src/paginas/PaginaAdminPanel.test.tsx:54:11
+     52|     Montar({ nombre: 'Hotel Eridu', contacto_email: '', contacto_telef…
+     53|
+     54|     await waitFor(() => {
+       |           ^
+     55|       expect(screen.getByText(/los huéspedes no pueden contactarte/i))…
+     56|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/paginas/PaginaAdminPanel.test.tsx > la web pública sin salida > junta los pendientes en un solo aviso, con su enlace cada uno
+TestingLibraryElementError: Unable to find an element with the text: /tu web tiene 3 cosas pendientes/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <main
+      class="centrado"
+      id="contenido"
+    >
+      <section
+        class="seccion"
+      >
+        <h1
+          class="seccion__titulo"
+        >
+          Panel del hotel
+        </h1>
+        <p
+          class="seccion__intro"
+        >
+          Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
+        </p>
+        <form
+          class="tarjeta pila mb-e4"
+        >
+          <h2
+            class="t-lg mb-0"
+          >
+            Mi cuenta
+          </h2>
+          <p
+            class="campo__ayuda sin-margen"
+          >
+            Así te saluda la cabecera. Con Google se pone solo; con contraseña lo pones aquí.
+          </p>
+          <div
+            class="campo"
+          >
+            <label
+              class="campo__etiqueta"
+              for="cuenta-nombre"
+            >
+              Nombre visible
+            </label>
+            <input
+              autocomplete="nickname"
+              id="cuenta-nombre"
+              maxlength="80"
+              type="text"
+              value="Dueño"
+            />
+          </div>
+          <p
+            class="sin-margen"
+          >
+            <button
+              class="boton boton--secundario boton--chico"
+              type="submit"
+            >
+              Guardar nombre
+            </button>
+          </p>
+        </form>
+        <section
+          aria-label="Pon tu hotel a punto"
+          class="tarjeta pila mb-e6"
+        >
+          <div
+            class="aviso aviso--error"
+            role="alert"
+          >
+            <strong>
+              No se pudo cargar la preparación del hotel
+            </strong>
+            <div>
+              <p>
+                No pudimos comprobar si quedan pasos pendientes. Inténtalo de nuevo.
+              </p>
+              <button
+                class="boton boton--primario"
+                type="button"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        </section>
+        <div
+          class="rejilla"
+        >
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Reservas
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Buscar, ver detalle, abonos, cambios y cancelaciones.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--primario"
+                data-discover="true"
+                href="/admin/reservas"
+              >
+                Abrir reservas
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Hoy en el hotel
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Llegadas, salidas y quién duerme en casa, para la recepción.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/hoy"
+              >
+                Ver el día
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Habitaciones
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Tipos, servicios, calendario, tarifas y bloqueos.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/inventario"
+              >
+                Gestionar habitaciones
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Hotel y mapa
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Datos, ubicación GPS y sitios que ve el huésped en la web.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/hotel"
+              >
+                Datos del hotel
+              </a>
+
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/lugares"
+              >
+                Lugares
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Actividad
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Quién hizo qué en el panel, con rastro no falsificable.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/auditoria"
+              >
+                Ver actividad
+              </a>
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <main
+        class="centrado"
+        id="contenido"
+      >
+        <section
+          class="seccion"
+        >
+          <h1
+            class="seccion__titulo"
+          >
+            Panel del hotel
+          </h1>
+          <p
+            class="seccion__intro"
+          >
+            Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
+          </p>
+          <form
+            class="tarjeta pila mb-e4"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Mi cuenta
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Así te saluda la cabecera. Con Google se pone solo; con contraseña lo pones aquí.
+            </p>
+            <div
+              class="campo"
+            >
+              <label
+                class="campo__etiqueta"
+                for="cuenta-nombre"
+              >
+                Nombre visible
+              </label>
+              <input
+                autocomplete="nickname"
+                id="cuenta-nombre"
+                maxlength="80"
+                type="text"
+                value="Dueño"
+              />
+            </div>
+            <p
+              class="sin-margen"
+            >
+              <button
+                class="boton boton--secundario boton--chico"
+                type="submit"
+              >
+                Guardar nombre
+              </button>
+            </p>
+          </form>
+          <section
+            aria-label="Pon tu hotel a punto"
+            class="tarjeta pila mb-e6"
+          >
+            <div
+              class="aviso aviso--error"
+              role="alert"
+            >
+              <strong>
+                No se pudo cargar la preparación del hotel
+              </strong>
+              <div>
+                <p>
+                  No pudimos comprobar si quedan pasos pendientes. Inténtalo de nuevo.
+                </p>
+                <button
+                  class="boton boton--primario"
+                  type="button"
+                >
+                  Reintentar
+                </button>
+              </div>
+            </div>
+          </section>
+          <div
+            class="rejilla"
+          >
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Reservas
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Buscar, ver detalle, abonos, cambios y cancelaciones.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--primario"
+                  data-discover="true"
+                  href="/admin/reservas"
+                >
+                  Abrir reservas
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Hoy en el hotel
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Llegadas, salidas y quién duerme en casa, para la recepción.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/hoy"
+                >
+                  Ver el día
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Habitaciones
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Tipos, servicios, calendario, tarifas y bloqueos.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/inventario"
+                >
+                  Gestionar habitaciones
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Hotel y mapa
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Datos, ubicación GPS y sitios que ve el huésped en la web.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/hotel"
+                >
+                  Datos del hotel
+                </a>
+
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/lugares"
+                >
+                  Lugares
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Actividad
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Quién hizo qué en el panel, con rastro no falsificable.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/auditoria"
+                >
+                  Ver actividad
+                </a>
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ src/paginas/PaginaAdminPanel.test.tsx:98:11
+     96|     Montar({ nombre: 'Hotel Eridu', contacto_email: '', contacto_telef…
+     97|
+     98|     await waitFor(() => {
+       |           ^
+     99|       expect(screen.getByText(/tu web tiene 3 cosas pendientes/i)).toB…
+    100|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/paginas/PaginaAdminPanel.test.tsx > la web pública sin salida > en singular cuando sólo falta una cosa
+TestingLibraryElementError: Unable to find an element with the text: /tu web tiene una cosa pendiente/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <main
+      class="centrado"
+      id="contenido"
+    >
+      <section
+        class="seccion"
+      >
+        <h1
+          class="seccion__titulo"
+        >
+          Panel del hotel
+        </h1>
+        <p
+          class="seccion__intro"
+        >
+          Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
+        </p>
+        <form
+          class="tarjeta pila mb-e4"
+        >
+          <h2
+            class="t-lg mb-0"
+          >
+            Mi cuenta
+          </h2>
+          <p
+            class="campo__ayuda sin-margen"
+          >
+            Así te saluda la cabecera. Con Google se pone solo; con contraseña lo pones aquí.
+          </p>
+          <div
+            class="campo"
+          >
+            <label
+              class="campo__etiqueta"
+              for="cuenta-nombre"
+            >
+              Nombre visible
+            </label>
+            <input
+              autocomplete="nickname"
+              id="cuenta-nombre"
+              maxlength="80"
+              type="text"
+              value="Dueño"
+            />
+          </div>
+          <p
+            class="sin-margen"
+          >
+            <button
+              class="boton boton--secundario boton--chico"
+              type="submit"
+            >
+              Guardar nombre
+            </button>
+          </p>
+        </form>
+        <section
+          aria-label="Pon tu hotel a punto"
+          class="tarjeta pila mb-e6"
+        >
+          <div
+            class="aviso aviso--error"
+            role="alert"
+          >
+            <strong>
+              No se pudo cargar la preparación del hotel
+            </strong>
+            <div>
+              <p>
+                No pudimos comprobar si quedan pasos pendientes. Inténtalo de nuevo.
+              </p>
+              <button
+                class="boton boton--primario"
+                type="button"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        </section>
+        <div
+          class="rejilla"
+        >
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Reservas
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Buscar, ver detalle, abonos, cambios y cancelaciones.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--primario"
+                data-discover="true"
+                href="/admin/reservas"
+              >
+                Abrir reservas
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Hoy en el hotel
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Llegadas, salidas y quién duerme en casa, para la recepción.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/hoy"
+              >
+                Ver el día
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Habitaciones
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Tipos, servicios, calendario, tarifas y bloqueos.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/inventario"
+              >
+                Gestionar habitaciones
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Hotel y mapa
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Datos, ubicación GPS y sitios que ve el huésped en la web.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/hotel"
+              >
+                Datos del hotel
+              </a>
+
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/lugares"
+              >
+                Lugares
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Actividad
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Quién hizo qué en el panel, con rastro no falsificable.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/auditoria"
+              >
+                Ver actividad
+              </a>
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <main
+        class="centrado"
+        id="contenido"
+      >
+        <section
+          class="seccion"
+        >
+          <h1
+            class="seccion__titulo"
+          >
+            Panel del hotel
+          </h1>
+          <p
+            class="seccion__intro"
+          >
+            Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
+          </p>
+          <form
+            class="tarjeta pila mb-e4"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Mi cuenta
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Así te saluda la cabecera. Con Google se pone solo; con contraseña lo pones aquí.
+            </p>
+            <div
+              class="campo"
+            >
+              <label
+                class="campo__etiqueta"
+                for="cuenta-nombre"
+              >
+                Nombre visible
+              </label>
+              <input
+                autocomplete="nickname"
+                id="cuenta-nombre"
+                maxlength="80"
+                type="text"
+                value="Dueño"
+              />
+            </div>
+            <p
+              class="sin-margen"
+            >
+              <button
+                class="boton boton--secundario boton--chico"
+                type="submit"
+              >
+                Guardar nombre
+              </button>
+            </p>
+          </form>
+          <section
+            aria-label="Pon tu hotel a punto"
+            class="tarjeta pila mb-e6"
+          >
+            <div
+              class="aviso aviso--error"
+              role="alert"
+            >
+              <strong>
+                No se pudo cargar la preparación del hotel
+              </strong>
+              <div>
+                <p>
+                  No pudimos comprobar si quedan pasos pendientes. Inténtalo de nuevo.
+                </p>
+                <button
+                  class="boton boton--primario"
+                  type="button"
+                >
+                  Reintentar
+                </button>
+              </div>
+            </div>
+          </section>
+          <div
+            class="rejilla"
+          >
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Reservas
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Buscar, ver detalle, abonos, cambios y cancelaciones.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--primario"
+                  data-discover="true"
+                  href="/admin/reservas"
+                >
+                  Abrir reservas
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Hoy en el hotel
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Llegadas, salidas y quién duerme en casa, para la recepción.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/hoy"
+                >
+                  Ver el día
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Habitaciones
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Tipos, servicios, calendario, tarifas y bloqueos.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/inventario"
+                >
+                  Gestionar habitaciones
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Hotel y mapa
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Datos, ubicación GPS y sitios que ve el huésped en la web.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/hotel"
+                >
+                  Datos del hotel
+                </a>
+
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/lugares"
+                >
+                  Lugares
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Actividad
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Quién hizo qué en el panel, con rastro no falsificable.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/auditoria"
+                >
+                  Ver actividad
+                </a>
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ src/paginas/PaginaAdminPanel.test.tsx:111:11
+    109|     Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' }…
+    110|
+    111|     await waitFor(() => {
+       |           ^
+    112|       expect(screen.getByText(/tu web tiene una cosa pendiente/i)).toB…
+    113|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/paginas/PaginaAdminPanel.test.tsx > la web pública sin salida > una lectura que falla no cuenta como pendiente
+TestingLibraryElementError: Unable to find an element with the text: /tu web tiene 2 cosas pendientes/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <main
+      class="centrado"
+      id="contenido"
+    >
+      <section
+        class="seccion"
+      >
+        <h1
+          class="seccion__titulo"
+        >
+          Panel del hotel
+        </h1>
+        <p
+          class="seccion__intro"
+        >
+          Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
+        </p>
+        <form
+          class="tarjeta pila mb-e4"
+        >
+          <h2
+            class="t-lg mb-0"
+          >
+            Mi cuenta
+          </h2>
+          <p
+            class="campo__ayuda sin-margen"
+          >
+            Así te saluda la cabecera. Con Google se pone solo; con contraseña lo pones aquí.
+          </p>
+          <div
+            class="campo"
+          >
+            <label
+              class="campo__etiqueta"
+              for="cuenta-nombre"
+            >
+              Nombre visible
+            </label>
+            <input
+              autocomplete="nickname"
+              id="cuenta-nombre"
+              maxlength="80"
+              type="text"
+              value="Dueño"
+            />
+          </div>
+          <p
+            class="sin-margen"
+          >
+            <button
+              class="boton boton--secundario boton--chico"
+              type="submit"
+            >
+              Guardar nombre
+            </button>
+          </p>
+        </form>
+        <section
+          aria-label="Pon tu hotel a punto"
+          class="tarjeta pila mb-e6"
+        >
+          <div
+            class="aviso aviso--error"
+            role="alert"
+          >
+            <strong>
+              No se pudo cargar la preparación del hotel
+            </strong>
+            <div>
+              <p>
+                No pudimos comprobar si quedan pasos pendientes. Inténtalo de nuevo.
+              </p>
+              <button
+                class="boton boton--primario"
+                type="button"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        </section>
+        <div
+          class="rejilla"
+        >
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Reservas
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Buscar, ver detalle, abonos, cambios y cancelaciones.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--primario"
+                data-discover="true"
+                href="/admin/reservas"
+              >
+                Abrir reservas
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Hoy en el hotel
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Llegadas, salidas y quién duerme en casa, para la recepción.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/hoy"
+              >
+                Ver el día
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Habitaciones
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Tipos, servicios, calendario, tarifas y bloqueos.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/inventario"
+              >
+                Gestionar habitaciones
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Hotel y mapa
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Datos, ubicación GPS y sitios que ve el huésped en la web.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/hotel"
+              >
+                Datos del hotel
+              </a>
+
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/lugares"
+              >
+                Lugares
+              </a>
+            </p>
+          </article>
+          <article
+            class="tarjeta pila"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Actividad
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Quién hizo qué en el panel, con rastro no falsificable.
+            </p>
+            <p
+              class="sin-margen"
+            >
+              <a
+                class="boton boton--secundario"
+                data-discover="true"
+                href="/admin/auditoria"
+              >
+                Ver actividad
+              </a>
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <main
+        class="centrado"
+        id="contenido"
+      >
+        <section
+          class="seccion"
+        >
+          <h1
+            class="seccion__titulo"
+          >
+            Panel del hotel
+          </h1>
+          <p
+            class="seccion__intro"
+          >
+            Todo el trabajo del día, por puertas: cada tarjeta lleva a su pantalla.
+          </p>
+          <form
+            class="tarjeta pila mb-e4"
+          >
+            <h2
+              class="t-lg mb-0"
+            >
+              Mi cuenta
+            </h2>
+            <p
+              class="campo__ayuda sin-margen"
+            >
+              Así te saluda la cabecera. Con Google se pone solo; con contraseña lo pones aquí.
+            </p>
+            <div
+              class="campo"
+            >
+              <label
+                class="campo__etiqueta"
+                for="cuenta-nombre"
+              >
+                Nombre visible
+              </label>
+              <input
+                autocomplete="nickname"
+                id="cuenta-nombre"
+                maxlength="80"
+                type="text"
+                value="Dueño"
+              />
+            </div>
+            <p
+              class="sin-margen"
+            >
+              <button
+                class="boton boton--secundario boton--chico"
+                type="submit"
+              >
+                Guardar nombre
+              </button>
+            </p>
+          </form>
+          <section
+            aria-label="Pon tu hotel a punto"
+            class="tarjeta pila mb-e6"
+          >
+            <div
+              class="aviso aviso--error"
+              role="alert"
+            >
+              <strong>
+                No se pudo cargar la preparación del hotel
+              </strong>
+              <div>
+                <p>
+                  No pudimos comprobar si quedan pasos pendientes. Inténtalo de nuevo.
+                </p>
+                <button
+                  class="boton boton--primario"
+                  type="button"
+                >
+                  Reintentar
+                </button>
+              </div>
+            </div>
+          </section>
+          <div
+            class="rejilla"
+          >
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Reservas
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Buscar, ver detalle, abonos, cambios y cancelaciones.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--primario"
+                  data-discover="true"
+                  href="/admin/reservas"
+                >
+                  Abrir reservas
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Hoy en el hotel
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Llegadas, salidas y quién duerme en casa, para la recepción.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/hoy"
+                >
+                  Ver el día
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Habitaciones
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Tipos, servicios, calendario, tarifas y bloqueos.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/inventario"
+                >
+                  Gestionar habitaciones
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Hotel y mapa
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Datos, ubicación GPS y sitios que ve el huésped en la web.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/hotel"
+                >
+                  Datos del hotel
+                </a>
+
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/lugares"
+                >
+                  Lugares
+                </a>
+              </p>
+            </article>
+            <article
+              class="tarjeta pila"
+            >
+              <h2
+                class="t-lg mb-0"
+              >
+                Actividad
+              </h2>
+              <p
+                class="campo__ayuda sin-margen"
+              >
+                Quién hizo qué en el panel, con rastro no falsificable.
+              </p>
+              <p
+                class="sin-margen"
+              >
+                <a
+                  class="boton boton--secundario"
+                  data-discover="true"
+                  href="/admin/auditoria"
+                >
+                  Ver actividad
+                </a>
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ src/paginas/PaginaAdminPanel.test.tsx:129:11
+    127|     Montar({ nombre: 'Hotel Eridu', contacto_email: '', contacto_telef…
+    128|
+    129|     await waitFor(() => {
+       |           ^
+    130|       expect(screen.getByText(/tu web tiene 2 cosas pendientes/i)).toB…
+    131|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed | 31 passed (32)
+      Tests  4 failed | 249 passed (253)
+   Start at  03:35:36
+   Duration  55.49s (tests 43%, environment 41%, import 12%, transform 4%)
+
+Environment  jsdom was created 32 times · 148.22s total, 41% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+EXIT_CODE=1

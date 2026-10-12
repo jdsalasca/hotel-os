@@ -45,6 +45,12 @@ public class PreparacionController {
     boolean ubicado = !config.getOrDefault("latitud", "").isBlank()
       && !config.getOrDefault("longitud", "").isBlank();
     items.add(new Punto("ubicacion", "Ubicación en el mapa", ubicado, "/admin/hotel"));
+    // El contacto va aquí y no en otra lista: el panel tenía dos que se solapaban, con
+    // contadores que no coincidían (el de arriba decía 3 pendientes y este 5). Con un canal
+    // de contacto basta para que el huésped tenga a quién escribir.
+    boolean contactable = !config.getOrDefault("contacto_email", "").isBlank()
+      || !config.getOrDefault("contacto_telefono", "").isBlank();
+    items.add(new Punto("contacto", "Contacto para los huéspedes", contactable, "/admin/hotel"));
     items.add(new Punto("lugares", "Sitios cercanos en el mapa",
       contarDonde("lugares_interes", "activo=1") > 0, "/admin/lugares"));
     items.add(new Punto("respaldo", "Respaldo reciente", respaldoFresco(), null));

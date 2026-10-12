@@ -10,15 +10,10 @@ describe('la web pública sin salida', () => {
   });
 
   /**
-   * Monta el panel con las respuestas que se le indiquen. `tipos` es lo que devuelve
-   * `/api/admin/tipos`: vacío significa que no hay nada que vender.
+   * Monta el panel. `preparacion` es lo que devuelve `/api/admin/preparacion`: la única
+   * lista de pendientes, que el servidor calcula de su propia base.
    */
-  function Montar(
-    hotel: Record<string, string>,
-    tipos: unknown[] = [{ id: 1 }],
-    fallaLugares = false,
-    ubicado = true,
-  ) {
+  function Montar(preparacion: { clave: string; titulo: string; hecho: boolean; url: string | null }[]) {
     globalThis.fetch = vi.fn(async (url: unknown) => {
       const ruta = String(url);
       if (ruta.includes('/api/admin/sesion')) {
@@ -29,15 +24,8 @@ describe('la web pública sin salida', () => {
       if (ruta.includes('/api/admin/mensajes/nuevos')) {
         return new Response(JSON.stringify({ nuevos: 0 }), { status: 200 });
       }
-      if (ruta.includes('/api/admin/tipos')) {
-        return new Response(JSON.stringify(tipos), { status: 200 });
-      }
-      if (ruta.includes('/api/lugares')) {
-        if (fallaLugares) return new Response('', { status: 500 });
-        return new Response(JSON.stringify({ hotel: { ubicado }, lugares: [] }), { status: 200 });
-      }
-      if (ruta.includes('/api/hotel')) {
-        return new Response(JSON.stringify(hotel), { status: 200 });
+      if (ruta.includes('/api/admin/preparacion')) {
+        return new Response(JSON.stringify({ items: preparacion }), { status: 200 });
       }
       return new Response('{}', { status: 404 });
     }) as unknown as typeof fetch;
@@ -48,38 +36,56 @@ describe('la web pública sin salida', () => {
     );
   }
 
-  it('avisa en el panel que los huéspedes no tienen forma de contactar al hotel', async () => {
-    Montar({ nombre: 'Hotel Eridu', contacto_email: '', contacto_telefono: '' });
+  const PENDIENTES = [
+    { clave: 'habitaciones', titulo: 'Habitaciones registradas', hecho: false, url: '/admin/inventario' },
+    { clave: 'tarifas', titulo: 'Precios publicados a futuro', hecho: false, url: '/admin/inventario' },
+    { clave: 'hotel', titulo: 'Nombre y datos del hotel', hecho: true, url: '/admin/hotel' },
+    { clave: 'ubicacion', titulo: 'Ubicación en el mapa', hecho: false, url: '/admin/hotel' },
+    { clave: 'contacto', titulo: 'Contacto para los huéspedes', hecho: false, url: '/admin/hotel' },
+    { clave: 'lugares', titulo: 'Sitios cercanos en el mapa', hecho: false, url: '/admin/lugares' },
+    { clave: 'respaldo', titulo: 'Respaldo reciente', hecho: false, url: null },
+  ];
+
+  it('una sola lista de pendientes, con su enlace cada uno', async () => {
+    // El panel tenía dos: "tu web tiene 3 cosas pendientes" y "pon tu hotel a punto (5
+    // pendientes)". Se solapaban —GPS y habitaciones salían en las dos— y los contadores no
+    // coincidian. Ahora es una, calculada por el servidor de su propia base.
+    Montar(PENDIENTES);
 
     await waitFor(() => {
-      expect(screen.getByText(/los huéspedes no pueden contactarte/i)).toBeTruthy();
+      expect(screen.getByText(/pon tu hotel a punto/i)).toBeTruthy();
     });
-    // Y dice por dónde se arregla, para que el aviso no sea un reproche sin salida.
-    expect(screen.getByRole('link', { name: /pon tu contacto/i })).toBeTruthy();
+    // Siete puntos y uno ya hecho: seis pendientes en pantalla.
+    expect(screen.getAllByRole('listitem')).toHaveLength(6);
+    expect(screen.getByRole('link', { name: /ubicación en el mapa/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /habitaciones registradas/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /contacto para los huéspedes/i })).toBeTruthy();
+    // El aviso repetido ya no existe.
+    expect(screen.queryByText(/cosas pendientes/i)).toBeNull();
   });
 
-  it('no avisa cuando ya hay correo o teléfono', async () => {
-    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' });
+  it('no muestra nada cuando no queda pendiente', async () => {
+    Montar(PENDIENTES.map((p) => ({ ...p, hecho: true })));
 
     await screen.findByRole('heading', { name: 'Panel del hotel' });
-    expect(screen.queryByText(/los huéspedes no pueden contactarte/i)).toBeNull();
+    expect(screen.queryByRole('listitem')).toBeNull();
+    expect(screen.queryByText(/pon tu hotel a punto/i)).toBeNull();
   });
 
-  it('si la lectura del hotel falla, no inventa el aviso', async () => {
+  it('el contacto ya no se calcula en el navegador', async () => {
+    // Antes el panel pedía /api/admin/tipos, /api/hotel y /api/lugares solo para deducir
+    // tres de los pendientes. Esas peticiones ya no se hacen: la lista viene del servidor.
+    const pedidas: string[] = [];
     globalThis.fetch = vi.fn(async (url: unknown) => {
+      pedidas.push(String(url));
       const ruta = String(url);
       if (ruta.includes('/api/admin/sesion')) {
-        return new Response(JSON.stringify({ email: 'dueno@hotel.test', nombre: 'Dueño' }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ email: 'dueno@hotel.test', nombre: 'Dueño' }), { status: 200 });
       }
-      if (ruta.includes('/api/admin/mensajes/nuevos')) {
-        return new Response(JSON.stringify({ nuevos: 0 }), { status: 200 });
+      if (ruta.includes('/api/admin/preparacion')) {
+        return new Response(JSON.stringify({ items: PENDIENTES }), { status: 200 });
       }
-      if (ruta.includes('/api/admin/tipos')) {
-        return new Response(JSON.stringify([{ id: 1 }]), { status: 200 });
-      }
-      return new Response('', { status: 500 });
+      return new Response('{}', { status: 404 });
     }) as unknown as typeof fetch;
     render(
       <MemoryRouter>
@@ -87,51 +93,11 @@ describe('la web pública sin salida', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole('heading', { name: 'Panel del hotel' });
-    expect(screen.queryByText(/los huéspedes no pueden contactarte/i)).toBeNull();
-  });
-
-  it('junta los pendientes en un solo aviso, con su enlace cada uno', async () => {
-    // Es el estado real de producción: los tres bloqueos a la vez.
-    Montar({ nombre: 'Hotel Eridu', contacto_email: '', contacto_telefono: '' }, [], false, false);
-
     await waitFor(() => {
-      expect(screen.getByText(/tu web tiene 3 cosas pendientes/i)).toBeTruthy();
+      expect(screen.getByText(/pon tu hotel a punto/i)).toBeTruthy();
     });
-    // Un aviso, no tres: así las puertas de trabajo no quedan fuera de la pantalla.
-    expect(screen.getAllByRole('listitem')).toHaveLength(3);
-    expect(screen.getByRole('link', { name: /ubicar en el mapa/i })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /crear habitaciones/i })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /pon tu contacto/i })).toBeTruthy();
-  });
-
-  it('en singular cuando sólo falta una cosa', async () => {
-    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' }, [{ id: 1 }], false, false);
-
-    await waitFor(() => {
-      expect(screen.getByText(/tu web tiene una cosa pendiente/i)).toBeTruthy();
-    });
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
-  });
-
-  it('no muestra ningún aviso cuando la web está completa', async () => {
-    Montar({ nombre: 'Hotel Eridu', contacto_email: 'hola@eridu.top' }, [{ id: 1 }], true);
-
-    await screen.findByRole('heading', { name: 'Panel del hotel' });
-    expect(screen.queryByRole('listitem')).toBeNull();
-    expect(screen.queryByText(/cosas pendientes/i)).toBeNull();
-  });
-
-  it('una lectura que falla no cuenta como pendiente', async () => {
-    // La de lugares falla: el mapa no se declara pendiente, pero las otras dos sí avisan.
-    Montar({ nombre: 'Hotel Eridu', contacto_email: '', contacto_telefono: '' }, [], undefined, true);
-
-    await waitFor(() => {
-      expect(screen.getByText(/tu web tiene 2 cosas pendientes/i)).toBeTruthy();
-    });
-    expect(screen.queryByRole('link', { name: /ubicar en el mapa/i })).toBeNull();
-    expect(screen.getByRole('link', { name: /crear habitaciones/i })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /pon tu contacto/i })).toBeTruthy();
+    expect(pedidas.some((r) => r.includes('/api/admin/tipos'))).toBe(false);
+    expect(pedidas.some((r) => r.includes('/api/lugares'))).toBe(false);
   });
 });
 

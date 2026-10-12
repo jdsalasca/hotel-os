@@ -1,0 +1,8 @@
+
+ RUN  v5.0.3 C:/Users/jdsal/AppData/Local/Temp/opencode/hotel-r237/apps/web
+
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  03:43:40
+   Duration  6.53s (environment 55%, tests 24%, import 14%, transform 7%)

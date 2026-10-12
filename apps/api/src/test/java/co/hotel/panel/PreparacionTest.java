@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import tools.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +61,26 @@ class PreparacionTest {
   @Autowired MockMvc mvc;
   @Autowired JdbcTemplate jdbc;
 
+  /**
+   * La base y el directorio de respaldos son estáticos: sin esto, lo que siembra un test se
+   * lo encuentra el siguiente y las aserciones dependen del orden de ejecución.
+   */
+  @BeforeEach
+  void limpiar() throws Exception {
+    jdbc.update("DELETE FROM reservation_items");
+    jdbc.update("DELETE FROM reservations");
+    jdbc.update("DELETE FROM blocks");
+    jdbc.update("DELETE FROM rates");
+    jdbc.update("DELETE FROM rooms");
+    jdbc.update("DELETE FROM room_types");
+    jdbc.update("DELETE FROM rate_plans");
+    jdbc.update("DELETE FROM lugares_interes");
+    jdbc.update("DELETE FROM hotel_config");
+    try (var archivos = Files.list(RESPALDOS)) {
+      for (Path p : archivos.toList()) Files.deleteIfExists(p);
+    }
+  }
+
   private Map<String, Boolean> estado() throws Exception {
     var admin = user("admin@hotel.test").roles("ADMIN");
     String cuerpo = mvc.perform(get("/api/admin/preparacion").with(admin))
@@ -74,10 +95,46 @@ class PreparacionTest {
   }
 
   @Test
+  @DisplayName("el contacto entra en la lista: sin correo ni teléfono sigue pendiente")
+  void contactoPendienteEnLaLista() throws Exception {
+    // El panel tenía dos listas que se solapaban y se contradecían. El contacto solo salía
+    // en la de la web, así que un hotel podía completar la checklist y quedarse sin manera
+    // de que sus huéspedes lo contactaran. Ahora es un punto más de la misma lista.
+    var vacio = estado();
+    assertTrue(vacio.containsKey("contacto"), "el checklist debe incluir el contacto");
+    assertFalse(vacio.get("contacto"));
+
+    // Todo lo demás sembrado, pero sin contacto: el punto sigue pendiente.
+    jdbc.update("INSERT INTO room_types(codigo,nombre,capacidad_max) VALUES('P','P',2)");
+    long tipo = jdbc.queryForObject("SELECT id FROM room_types WHERE codigo='P'", Long.class);
+    jdbc.update("INSERT INTO rooms(codigo,estado,nombre,room_type_id)"
+      + " VALUES('101','ACTIVA','Habitación 101',?)", tipo);
+    jdbc.update("INSERT INTO rate_plans(codigo,nombre,moneda,activo,descuento_pct)"
+      + " VALUES('STD','Estándar','COP',1,0)");
+    long plan = jdbc.queryForObject("SELECT id FROM rate_plans WHERE codigo='STD'", Long.class);
+    jdbc.update("INSERT INTO rates(rate_plan_id,room_type_id,fecha,precio_cents)"
+      + " VALUES(?,?,date('now','+1 day'),150000)", plan, tipo);
+    jdbc.update("INSERT INTO hotel_config(clave,valor,actualizado_en) VALUES"
+      + "('nombre','Hotel Test',datetime('now')),('latitud','5.65',datetime('now')),"
+      + "('longitud','-73.52',datetime('now'))");
+    jdbc.update("INSERT INTO lugares_interes(nombre,descripcion,latitud,longitud,activo,creado_en)"
+      + " VALUES('Plaza','','5.6','-73.5',1,datetime('now'))");
+    Files.write(RESPALDOS.resolve("hotel-20300101T000000Z.sqlite3"), new byte[] { 1 });
+
+    // Todo listo menos el contacto: el punto sigue pendiente.
+    assertEquals(false, estado().get("contacto"));
+
+    // Con uno de los dos canales ya basta para que el huésped tenga a quién escribir.
+    jdbc.update("INSERT INTO hotel_config(clave,valor,actualizado_en)"
+      + " VALUES('contacto_telefono','+57 320 000 0000',datetime('now'))");
+    assertEquals(true, estado().get("contacto"));
+  }
+
+  @Test
   @DisplayName("vacío todo pendiente, sembrado todo hecho, sin sesión 401")
   void checklistReflejaRealidad() throws Exception {
     var vacio = estado();
-    assertEquals(6, vacio.size());
+    assertEquals(7, vacio.size());
     assertTrue(vacio.values().stream().noneMatch(Boolean::booleanValue));
 
     jdbc.update("INSERT INTO room_types(codigo,nombre,capacidad_max) VALUES('P','P',2)");
@@ -92,7 +149,8 @@ class PreparacionTest {
     jdbc.update("INSERT INTO hotel_config(clave,valor,actualizado_en) VALUES"
       + "('nombre','Hotel Test',datetime('now')),"
       + "('latitud','5.65',datetime('now')),"
-      + "('longitud','-73.52',datetime('now'))");
+      + "('longitud','-73.52',datetime('now')),"
+      + "('contacto_email','reservas@hotel.test',datetime('now'))");
     jdbc.update("INSERT INTO lugares_interes(nombre,descripcion,latitud,longitud,activo,creado_en)"
       + " VALUES('Plaza','','5.6','-73.5',1,datetime('now'))");
     Files.write(RESPALDOS.resolve("hotel-20300101T000000Z.sqlite3"), new byte[] { 1 });

@@ -1,0 +1,5 @@
+
+> hotel-web@0.1.0 test:typecheck
+> tsc --noEmit -p tsconfig.tests.json
+
+EXIT_CODE=0
