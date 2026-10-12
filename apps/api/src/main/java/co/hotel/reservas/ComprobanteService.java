@@ -89,4 +89,21 @@ public class ComprobanteService {
     comprobante.put("historial", auditoria.historialDe(id));
     return comprobante;
   }
+
+  /**
+   * Saldo de una reserva, o mapa vacío si no hay total acordado. El parte de recepción muestra
+   * lo mismo que el comprobante: cuánto se abonó y cuánto falta. La regla de ausencia de precio
+   * queda aquí para no repetirla ni calcular cifras distintas.
+   */
+  public Map<String, Object> saldoDe(String codigo) {
+    var r = repo.porCodigo(codigo);
+    if (r.isEmpty() || r.get().totalCents() == null || r.get().moneda() == null) {
+      return Map.of();
+    }
+    var saldo = pagos.saldo(codigo);
+    return Map.of(
+      "abonadoCents", saldo.abonadoCents(),
+      "pendienteCents", saldo.pendienteCents(),
+      "moneda", r.get().moneda());
+  }
 }

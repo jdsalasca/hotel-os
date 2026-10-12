@@ -139,4 +139,49 @@ class OcupacionDiaTest {
       JSON.readTree(respuesta).get("error").asText().contains("sesión"),
       "el 401 debe traer motivo legible: " + respuesta);
   }
+
+  @Test
+  @DisplayName("el parte dice cuánto debe cada huésped al llegar")
+  void parteTraeElSaldo() throws Exception {
+    // Recepción consulta cuánto falta sin abrir la reserva una por una.
+    String llega = reservar("debe@example.com", "2026-11-20", "2026-11-22", 1);
+    pagar(llega, 10000, "COP");
+
+    mvc.perform(get("/api/admin/ocupacion/dia").with(ADMIN).param("fecha", "2026-11-20"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.llegadas[0].abonadoCents").value(10000))
+      .andExpect(jsonPath("$.llegadas[0].moneda").value("COP"))
+      // El pendiente sale del total acordado, no de la tarifa vigente: se lee de la base para no
+      // clavar el precio en el test, que se rompería con cualquier ajuste de tarifas.
+      .andExpect(jsonPath("$.llegadas[0].pendienteCents").value(totalMenosAbonado(llega, 10000)));
+  }
+
+  @Test
+  @DisplayName("sin tarifa no hay saldo que inventar: los importes vienen nulos")
+  void sinTarifaNoHaySaldo() throws Exception {
+    // Reservar sin total acordado deja la cuenta en null; el parte no puede inventar cifras.
+    String llega = reservar("sinprecio@example.com", "2026-11-25", "2026-11-27", 1);
+    jdbc.update("UPDATE reservations SET total_cents=NULL, moneda=NULL WHERE codigo=?", llega);
+
+    mvc.perform(get("/api/admin/ocupacion/dia").with(ADMIN).param("fecha", "2026-11-25"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.llegadas[0].abonadoCents").doesNotExist())
+      .andExpect(jsonPath("$.llegadas[0].pendienteCents").doesNotExist());
+  }
+
+  private void pagar(String codigo, long cents, String moneda) throws Exception {
+    mvc.perform(post("/api/admin/reservas/" + codigo + "/abonos").with(ADMIN).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("montoCents", cents, "moneda", moneda,
+          "concepto", "abono"))))
+      .andExpect(status().isCreated());
+  }
+
+  /** Total acordado menos lo abonado, leído de la base: es lo que debe quedar pendiente. */
+  private long totalMenosAbonado(String codigo, long abonado) {
+    Long total = jdbc.queryForObject(
+      "SELECT total_cents FROM reservations WHERE codigo=?", Long.class, codigo);
+    org.junit.jupiter.api.Assertions.assertNotNull(total, "la reserva debe tener total acordado");
+    return total - abonado;
+  }
 }

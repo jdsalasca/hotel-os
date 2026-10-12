@@ -3,6 +3,7 @@ package co.hotel.reservas;
 import co.hotel.auditoria.ActorActual;
 import co.hotel.auditoria.AuditoriaRepository;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -228,14 +229,25 @@ public class AdminReservasController {
     var parte = svc.parteDelDia(dia);
     return ResponseEntity.ok(Map.of(
       "fecha", dia.toString(),
-      "llegadas", parte.llegadas().stream().map(AdminReservasController::movimiento).toList(),
-      "salidas", parte.salidas().stream().map(AdminReservasController::movimiento).toList(),
-      "enCasa", parte.enCasa().stream().map(AdminReservasController::movimiento).toList()));
+      "llegadas", parte.llegadas().stream().map(this::movimiento).toList(),
+      "salidas", parte.salidas().stream().map(this::movimiento).toList(),
+      "enCasa", parte.enCasa().stream().map(this::movimiento).toList()));
   }
 
-  private static Map<String, Object> movimiento(ReservaRepository.Movimiento m) {
-    return Map.of("codigo", m.codigo(), "email", m.email(), "nombre", m.nombre(),
-      "huespedes", m.huespedes(), "habitacion", m.habitacion());
+  /**
+   * Movimiento con su saldo. Recepción puede consultar el pago pendiente desde el parte diario
+   * sin abrir cada reserva. El mismo servicio calcula el saldo del comprobante para mantener una
+   * sola regla. Sin total acordado no se añade información de saldo.
+   */
+  private Map<String, Object> movimiento(ReservaRepository.Movimiento m) {
+    Map<String, Object> fila = new LinkedHashMap<>();
+    fila.put("codigo", m.codigo());
+    fila.put("email", m.email());
+    fila.put("nombre", m.nombre());
+    fila.put("huespedes", m.huespedes());
+    fila.put("habitacion", m.habitacion());
+    fila.putAll(comprobantes.saldoDe(m.codigo()));
+    return fila;
   }
 
   /**

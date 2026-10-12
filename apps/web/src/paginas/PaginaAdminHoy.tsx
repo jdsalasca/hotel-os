@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/cliente';
-import { hoyIso } from '../api/formato';
+import { hoyIso, monto } from '../api/formato';
 import { useSesion } from '../api/useSesion';
-import { Cargando, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
+import { Cargando, Etiqueta, MensajeError, PuertaAdmin, Vacio } from '../componentes/Estado';
 
 type Movimiento = {
   codigo: string;
@@ -10,7 +10,24 @@ type Movimiento = {
   nombre: string;
   huespedes: number;
   habitacion: string;
+  /** Saldo: solo viene si la reserva se hizo con tarifa. Sin él, no se muestra importe. */
+  abonadoCents?: number;
+  pendienteCents?: number;
+  moneda?: string;
 };
+
+/**
+ * Saldo junto al movimiento para consultar el pago sin abrir la reserva.
+ * Sin total acordado no hay una cifra fiable que mostrar.
+ */
+function saldo(m: Movimiento) {
+  if (m.pendienteCents === undefined || m.abonadoCents === undefined || !m.moneda) return null;
+  if (m.pendienteCents <= 0) return { pagada: true, texto: 'PAGADA' };
+  return {
+    pagada: false,
+    texto: `Pendiente ${monto(m.pendienteCents, m.moneda)}`,
+  };
+}
 
 type ParteDia = {
   fecha: string;
@@ -110,13 +127,22 @@ function Movimientos({ titulo, movimientos, vacio }: { titulo: string; movimient
         <Vacio titulo="Sin movimientos" detalle={vacio} />
       ) : (
         <ul className="lista-marcada">
-          {movimientos.map((m) => (
-            <li key={m.codigo}>
-              <strong>{m.nombre || m.email}</strong> · Habitación {m.habitacion} ·{' '}
-              {m.huespedes} {m.huespedes === 1 ? 'huésped' : 'huéspedes'} ·{' '}
-              <span className="cifra">{m.codigo}</span>
-            </li>
-          ))}
+          {movimientos.map((m) => {
+            const cuenta = saldo(m);
+            return (
+              <li key={m.codigo}>
+                <strong>{m.nombre || m.email}</strong> · Habitación {m.habitacion} ·{' '}
+                {m.huespedes} {m.huespedes === 1 ? 'huésped' : 'huéspedes'} ·{' '}
+                <span className="cifra">{m.codigo}</span>
+                {cuenta ? (
+                  <>
+                    {' · '}
+                    <Etiqueta tono={cuenta.pagada ? 'exito' : 'aviso'}>{cuenta.texto}</Etiqueta>
+                  </>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
