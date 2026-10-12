@@ -13,11 +13,30 @@ $arcilla: #b8724b;          // acento secundario
 $ocre: #c9922e;             // detalle y avisos no críticos
 $verde-andina: #3f5d3a;     // éxito y elementos naturales
 $cielo: #6b93b8;            // información
+$blanco: #fff;
+$texto-claro: $blanco;
+$superficie-blanca: $blanco;
+$transparente: transparent;
+
+// Tonos exclusivos de la portada y capas translúcidas derivadas de la paleta.
+$portada-ojo: #f3e3cf;
+$portada-claro: #f6f1e7;
+$tinta-portada: #140e08;
+$teja-foco: color.change($teja, $alpha: 0.18);
+$teja-suave: color.change($teja, $alpha: 0.08);
+$superficie-blanca-traslucida: color.change($blanco, $alpha: 0.94);
+$superficie-piedra-suave: color.change($piedra-clara, $alpha: 0.4);
+$portada-cielo-suave: color.change($cielo, $alpha: 0.12);
+$velo-portada: color.change($tinta-portada, $alpha: 0.62);
+$velo-portada-suave: color.change($tinta-portada, $alpha: 0.38);
+$velo-portada-fuerte: color.change($tinta-portada, $alpha: 0.75);
+$borde-portada: color.change($blanco-fachada, $alpha: 0.72);
 
 // Texto: contraste verificado contra $blanco-fachada (WCAG AA >= 4.5:1)
 $tinta: #2a251f;            // 12.6:1
 $tinta-suave: #57503f;      // 6.9:1  — texto secundario legible
 $tinta-tenue: #7d7566;      // 3.6:1  — solo para elementos no informativos
+$superficie-tinta-traslucida: color.change($tinta, $alpha: 0.62);
 
 $borde: #d4cdbe;
 $borde-fuerte: #b9b09e;
@@ -68,9 +87,9 @@ $radio: 10px;
 $radio-lg: 16px;
 $radio-full: 999px;
 
-$sombra-sm: 0 1px 2px rgba(42, 37, 31, 0.06);
-$sombra: 0 2px 8px rgba(42, 37, 31, 0.08);
-$sombra-lg: 0 8px 24px rgba(42, 37, 31, 0.12);
+$sombra-sm: 0 1px 2px color.change($tinta, $alpha: 0.06);
+$sombra: 0 2px 8px color.change($tinta, $alpha: 0.08);
+$sombra-lg: 0 8px 24px color.change($tinta, $alpha: 0.12);
 
 // --- Movimiento ---
 $transicion: 160ms cubic-bezier(0.4, 0, 0.2, 1);

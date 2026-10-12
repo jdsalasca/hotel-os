@@ -5,7 +5,7 @@
   display: inline-block;
   font-size: $texto-xs;
   font-weight: $peso-fuerte;
-  color: #fff;
+  color: $texto-claro;
   background: $teja;
   border-radius: 999px;
   padding: 0 $e-2;
@@ -41,7 +41,7 @@
   &--propio {
     align-self: flex-end;
     background: $teja;
-    color: #fff;
+    color: $texto-claro;
   }
 }
 

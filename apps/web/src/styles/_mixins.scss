@@ -27,7 +27,7 @@
 }
 
 @mixin tarjeta {
-  background: #fff;
+  background: $superficie-blanca;
   border: 1px solid $borde;
   border-radius: $radio;
   box-shadow: $sombra-sm;
@@ -43,7 +43,7 @@
   font-size: $texto-base;
   font-weight: $peso-medio;
   line-height: 1.2;
-  border: 1px solid transparent;
+  border: 1px solid $transparente;
   border-radius: $radio;
   cursor: pointer;
   transition: background-color $transicion, border-color $transicion, color $transicion;

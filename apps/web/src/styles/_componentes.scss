@@ -82,13 +82,13 @@
 
   &--primario {
     background: $teja;
-    color: #fff;
+    color: $texto-claro;
 
     &:hover:not(:disabled) { background: $teja-oscuro; }
   }
 
   &--secundario {
-    background: transparent;
+    background: $transparente;
     color: $tinta;
     border-color: $borde-fuerte;
 
@@ -99,15 +99,15 @@
   }
 
   &--fantasma {
-    background: transparent;
+    background: $transparente;
     color: $teja-oscuro;
 
-    &:hover:not(:disabled) { background: rgba(156, 69, 38, 0.08); }
+    &:hover:not(:disabled) { background: $teja-suave; }
   }
 
   &--peligro {
     background: $error;
-    color: #fff;
+    color: $texto-claro;
 
     &:hover:not(:disabled) { background: color.adjust($error, $lightness: -8%); }
   }
@@ -116,11 +116,11 @@
   &--chico { padding: $e-2 $e-3; font-size: $texto-sm; }
 
   &--claro {
-    background: rgba(255, 255, 255, 0.94);
+    background: $superficie-blanca-traslucida;
     color: $tinta;
-    border-color: transparent;
+    border-color: $transparente;
 
-    &:hover:not(:disabled) { background: #fff; }
+    &:hover:not(:disabled) { background: $superficie-blanca; }
   }
 }
 
@@ -155,7 +155,7 @@
     font-family: $fuente-texto;
     font-size: $texto-base;
     color: $tinta;
-    background: #fff;
+    background: $superficie-blanca;
     border: 1px solid $borde-fuerte;
     border-radius: $radio-sm;
 
@@ -341,7 +341,7 @@
   }
 
   tbody tr:hover {
-    background: rgba(230, 224, 212, 0.4);
+    background: $superficie-piedra-suave;
   }
 
   .cifra { @include cifra; }
@@ -408,11 +408,11 @@
     border-radius: $radio;
     margin-bottom: $e-3;
     padding: $e-2 0;
-    background: #fff;
+    background: $superficie-blanca;
   }
 
   .tabla tbody tr:hover {
-    background: #fff;
+    background: $superficie-blanca;
   }
 
   .tabla tbody tr.mis-reservas__grupo {
@@ -420,7 +420,7 @@
     border-radius: 0;
     margin: $e-4 0 $e-1;
     padding: 0;
-    background: transparent;
+    background: $transparente;
   }
 
   .tabla tbody tr.mis-reservas__grupo th {
@@ -447,7 +447,7 @@
 
 // --- Cabecera y navegación ---
 .cabecera {
-  background: #fff;
+  background: $superficie-blanca;
   border-bottom: 1px solid $borde;
 
   &__interna {
@@ -500,7 +500,7 @@
     padding: $e-2 $e-3;
     border: 0;
     border-radius: $radio-sm;
-    background: transparent;
+    background: $transparente;
     color: $tinta-suave;
     font-family: $fuente-texto;
     font-size: $texto-sm;
@@ -562,7 +562,7 @@
   padding: $e-2 $e-3;
   border: 1px solid $borde-fuerte;
   border-radius: $radio-sm;
-  background: #fff;
+  background: $superficie-blanca;
   color: $tinta;
   font: inherit;
   @include focusable;
@@ -628,7 +628,7 @@
   border-radius: $radio;
   border: 1px solid $borde;
   background:
-    linear-gradient(180deg, rgba(107, 147, 184, 0.12), rgba(156, 69, 38, 0.08)),
+    linear-gradient(180deg, $portada-cielo-suave, $teja-suave),
     $piedra-clara;
   display: flex;
   align-items: center;
@@ -972,7 +972,7 @@
   position: relative;
   overflow: hidden;
   background: $tinta;
-  color: #fff;
+  color: $texto-claro;
 
   &__fondo {
     position: absolute;
@@ -991,7 +991,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(180deg, rgba(20, 14, 8, 0.62), rgba(20, 14, 8, 0.38));
+      background: linear-gradient(180deg, $velo-portada, $velo-portada-suave);
     }
 
     > * { position: relative; }
@@ -1003,18 +1003,18 @@
     font-weight: $peso-fuerte;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: #f3e3cf;
+    color: $portada-ojo;
   }
 
   &__titulo {
     max-width: 20ch;
-    color: #fff;
+    color: $texto-claro;
   }
 
   &__texto {
     font-size: $texto-lg;
     max-width: 48ch;
-    color: #f6f1e7;
+    color: $portada-claro;
   }
 
   &__acciones {
@@ -1030,10 +1030,10 @@
     min-height: 2.75rem;
     margin: 0;
     padding: $e-2 $e-3;
-    border: 1px solid rgba(251, 249, 245, 0.72);
+    border: 1px solid $borde-portada;
     border-radius: $radio-full;
-    background: rgba(42, 37, 31, 0.62);
-    color: #fff;
+    background: $superficie-tinta-traslucida;
+    color: $texto-claro;
     font-size: $texto-sm;
     font-weight: $peso-fuerte;
   }
@@ -1083,8 +1083,8 @@
     padding: $e-2 $e-3;
     font-size: $texto-sm;
     font-weight: $peso-medio;
-    color: #fff;
-    background: linear-gradient(transparent, rgba(20, 14, 8, 0.75));
+    color: $texto-claro;
+    background: linear-gradient($transparente, $velo-portada-fuerte);
   }
 
   @media (max-width: 40rem) {
@@ -1120,7 +1120,7 @@
     height: 2.25rem;
     border-radius: 50%;
     background: $teja;
-    color: #fff;
+    color: $texto-claro;
     font-weight: $peso-fuerte;
   }
 
@@ -1168,7 +1168,7 @@
     padding: $e-1;
     border: 1px solid $borde;
     border-radius: $radio-sm;
-    background: #fff;
+    background: $superficie-blanca;
     font-family: $fuente-texto;
     font-size: $texto-sm;
     color: $tinta-suave;
@@ -1210,7 +1210,7 @@
   overflow: hidden;
 
   &__dia {
-    background: #fff;
+    background: $superficie-blanca;
     aspect-ratio: 1;
     display: flex;
     align-items: center;
@@ -1239,7 +1239,7 @@
   max-height: 34rem;
   border: 1px solid $borde;
   border-radius: $radio;
-  background: #fff;
+  background: $superficie-blanca;
 
   &:focus-visible {
     outline: 3px solid $teja;
@@ -1290,7 +1290,7 @@
     padding: $e-1 $e-2;
     border-bottom: 1px solid $borde;
     text-align: center;
-    background: #fff;
+    background: $superficie-blanca;
   }
 
   &__habitacion {
@@ -1351,7 +1351,7 @@
     padding: $e-1 $e-2;
     border: 0;
     border-radius: $radio;
-    background: transparent;
+    background: $transparente;
     color: inherit;
     cursor: pointer;
     touch-action: manipulation;
@@ -1384,13 +1384,13 @@
 
     &--ocupada {
       background: $error;
-      color: #fff;
+      color: $texto-claro;
     }
 
     &--bloqueada {
       background: $aviso;
       border-radius: $radio-sm;
-      color: #fff;
+      color: $texto-claro;
     }
 
     &--mantenimiento {
@@ -1474,7 +1474,7 @@
     font-size: $texto-sm;
     font-weight: $peso-medio;
     color: $tinta-suave;
-    background: #fff;
+    background: $superficie-blanca;
     border: 1px solid $borde-fuerte;
     border-radius: $radio-full;
     cursor: pointer;
@@ -1486,7 +1486,7 @@
     }
 
     &--actual {
-      color: #fff;
+      color: $texto-claro;
       background: $teja;
       border-color: $teja;
     }

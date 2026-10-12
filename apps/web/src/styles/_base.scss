@@ -69,7 +69,7 @@ img {
 }
 
 ::selection {
-  background: rgba(156, 69, 38, 0.18);
+  background: $teja-foco;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -101,7 +101,7 @@ img {
     clip: auto;
     padding: $e-2 $e-4;
     background: $teja;
-    color: #fff;
+    color: $texto-claro;
     border-radius: $radio;
   }
 }
@@ -112,6 +112,6 @@ img {
   }
 
   body {
-    background: #fff;
+    background: $superficie-blanca;
   }
 }
