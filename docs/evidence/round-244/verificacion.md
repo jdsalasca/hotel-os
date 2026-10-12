@@ -39,4 +39,10 @@ Las imágenes documentan el navegador local con contenido de prueba; no demuestr
 
 ## Integración
 
-Pendiente: revisión independiente, cherry-pick a develop, verificación posterior, push y comprobación de autoría GitHub jdsalasca.
+Revisión independiente: aprobada, sin hallazgos críticos, importantes ni menores pendientes.
+
+El commit de la ronda `ca4823b` se integró en `develop` como `c9cfac845a3016af964fcb9ad778c145d34b9092` mediante cherry-pick. Tras integrar, la suite frontend pasó 263/263 en 35 archivos; `npm run test:typecheck`, `npm run build` y `git diff --check` terminaron con código 0. Vite transformó 77 módulos.
+
+Publicado en `origin/develop`; `git ls-remote` confirmó que apunta a `c9cfac845a3016af964fcb9ad778c145d34b9092`. GitHub devolvió `author.login=jdsalasca` y `committer.login=jdsalasca`; ambos usan `JUAN DAVID SALAS CAMARGO <31742974+jdsalasca@users.noreply.github.com>`. La rama local `develop` coincide con `origin/develop`.
+
+La limpieza del worktree quedó bloqueada por el sistema de propiedad de tareas. `git worktree remove --force` devolvió `Invalid argument` y quitó el registro Git, pero dejó el directorio físico. El archivador de Codex identificó el artefacto como propiedad de otra tarea y rechazó archivarlo. `git branch -d` también se negó porque la rama de origen no es antecesora del `develop` al que se aplicó el cherry-pick. No se forzó la eliminación de archivos ni de la rama; la tarea propietaria puede archivar el artefacto. Los demás worktrees permanecen intactos.
