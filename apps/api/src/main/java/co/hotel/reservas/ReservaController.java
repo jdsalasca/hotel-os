@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -127,34 +128,27 @@ public class ReservaController {
       .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
   }
 
-  /** Consulta segura: exige el correo con el que se reservó, y se topa por IP. */
-  @GetMapping("/api/reservas/{codigo}")
-  public ResponseEntity<?> consultar(@PathVariable String codigo, @RequestParam String email,
-                                     HttpServletRequest peticion) {
-    if (!lecturas.permitir(peticion.getRemoteAddr())) return Demasiadas();
-    var reserva = svc.consultar(codigo, email);
-    if (reserva.isEmpty()) {
-      return ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada"));
-    }
-    return ResponseEntity.ok(ReservaResp.de(reserva.get(), null));
-  }
+  /** Credenciales de consulta pública: van en el cuerpo para no quedar en historiales o logs de URL. */
+  public record ConsultaReq(String codigo, String email) {}
 
-  /**
-   * Comprobante público: lo acordado, la habitación, el hotel y el historial. La misma compuerta
-   * que la consulta (código + correo): nadie imprime reservas ajenas adivinando el código.
-   */
-  @GetMapping("/api/reservas/{codigo}/comprobante")
-  public ResponseEntity<?> comprobante(@PathVariable String codigo, @RequestParam String email,
-                                        HttpServletRequest peticion) {
-    if (!lecturas.permitir(peticion.getRemoteAddr())) return Demasiadas();
-    return comprobantes.comprobante(codigo, email)
-      .map(ResponseEntity::ok)
-      .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada")));
+  /** Comprobante público: exige código + correo, limita por IP y evita cachés intermedios. */
+  @PostMapping("/api/reservas/consulta")
+  public ResponseEntity<?> consultarComprobante(@RequestBody ConsultaReq req,
+                                                HttpServletRequest peticion) {
+    if (!lecturas.permitir(peticion.getRemoteAddr())) return demasiadas();
+    String codigo = req.codigo() == null ? "" : req.codigo().trim();
+    String email = req.email() == null ? "" : req.email().trim();
+    var comprobante = comprobantes.comprobante(codigo, email);
+    if (comprobante.isEmpty()) {
+      return ResponseEntity.status(404).cacheControl(CacheControl.noStore())
+        .body(Map.of("error", "reserva no encontrada"));
+    }
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(comprobante.get());
   }
 
   /** 429 con un motivo que el huésped pueda entender. El frontend lo muestra tal cual. */
-  private static ResponseEntity<Map<String, String>> Demasiadas() {
-    return ResponseEntity.status(429).body(Map.of("error",
+  private static ResponseEntity<Map<String, String>> demasiadas() {
+    return ResponseEntity.status(429).cacheControl(CacheControl.noStore()).body(Map.of("error",
       "demasiadas consultas seguidas desde esta conexión. Espera un minuto e inténtalo de nuevo."));
   }
 
@@ -169,7 +163,7 @@ public class ReservaController {
   @PostMapping("/api/reservas/{codigo}/cancelar")
   public ResponseEntity<?> cancelar(@PathVariable String codigo, @RequestBody CancelarReq req,
                                     HttpServletRequest peticion) {
-    if (!lecturas.permitir(peticion.getRemoteAddr())) return Demasiadas();
+    if (!lecturas.permitir(peticion.getRemoteAddr())) return demasiadas();
     String email = req.email() == null ? "" : req.email().trim();
     if (svc.consultar(codigo, email).isEmpty()) {
       return ResponseEntity.status(404).body(Map.of("error", "reserva no encontrada"));

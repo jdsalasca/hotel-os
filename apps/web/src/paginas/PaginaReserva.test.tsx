@@ -280,9 +280,9 @@ describe('comprobante después de recargar', () => {
     sesionHuesped.haySesion = false;
     sesionHuesped.email = '';
     sesionHuesped.nombre = '';
-    api.get.mockImplementation((ruta: string) =>
-      Promise.resolve(ruta.includes('/comprobante') ? comprobante : {}));
-    api.post.mockResolvedValue(reservaCreada);
+    api.get.mockResolvedValue({});
+    api.post.mockImplementation((ruta: string) =>
+      Promise.resolve(ruta === '/api/reservas/consulta' ? comprobante : reservaCreada));
   });
 
   afterEach(() => {
@@ -313,9 +313,11 @@ describe('comprobante después de recargar', () => {
     expect(await screen.findByText('H-A1B2C3')).toBeTruthy();
     expect(screen.getByText('101 · Doble')).toBeTruthy();
     expect(screen.getByText('CONFIRMADA')).toBeTruthy();
-    expect(api.get).toHaveBeenCalledWith(
-      '/api/reservas/H-A1B2C3/comprobante?email=ana%40hotel.test',
-    );
+    expect(api.post).toHaveBeenCalledWith('/api/reservas/consulta', {
+      codigo: 'H-A1B2C3',
+      email: 'ana@hotel.test',
+    });
+    expect(api.get.mock.calls.some(([ruta]) => String(ruta).includes('/comprobante'))).toBe(false);
   });
 
   it('no guarda el comprobante completo con datos personales en sessionStorage', async () => {
@@ -361,9 +363,9 @@ describe('comprobante después de recargar', () => {
       codigo: 'H-NOEXISTE',
       email: 'ana@hotel.test',
     }));
-    api.get.mockImplementation((ruta: string) => ruta.includes('/comprobante')
+    api.post.mockImplementation((ruta: string) => ruta === '/api/reservas/consulta'
       ? Promise.reject(new ErrorApi(404, 'reserva no encontrada'))
-      : Promise.resolve({}));
+      : Promise.resolve(reservaCreada));
 
     render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
 
@@ -379,8 +381,8 @@ describe('comprobante después de recargar', () => {
       email: 'ana@hotel.test',
     }));
     let consultas = 0;
-    api.get.mockImplementation((ruta: string) => {
-      if (!ruta.includes('/comprobante')) return Promise.resolve({});
+    api.post.mockImplementation((ruta: string) => {
+      if (ruta !== '/api/reservas/consulta') return Promise.resolve(reservaCreada);
       consultas += 1;
       return consultas === 1
         ? Promise.reject(new ErrorApi(500, 'error interno'))

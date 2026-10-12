@@ -149,11 +149,13 @@ class SecurityIntegrationTest {
       .andExpect(status().isCreated()).andReturn();
     String codigo = extraer(alta.getResponse().getContentAsString(), "codigo");
 
-    mvc.perform(get("/api/reservas/" + codigo).param("email", "bruno@example.com"))
+    mvc.perform(post("/api/reservas/consulta").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("codigo", codigo, "email", "bruno@example.com"))))
       .andExpect(status().isOk())
-      .andExpect(jsonPath("$.codigo").value(codigo));
+      .andExpect(jsonPath("$.reserva.codigo").value(codigo));
 
-    mvc.perform(get("/api/reservas/" + codigo).param("email", "intruso@example.com"))
+    mvc.perform(post("/api/reservas/consulta").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("codigo", codigo, "email", "intruso@example.com"))))
       .andExpect(status().isNotFound());
   }
 

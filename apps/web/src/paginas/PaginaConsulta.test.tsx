@@ -9,6 +9,7 @@ import { PaginaConsulta } from './PaginaConsulta';
  */
 const estado = vi.hoisted(() => ({
   llamadas: [] as string[],
+  consultas: [] as { url: string; cuerpo: unknown }[],
   errorEstado: null as number | null,
   errorMensaje: '',
 }));
@@ -53,7 +54,36 @@ vi.mock('../api/cliente', () => {
           historial: [],
         });
       },
-      post: () => Promise.resolve({}),
+      post: (url: string, cuerpo?: unknown) => {
+        if (url !== '/api/reservas/consulta') return Promise.resolve({});
+        estado.llamadas.push(url);
+        estado.consultas.push({ url, cuerpo });
+        if (estado.errorEstado !== null) {
+          return Promise.reject(new ErrorApi(estado.errorEstado, estado.errorMensaje));
+        }
+        const datos = cuerpo as { codigo: string; email: string };
+        return Promise.resolve({
+          reserva: {
+            codigo: datos.codigo,
+            email: datos.email,
+            nombre: 'Nadie',
+            llegada: '2030-06-10',
+            salida: '2030-06-12',
+            noches: 2,
+            huespedes: 1,
+            estado: 'PENDIENTE',
+            origen: 'WEB',
+            totalCents: null,
+            moneda: null,
+            plan: null,
+            abonadoCents: null,
+            pendienteCents: null,
+          },
+          habitacion: null,
+          hotel: {},
+          historial: [],
+        });
+      },
     },
     urlApi: (ruta: string) => ruta,
   };
@@ -85,6 +115,7 @@ function sesion({ huesped, admin }: { huesped?: string; admin?: string }) {
 afterEach(() => {
   cleanup();
   estado.llamadas.length = 0;
+  estado.consultas.length = 0;
   estado.errorEstado = null;
   estado.errorMensaje = '';
   vi.unstubAllGlobals();
@@ -123,7 +154,7 @@ describe('correo de la sesión en la consulta', () => {
     });
   });
 
-  it('lo escrito a mano no lo pisa la sesión y viaja en la consulta', async () => {
+  it('lo escrito a mano no lo pisa la sesión y viaja solo en el cuerpo de la consulta', async () => {
     sesion({ huesped: 'yo@hotel.test' });
     await montar();
     const campo = screen.getByLabelText('Correo electrónico') as HTMLInputElement;
@@ -138,8 +169,13 @@ describe('correo de la sesión en la consulta', () => {
     await waitFor(() => {
       expect(estado.llamadas.length).toBe(1);
     });
-    expect(estado.llamadas[0]).toContain('email=otro%40hotel.test');
-    expect(estado.llamadas[0]).toContain('H-ABC123');
+    expect(estado.llamadas[0]).toBe('/api/reservas/consulta');
+    expect(estado.llamadas[0]).not.toContain('otro@hotel.test');
+    expect(estado.llamadas[0]).not.toContain('H-ABC123');
+    expect(estado.consultas[0]).toEqual({
+      url: '/api/reservas/consulta',
+      cuerpo: { codigo: 'H-ABC123', email: 'otro@hotel.test' },
+    });
   });
 
   it('sin sesión el campo arranca vacío', async () => {

@@ -120,12 +120,14 @@ export function PaginaReserva() {
     setRecuperando(true);
     setErrorRecuperacion(null);
     try {
-      const consulta = new URLSearchParams({ email: actual.email });
-      const datos = await api.get<{
+      const datos = await api.post<{
         reserva: Pick<RespuestaReserva,
           'codigo' | 'email' | 'nombre' | 'llegada' | 'salida' | 'huespedes' | 'estado' | 'origen'> & { noches: number };
         habitacion: { codigo: string; nombre: string; tipo: string } | null;
-      }>(`/api/reservas/${encodeURIComponent(actual.codigo)}/comprobante?${consulta}`);
+      }>('/api/reservas/consulta', {
+        codigo: actual.codigo,
+        email: actual.email,
+      });
       const habitacion = datos.habitacion
         ? [datos.habitacion.codigo, datos.habitacion.tipo || datos.habitacion.nombre].filter(Boolean).join(' · ')
         : undefined;

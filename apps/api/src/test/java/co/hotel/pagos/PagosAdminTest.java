@@ -160,7 +160,9 @@ class PagosAdminTest {
           "concepto", "Anticipo"))))
       .andExpect(status().isCreated());
 
-    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "saldo@example.com"))
+    mvc.perform(post("/api/reservas/consulta").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("codigo", codigo, "email", "saldo@example.com"))))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.reserva.abonadoCents").value(120000))
       .andExpect(jsonPath("$.reserva.pendienteCents").value(180000));
@@ -190,7 +192,9 @@ class PagosAdminTest {
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.pendienteCents").value(0));
 
-    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "deuda@example.com"))
+    mvc.perform(post("/api/reservas/consulta").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("codigo", codigo, "email", "deuda@example.com"))))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.reserva.pendienteCents").value(0));
   }

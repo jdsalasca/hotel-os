@@ -99,7 +99,9 @@ class LimiteConsultaReservasTest {
   private int intentos(String ip, String codigo, int cuantos) throws Exception {
     int ultimo = 0;
     for (int i = 0; i < cuantos; i++) {
-      ultimo = mvc.perform(get("/api/reservas/" + codigo).param("email", "adivinado@example.com")
+      ultimo = mvc.perform(post("/api/reservas/consulta").with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(JSON.writeValueAsString(Map.of("codigo", codigo, "email", "adivinado@example.com")))
           .with(req -> { req.setRemoteAddr(ip); return req; }))
         .andReturn().getResponse().getStatus();
     }
@@ -124,10 +126,11 @@ class LimiteConsultaReservasTest {
     String codigo = crearReserva();
     intentos("10.1.0.10", codigo, limite + 1);
 
-    mvc.perform(get("/api/reservas/" + codigo).param("email", "huesped@example.com")
+    mvc.perform(post("/api/reservas/consulta").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("codigo", codigo, "email", "huesped@example.com")))
         .with(req -> { req.setRemoteAddr("10.1.0.11"); return req; }))
       .andExpect(status().isOk())
-      .andExpect(jsonPath("$.codigo").value(codigo));
+      .andExpect(jsonPath("$.reserva.codigo").value(codigo));
   }
 
   @Test

@@ -103,6 +103,13 @@ class AdminReservasControllerTest {
     return JSON.writeValueAsString(datos);
   }
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
+      consultaPublica(String codigo, String email) throws Exception {
+    return post("/api/reservas/consulta").with(csrf())
+      .contentType(MediaType.APPLICATION_JSON)
+      .content(json(Map.of("codigo", codigo, "email", email)));
+  }
+
   @Test
   @DisplayName("la reserva creada en la web aparece listada en el panel")
   void laReservaWebApareceEnElPanel() throws Exception {
@@ -218,13 +225,21 @@ class AdminReservasControllerTest {
     var escenario = habitacionTarifada("A" + System.nanoTime() % 100000);
     String codigo = crearReservaEn("vale@example.com", "2026-11-01", "2026-11-03", escenario.room());
 
-    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "vale@example.com"))
+    var respuesta = mvc.perform(consultaPublica(codigo, "vale@example.com"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.reserva.codigo").value(codigo))
       .andExpect(jsonPath("$.reserva.totalCents").value(300000))
       .andExpect(jsonPath("$.reserva.moneda").value("COP"))
       .andExpect(jsonPath("$.habitacion.codigo").exists())
-      .andExpect(jsonPath("$.historial").isArray());
+      .andExpect(jsonPath("$.historial").isArray())
+      .andReturn();
+    assertEquals("/api/reservas/consulta", respuesta.getRequest().getRequestURI());
+    assertTrue(respuesta.getRequest().getQueryString() == null);
+    assertTrue(respuesta.getResponse().getHeader("Cache-Control").contains("no-store"));
+    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "vale@example.com"))
+      .andExpect(status().isNotFound());
+    mvc.perform(get("/api/reservas/" + codigo).param("email", "vale@example.com"))
+      .andExpect(status().isNotFound());
   }
 
   @Test
@@ -233,8 +248,19 @@ class AdminReservasControllerTest {
     var escenario = habitacionTarifada("B" + System.nanoTime() % 100000);
     String codigo = crearReservaEn("vale@example.com", "2026-11-01", "2026-11-03", escenario.room());
 
-    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "otro@example.com"))
-      .andExpect(status().isNotFound());
+    var respuesta = mvc.perform(consultaPublica(codigo, "otro@example.com"))
+      .andExpect(status().isNotFound())
+      .andReturn();
+    assertTrue(respuesta.getResponse().getHeader("Cache-Control").contains("no-store"));
+  }
+
+  @Test
+  @DisplayName("la consulta pública exige CSRF")
+  void consultaPublicaExigeCsrf() throws Exception {
+    mvc.perform(post("/api/reservas/consulta")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(Map.of("codigo", "H-INVALIDO", "email", "vale@example.com"))))
+      .andExpect(status().isForbidden());
   }
 
   @Test
@@ -250,7 +276,7 @@ class AdminReservasControllerTest {
           "fecha", "2026-11-02", "precioCents", 200_000))))
       .andExpect(status().isCreated());
 
-    mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "vale@example.com"))
+    mvc.perform(consultaPublica(codigo, "vale@example.com"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.reserva.totalCents").value(300000));
   }
@@ -270,7 +296,7 @@ class AdminReservasControllerTest {
       // El hotel cambia sus condiciones DESPUÉS de vender: el comprobante no se mueve.
       fijarConfiguracion(Map.of("politica_cancelacion", "Sin cancelación"));
 
-      mvc.perform(get("/api/reservas/" + codigo + "/comprobante").param("email", "vale@example.com"))
+      mvc.perform(consultaPublica(codigo, "vale@example.com"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.reserva.politicaCancelacion").value("Gratis hasta 48 horas antes"))
         .andExpect(jsonPath("$.reserva.horaEntrada").value("15:00"))

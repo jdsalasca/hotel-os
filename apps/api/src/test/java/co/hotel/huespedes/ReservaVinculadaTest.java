@@ -116,10 +116,12 @@ class ReservaVinculadaTest {
       Long.class, codigo);
     assertNull(usuarioId, "sin sesión no hay cuenta: la reserva sigue siendo anónima");
 
-    // Y se sigue pudiendo consultar por código y correo, que es la vía de siempre.
-    mvc.perform(get("/api/reservas/" + codigo).param("email", "huesped@hotel.test"))
+    // La consulta pública sigue disponible, pero envía código y correo en el cuerpo.
+    mvc.perform(post("/api/reservas/consulta").with(csrf())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(JSON.writeValueAsString(Map.of("codigo", codigo, "email", "huesped@hotel.test"))))
       .andExpect(status().isOk())
-      .andExpect(jsonPath("$.codigo").value(codigo));
+      .andExpect(jsonPath("$.reserva.codigo").value(codigo));
   }
 
   @Test

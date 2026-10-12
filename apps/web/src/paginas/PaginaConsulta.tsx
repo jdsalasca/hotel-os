@@ -64,9 +64,11 @@ export function PaginaConsulta() {
     setErrorEmail(null);
     setBuscando(true);
     try {
-      const consulta = new URLSearchParams({ email });
       // El comprobante trae lo mismo que la consulta más habitación, total e historial.
-      const r = await api.get<Comprobante>(`/api/reservas/${codigo.trim()}/comprobante?${consulta}`);
+      const r = await api.post<Comprobante>('/api/reservas/consulta', {
+        codigo: codigo.trim(),
+        email: email.trim(),
+      });
       setComprobante(r);
     } catch (e) {
       if (e instanceof ErrorApi && e.estado === 404) {
