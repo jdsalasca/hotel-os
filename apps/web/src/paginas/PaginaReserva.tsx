@@ -41,12 +41,16 @@ type RespuestaReserva = {
 type LocalizadorComprobante = { codigo: string; email: string };
 
 const CLAVE_COMPROBANTE = 'reserva-comprobante';
+const CLAVE_INTENTO_PENDIENTE = 'reserva-intento-pendiente';
 
 /** Pasos 2 a 5 del flujo público: datos mínimos, envío y resultado con su estado real. */
 export function PaginaReserva() {
   // Se lee UNA vez al montar. Si se relejera en cada render, al borrar la selección tras el
   // éxito volvería a ser null y la pantalla de confirmación no se llegaría a pintar.
   const [enCurso] = useState<EnCurso | null>(() => leerEnCurso());
+  // Solo guarda la clave aleatoria del intento, nunca el correo o el nombre. Si la pestaña
+  // se cierra mientras espera la respuesta, explica cómo recuperar la misma solicitud.
+  const [reintentoIncierto, setReintentoIncierto] = useState(() => leerIntentoPendiente(enCurso));
   // Una selección vigente tiene prioridad sobre el comprobante anterior.
   const [localizador, setLocalizador] = useState<LocalizadorComprobante | null>(() =>
     enCurso ? null : leerLocalizadorComprobante());
@@ -233,7 +237,9 @@ export function PaginaReserva() {
     }
 
     setError(null);
+    setReintentoIncierto(false);
     setEnviando(true);
+    guardarIntentoPendiente(eleccion.clave);
     try {
       const r = await api.post<RespuestaReserva>('/api/reservas', {
         email: emailLimpio,
@@ -258,9 +264,12 @@ export function PaginaReserva() {
         // La confirmación actual sigue disponible aunque el navegador bloquee el almacenamiento.
       }
       sessionStorage.removeItem('reserva-en-curso');
+      limpiarIntentoPendiente();
     } catch (e) {
       const cambio = cambioDePrecio(e);
       if (cambio) {
+        setReintentoIncierto(false);
+        limpiarIntentoPendiente();
         setPrecioNuevo(cambio);
         // El resumen visible también se actualiza: el plan puede haber cambiado de nombre, y el
         // huésped reconfirma lo que ve, no un número oculto.
@@ -279,7 +288,14 @@ export function PaginaReserva() {
         }
       } else {
         setPrecioNuevo(null);
-        setError(e instanceof Error ? e.message : 'No se pudo registrar la reserva');
+        const resultadoIncierto = esResultadoIncierto(e);
+        setReintentoIncierto(resultadoIncierto);
+        if (resultadoIncierto) {
+          setError('No pudimos confirmar si el hotel registró tu solicitud.');
+        } else {
+          limpiarIntentoPendiente();
+          setError(e instanceof Error ? e.message : 'No se pudo registrar la reserva');
+        }
       }
     } finally {
       setEnviando(false);
@@ -399,6 +415,14 @@ export function PaginaReserva() {
                 <p className="campo__ayuda" id="ayuda-email">
                   Lo usaremos para confirmarte y para que puedas consultar tu reserva.
                 </p>
+                {reintentoIncierto ? (
+                  <Aviso tono="aviso" titulo="Puedes reintentar sin duplicar la solicitud">
+                    <p>
+                      Si ya intentaste enviarla, usa el mismo correo; conservamos la clave de ese intento
+                      para recuperar la solicitud y evitar duplicarla.
+                    </p>
+                  </Aviso>
+                ) : null}
                 {erroresCampo.email ? <p className="campo__error" id="error-email">{erroresCampo.email}</p> : null}
               </div>
 
@@ -433,7 +457,11 @@ export function PaginaReserva() {
             ) : null}
 
               <button className="boton boton--primario" type="submit" disabled={enviando}>
-                {enviando ? 'Enviando…' : 'Confirmar solicitud de reserva'}
+                {enviando
+                  ? 'Enviando…'
+                  : reintentoIncierto
+                    ? 'Reintentar solicitud de reserva'
+                    : 'Confirmar solicitud de reserva'}
               </button>
               <p className="campo__ayuda">
                 Tu solicitud quedará pendiente de confirmación. El hotel la revisará y te escribirá.
@@ -531,6 +559,36 @@ function cambioDePrecio(e: unknown): { totalCents: number; moneda: string; rateP
   if (!d || typeof d.nuevoTotalCents !== 'number' || typeof d.nuevaMoneda !== 'string'
     || typeof d.nuevoRatePlanId !== 'number') return null;
   return { totalCents: d.nuevoTotalCents, moneda: d.nuevaMoneda, ratePlanId: d.nuevoRatePlanId };
+}
+
+/** Un timeout o error del servidor puede haber ocurrido después de guardar la reserva. */
+function esResultadoIncierto(e: unknown): boolean {
+  return e instanceof ErrorApi && (e.estado === 0 || e.estado === 408 || e.estado >= 500);
+}
+
+function leerIntentoPendiente(eleccion: EnCurso | null): boolean {
+  if (!eleccion) return false;
+  try {
+    return sessionStorage.getItem(CLAVE_INTENTO_PENDIENTE) === eleccion.clave;
+  } catch {
+    return false;
+  }
+}
+
+function guardarIntentoPendiente(clave: string): void {
+  try {
+    sessionStorage.setItem(CLAVE_INTENTO_PENDIENTE, clave);
+  } catch {
+    // El formulario sigue utilizable aunque el navegador no permita recuperar tras recargar.
+  }
+}
+
+function limpiarIntentoPendiente(): void {
+  try {
+    sessionStorage.removeItem(CLAVE_INTENTO_PENDIENTE);
+  } catch {
+    // La reserva o el error ya se muestran; no se bloquea el flujo por el almacenamiento.
+  }
 }
 
 function leerLocalizadorComprobante(): LocalizadorComprobante | null {

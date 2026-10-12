@@ -228,6 +228,82 @@ describe('PaginaReserva', () => {
     expect(document.activeElement).toBe(nombre);
     expect(api.post).not.toHaveBeenCalled();
   });
+
+  it('explica cómo reintentar una reserva si se pierde la confirmación del servidor', async () => {
+    let intentos = 0;
+    api.post.mockImplementation((ruta: string) => {
+      if (ruta !== '/api/reservas' || intentos++ > 0) return Promise.resolve({
+        codigo: 'H-A1B2C3',
+        llegada: '2030-06-10',
+        salida: '2030-06-12',
+        huespedes: 2,
+        estado: 'PENDIENTE',
+        mensaje: 'Solicitud recibida',
+      });
+      return Promise.reject(new ErrorApi(0, 'No hay conexión con el hotel.'));
+    });
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    const correo = screen.getByLabelText('Correo electrónico *') as HTMLInputElement;
+    fireEvent.change(correo, { target: { value: 'ana@hotel.test' } });
+    fireEvent.change(screen.getByLabelText('Nombre *'), { target: { value: 'Ana' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar solicitud de reserva' }));
+
+    expect(await screen.findByText(/No pudimos confirmar si el hotel registró tu solicitud/i)).toBeTruthy();
+    expect(screen.getByText(/mismo correo.*evitar duplicarla/i)).toBeTruthy();
+    expect(correo.value).toBe('ana@hotel.test');
+    expect(sessionStorage.getItem('reserva-intento-pendiente')).toBe('clave-test');
+
+    cleanup();
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+    expect(screen.getByText(/mismo correo.*evitar duplicarla/i)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Correo electrónico *'), {
+      target: { value: 'ana@hotel.test' },
+    });
+    fireEvent.change(screen.getByLabelText('Nombre *'), { target: { value: 'Ana' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar solicitud de reserva' }));
+
+    expect(await screen.findByText('H-A1B2C3')).toBeTruthy();
+    expect(api.post).toHaveBeenCalledTimes(2);
+    const primerIntento = api.post.mock.calls[0]?.[1];
+    const reintento = api.post.mock.calls[1]?.[1];
+    expect(primerIntento).toMatchObject({ email: 'ana@hotel.test', idempotencia: 'clave-test' });
+    expect(reintento).toEqual(primerIntento);
+    expect(sessionStorage.getItem('reserva-intento-pendiente')).toBeNull();
+  });
+
+  it('limpia el intento pendiente cuando la API rechaza la solicitud de forma definitiva', async () => {
+    api.post.mockImplementation(() => Promise.reject(new ErrorApi(400, 'Completa los datos de la solicitud.')));
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    fireEvent.change(screen.getByLabelText('Correo electrónico *'), {
+      target: { value: 'ana@hotel.test' },
+    });
+    fireEvent.change(screen.getByLabelText('Nombre *'), { target: { value: 'Ana' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar solicitud de reserva' }));
+
+    expect(await screen.findByText('Completa los datos de la solicitud.')).toBeTruthy();
+    expect(sessionStorage.getItem('reserva-intento-pendiente')).toBeNull();
+    expect(screen.queryByText(/mismo correo.*evitar duplicarla/i)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Confirmar solicitud de reserva' })).toBeTruthy();
+  });
+
+  it('no expone el detalle interno de un error 503 y ofrece el reintento idempotente', async () => {
+    api.post.mockImplementation(() => Promise.reject(new ErrorApi(503, 'SQLite database locked')));
+    render(<MemoryRouter><PaginaReserva /></MemoryRouter>);
+
+    fireEvent.change(screen.getByLabelText('Correo electrónico *'), {
+      target: { value: 'ana@hotel.test' },
+    });
+    fireEvent.change(screen.getByLabelText('Nombre *'), { target: { value: 'Ana' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar solicitud de reserva' }));
+
+    expect(await screen.findByText(/No pudimos confirmar si el hotel registró tu solicitud/i)).toBeTruthy();
+    expect(screen.queryByText(/SQLite database locked/i)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Reintentar solicitud de reserva' })).toBeTruthy();
+    expect(sessionStorage.getItem('reserva-intento-pendiente')).toBe('clave-test');
+  });
 });
 
 describe('comprobante después de recargar', () => {
