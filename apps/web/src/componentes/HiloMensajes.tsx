@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { useActualizacionPeriodicaVisible } from '../api/useActualizacionPeriodicaVisible';
 import { Aviso } from './Estado';
 
 export type Mensaje = { id: number; autor: string; texto: string; en: string; visto: boolean };
@@ -8,8 +9,13 @@ const TOLERANCIA_FINAL_SCROLL = 24;
 
 /**
  * Hilo de conversación de una reserva, igual en la web del huésped y en el panel. Quien
- * escribe se ve a la derecha; el otro lado, a la izquierda. Sin websockets: se relee al
- * abrir y con el botón, que en un hotel pequeño es suficiente y no deja conexiones colgadas.
+ * escribe se ve a la derecha; el otro lado, a la izquierda.
+ *
+ * Sin websockets ni conexiones colgadas: se relee al abrir, con el botón y por sondeo
+ * mientras la pestaña se ve. Un chat que hay que refrescar a mano se siente roto —el hotel
+ * responde y el huésped no se entera hasta que pulsa—, pero sondear diez conversaciones
+ * abiertas en segundo plano es gastar peticiones para nadie: con la pestaña oculta el sondeo
+ * se para, y al volver a verla se relee.
  */
 export function HiloMensajes({
   titulo,
@@ -29,14 +35,24 @@ export function HiloMensajes({
   const [texto, setTexto] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  /** Mensajes que llegaron mientras el usuario estaba leyendo arriba, sin bajar al final. */
+  const [nuevosSinVer, setNuevosSinVer] = useState(0);
   const listaRef = useRef<HTMLUListElement>(null);
   const irAlFinalRef = useRef(false);
   const anclaScrollRef = useRef<{ altura: number; scrollTop: number } | null>(null);
+  /** Última cantidad de mensajes que el usuario llegó a ver: de ahí salen los "sin ver". */
+  const ultimoVistoRef = useRef(0);
+  /** Una sola lectura en vuelo: si el sondeo pisa al usuario enviando, se descarta. */
+  const leyendoRef = useRef(false);
 
   async function releer(forzarFinal = false) {
     const lista = listaRef.current;
     const estabaAlFinal = lista === null ||
       lista.scrollHeight - lista.clientHeight - lista.scrollTop <= TOLERANCIA_FINAL_SCROLL;
+    // Lo que el usuario ya ha visto: si llegan más, se cuentan para avisar al que leía arriba.
+    const vistos = ultimoVistoRef.current;
+    if (leyendoRef.current) return;
+    leyendoRef.current = true;
     try {
       const datos = await cargar();
       anclaScrollRef.current = null;
@@ -44,8 +60,22 @@ export function HiloMensajes({
       setMensajes([...datos.mensajes]);
       setTotal(datos.total ?? datos.mensajes.length);
       setHayMas(datos.hay_mas ?? false);
+      if (forzarFinal || estabaAlFinal) {
+        // Estar al final cuenta: lo nuevo ya está a la vista y avisar sería ruido. La marca
+        // se mueve aquí para que el siguiente sondeo no cobre de nuevo lo mismo.
+        ultimoVistoRef.current = datos.mensajes.length;
+        setNuevosSinVer(0);
+      } else {
+        // Acumula hasta que el usuario baje: si se recalcula sobre lo que hay en pantalla,
+        // el segundo sondeo borra un aviso que nunca nadie ha mirado.
+        // Acumula hasta que el usuario baje: si se recalcula sobre lo que hay en pantalla,
+        // el segundo sondeo borra un aviso que nunca nadie ha mirado.
+        setNuevosSinVer(Math.max(vistos, datos.mensajes.length) - vistos);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo leer la conversación');
+    } finally {
+      leyendoRef.current = false;
     }
   }
 
@@ -76,6 +106,11 @@ export function HiloMensajes({
     // El hilo es por reserva: si cambia el código, el padre monta otro componente.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sondeo mientras la pestaña se ve. El hook ya pausa con la pestaña oculta y relee al
+  // volver a verla; se reutiliza porque el panel sondea igual, y un solo sitio donde vive
+  // el sondeo es uno menos que mantener.
+  useActualizacionPeriodicaVisible(() => void releer());
 
   useLayoutEffect(() => {
     const lista = listaRef.current;
@@ -139,6 +174,22 @@ export function HiloMensajes({
           onClick={() => void cargarAnteriores()}
         >
           {cargandoMas ? 'Cargando…' : 'Cargar anteriores'}
+        </button>
+      ) : null}
+      {mensajes !== null && nuevosSinVer > 0 ? (
+        <button
+          className="boton boton--fantasma boton--chico"
+          type="button"
+          onClick={() => {
+            irAlFinalRef.current = true;
+            // Bajar al final es reconocer los mensajes: la marca se pone al día aquí.
+            ultimoVistoRef.current = mensajes?.length ?? 0;
+            setNuevosSinVer(0);
+            // Array nueva para que el efecto de maquetación vuelva a correr y baje al final.
+            setMensajes((actuales) => [...(actuales ?? [])]);
+          }}
+        >
+          {nuevosSinVer === 1 ? '1 mensaje nuevo' : `${nuevosSinVer} mensajes nuevos`}
         </button>
       ) : null}
       {mensajes !== null && mensajes.length > 0 ? (
